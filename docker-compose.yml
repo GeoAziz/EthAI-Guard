@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ethixai
+      - POSTGRES_URL=postgresql://postgres:5432/ethixai
+    depends_on:
+      - mongo
+      - postgres
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  ai_core:
+    build: ./ai_core
+    ports:
+      - "8100:8100"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ethixai
+    depends_on:
+      - mongo
+
+  system_api:
+    build: ./backend
+    command: ["node", "src/server.js"]
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ethixai
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ethixai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  mongo-data:
+  pg-data:
