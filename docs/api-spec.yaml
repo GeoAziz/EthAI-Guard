@@ -1,0 +1,37 @@
+openapi: 3.0.0
+info:
+  title: EthixAI API
+  version: '0.1.0'
+paths:
+  /ai_core/analyze:
+    post:
+      summary: Perform bias analysis on dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisInput'
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisOutput'
+components:
+  schemas:
+    AnalysisInput:
+      type: object
+      properties:
+        dataset_name:
+          type: string
+        data:
+          type: object
+    AnalysisOutput:
+      type: object
+      properties:
+        analysis_id:
+          type: string
+        summary:
+          type: object
