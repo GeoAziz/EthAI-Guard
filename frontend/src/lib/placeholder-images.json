@@ -1,0 +1,22 @@
+{
+  "placeholderImages": [
+    {
+      "id": "fairlens",
+      "description": "A data visualization chart for FairLens feature.",
+      "imageUrl": "https://images.unsplash.com/photo-1542744173-05336fcc7ad4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZGF0YSUyMHZpc3VhbGl6YXRpb258ZW58MHx8fHwxNzYyOTY1NDU2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "data visualization"
+    },
+    {
+      "id": "explainboard",
+      "description": "An abstract graph for ExplainBoard feature.",
+      "imageUrl": "https://images.unsplash.com/photo-1762279389020-eeeb69c25813?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdyYXBofGVufDB8fHx8MTc2Mjk3MDk4MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract graph"
+    },
+    {
+      "id": "compliance",
+      "description": "An image of a document for Compliance Reports feature.",
+      "imageUrl": "https://images.unsplash.com/photo-1546199881-3454b82b832b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxkb2N1bWVudCUyMHBhcGVyfGVufDB8fHx8MTc2MjkxOTkxNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "document paper"
+    }
+  ]
+}
