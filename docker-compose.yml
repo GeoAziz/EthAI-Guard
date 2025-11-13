@@ -1,40 +1,31 @@
 version: '3.8'
 services:
-  backend:
+  system_api:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "5000:5000"
     environment:
       - MONGO_URL=mongodb://mongo:27017/ethixai
-      - POSTGRES_URL=postgresql://postgres:5432/ethixai
+      - AI_CORE_URL=http://ai_core:8100
+      - PORT=5000
     depends_on:
       - mongo
-      - postgres
+      - ai_core
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
     environment:
-      # Use NEXT_PUBLIC_* so the frontend can access at build/runtime
-      - NEXT_PUBLIC_API_URL=http://system_api:5000
+      # Browser-accessible URL (localhost for development)
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
     depends_on:
-      - backend
+      - system_api
 
   ai_core:
     build: ./ai_core
     ports:
       - "8100:8100"
-    environment:
-      - MONGO_URL=mongodb://mongo:27017/ethixai
-    depends_on:
-      - mongo
-
-  system_api:
-    build: ./backend
-    command: ["node", "src/server.js"]
-    ports:
-      - "5000:5000"
     environment:
       - MONGO_URL=mongodb://mongo:27017/ethixai
     depends_on:
