@@ -1,0 +1,26 @@
+# Repo-level ignores
+# Ignore node_modules everywhere
+node_modules/
+**/node_modules/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/
+
+# Python virtual envs
+.venv/
+venv/
+
+# Temporary
+*.tmp
