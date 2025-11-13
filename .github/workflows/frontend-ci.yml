@@ -48,11 +48,5 @@ jobs:
             echo "Potential secret patterns found in frontend/. Failing job." >&2
             exit 1
           fi
+
           echo "No obvious secret patterns found in frontend/."
-name: Frontend CI
-
-on: [push, pull_request]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
