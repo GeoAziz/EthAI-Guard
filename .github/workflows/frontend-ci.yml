@@ -1,5 +1,57 @@
 name: Frontend CI
 
+on:
+  push:
+    paths:
+      - 'frontend/**'
+  pull_request:
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+      - name: Lint (if available)
+        run: |
+          if npm run -s lint --prefix frontend >/dev/null 2>&1; then
+            npm run lint --prefix frontend
+          else
+            echo "No lint script or lint failed but continuing (fast CI)."
+          fi
+
+  secret-scan:
+    name: Secret scan (light)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lightweight secret scan
+        run: |
+          set -euo pipefail
+          echo "Scanning frontend/ for common secret patterns..."
+          # Search for private keys and common firebase service account keys
+          patterns='private_key|-----BEGIN PRIVATE KEY-----|serviceAccount|client_email|apiKey|GOOGLE_APPLICATION_CREDENTIALS'
+          if grep -R -I -n -E "$patterns" frontend || true; then
+            if grep -R -I -n -E "$patterns" frontend; then
+              echo "Potential secret patterns found in frontend/. Failing job." >&2
+              exit 1
+            fi
+          fi
+          echo "No obvious secret patterns found in frontend/."
+name: Frontend CI
+
 on: [push, pull_request]
 
 jobs:

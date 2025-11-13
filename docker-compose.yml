@@ -16,7 +16,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      # Use NEXT_PUBLIC_* so the frontend can access at build/runtime
+      - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
       - backend
 
