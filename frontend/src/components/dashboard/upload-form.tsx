@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import api from "@/lib/api";
 import { UploadCloud, File, X, Loader2 } from "lucide-react";
 import { exampleDataset } from "@/lib/mock-data";
 
@@ -86,10 +87,20 @@ export function UploadForm() {
       title: "Analysis Started",
       description: "Your dataset is being analyzed for fairness.",
     });
-    setTimeout(() => {
-      router.push("/dashboard/fairlens");
-      setIsAnalyzing(false);
-    }, 2000);
+    // Prepare a lightweight payload (in the MVP we send preview data or example)
+    const payload = { dataset_name: file?.name || 'example', data: previewData ? Object.assign({}, ...previewData.map((r, i) => ({[i]: r}))) : {} };
+    api.post('/analyze', payload)
+      .then(res => {
+        const reportId = res.data.reportId || res.data.analysisId || res.data.analysis_id;
+        toast({ title: 'Analysis Complete', description: 'Results are available.' });
+        if (reportId) router.push(`/report/${reportId}`);
+        else router.push('/dashboard/fairlens');
+      })
+      .catch(err => {
+        console.error('Analyze error', err);
+        toast({ title: 'Analysis Failed', description: String(err?.response?.data?.error || err?.message) , variant: 'destructive' });
+      })
+      .finally(() => setIsAnalyzing(false));
   };
 
   const loadExample = () => {
