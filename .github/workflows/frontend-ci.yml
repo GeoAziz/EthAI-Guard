@@ -12,25 +12,42 @@ jobs:
   build:
     name: Build & Lint
     runs-on: ubuntu-latest
+    env:
+      # Provide a sane default for build-time public envs so Next.js build
+      # doesn't fail when referencing NEXT_PUBLIC_API_URL. Local/dev should
+      # override this as needed.
+      NEXT_PUBLIC_API_URL: 'http://localhost:5000'
     steps:
       - uses: actions/checkout@v4
+
+      # Cache npm cache to speed up installs across runs
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install dependencies
         run: npm ci
         working-directory: frontend
+
       - name: Build
         run: npm run build
         working-directory: frontend
-      - name: Lint (if available)
-        run: |
-          if npm run -s lint --prefix frontend >/dev/null 2>&1; then
-            npm run lint --prefix frontend
-          else
-            echo "No lint script or lint failed but continuing (fast CI)."
-          fi
+
+      - name: Lint
+        # Run lint and fail the job if lint errors exist. This enforces
+        # code quality for the frontend. If this is too strict, we can
+        # move lint to a separate job that is allowed to fail.
+        run: npm run lint --prefix frontend
 
   secret-scan:
     name: Secret scan (light)

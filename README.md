@@ -87,6 +87,20 @@ Next actions
 2. Scaffold backend and frontend (choose an option with the dev lead).
 3. Prepare demo dataset and begin fairness experiments.
 
+Day 6 — Demo & Integration
+--------------------------
+We completed Day 6 tasks to produce a demo-ready end-to-end flow (frontend ↔ backend ↔ ai_core).
+
+Quick how-to:
+
+```bash
+# make demo script executable and run it (requires Docker)
+chmod +x tools/e2e_demo.sh
+./tools/e2e_demo.sh
+```
+
+More details and troubleshooting are in `docs/day6-demo.md`.
+
 Contact
 -------
 Team Lead: Hassan AbdulAziz
