@@ -1,3 +1,94 @@
+name: EthixAI CI
+
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    branches: [ 'main' ]
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install detect-secrets
+        run: |
+          python -m pip install --upgrade pip
+          pip install detect-secrets
+      - name: Run detect-secrets
+        run: |
+          detect-secrets scan --all-files || true
+      - name: Lightweight grep scan
+        run: |
+          patterns='private_key|-----BEGIN PRIVATE KEY-----|serviceAccount|client_email|apiKey|GOOGLE_APPLICATION_CREDENTIALS'
+          if grep -R -I -n -E "$patterns" .; then
+            echo "Potential secret patterns found" >&2
+            exit 1
+          fi
+
+  ai_core_tests:
+    name: AI Core tests (Python)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ai_core/requirements.txt
+      - name: Run pytest
+        run: |
+          pytest -q ai_core/tests
+
+  backend_tests:
+    name: Backend tests (Node)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        run: |
+          cd backend
+          npm ci
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+  frontend_build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Build
+        run: |
+          cd frontend
+          npm run build
 name: CI
 
 on: [push, pull_request]
