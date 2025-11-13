@@ -1,10 +1,20 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
+import os
+import sys
+
+
+# Make tests resilient to different working directories used by CI runners.
+# If tests are executed with a CWD inside the repo (or inside ai_core/), ensure the
+# repository root is on sys.path so `import ai_core` works.
+THIS_DIR = os.path.dirname(__file__)
+REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 
 # Allow tests to be run either from the repository root (where `ai_core` is a package)
-# or from inside the `ai_core` directory (some CI runners `cd` into the package).
-# Determine the correct import path and patch target dynamically.
+# or from inside the `ai_core` directory. Determine import path dynamically.
 try:
     # prefer package-qualified import when possible
     from ai_core.main import app
