@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, Any
-from ..utils.fairlens_helper import run_fairness_stub
-from ..utils.persistence import get_db, store_analysis
-from ..utils.dataset import generate_bias_demo
-from ..utils.model_helper import train_quick_model, explain_model
+from utils.fairlens_helper import run_fairness_stub
+from utils.persistence import get_db, store_analysis
+from utils.dataset import generate_bias_demo
+from utils.model_helper import train_quick_model, explain_model
 
 router = APIRouter(prefix="/ai_core")
 
@@ -39,8 +39,14 @@ def analyze(req: AnalyzeRequest):
 
     # If no target supplied, use synthetic labels
     if y is None:
-        # quick synthetic labels using generate_bias_demo
-        _, y = generate_bias_demo(len(X))
+        # For very small datasets, generate a larger demo for reliable labels
+        # or create simple synthetic binary labels
+        n_samples = len(X)
+        if n_samples < 20:
+            # Use full demo dataset instead
+            X, y = generate_bias_demo(max(50, n_samples))
+        else:
+            _, y = generate_bias_demo(n_samples)
 
     model = train_quick_model(X, y)
     explanation = explain_model(model, X)
