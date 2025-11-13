@@ -21,8 +21,9 @@ jobs:
           detect-secrets scan --all-files || true
       - name: Lightweight grep scan
         run: |
+          # Exclude generated dependency folders and the workflows directory itself
           patterns='private_key|-----BEGIN PRIVATE KEY-----|serviceAccount|client_email|apiKey|GOOGLE_APPLICATION_CREDENTIALS'
-          if grep -R -I -n -E "$patterns" .; then
+          if grep -R -I -n -E "$patterns" . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.github --exclude-dir=frontend/.next --exclude-dir=backend/dist; then
             echo "Potential secret patterns found" >&2
             exit 1
           fi

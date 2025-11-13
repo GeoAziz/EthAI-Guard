@@ -43,11 +43,10 @@ jobs:
           echo "Scanning frontend/ for common secret patterns..."
           # Search for private keys and common firebase service account keys
           patterns='private_key|-----BEGIN PRIVATE KEY-----|serviceAccount|client_email|apiKey|GOOGLE_APPLICATION_CREDENTIALS'
-          if grep -R -I -n -E "$patterns" frontend || true; then
-            if grep -R -I -n -E "$patterns" frontend; then
-              echo "Potential secret patterns found in frontend/. Failing job." >&2
-              exit 1
-            fi
+          # Ignore generated dependency folders (node_modules) and Next build output
+          if grep -R -I -n -E "$patterns" frontend --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git --exclude-dir=.github; then
+            echo "Potential secret patterns found in frontend/. Failing job." >&2
+            exit 1
           fi
           echo "No obvious secret patterns found in frontend/."
 name: Frontend CI
