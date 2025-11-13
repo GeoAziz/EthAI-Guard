@@ -82,25 +82,40 @@ export function UploadForm() {
   };
 
   const handleRunAnalysis = () => {
-    setIsAnalyzing(true);
-    toast({
-      title: "Analysis Started",
-      description: "Your dataset is being analyzed for fairness.",
-    });
-    // Prepare a lightweight payload (in the MVP we send preview data or example)
-    const payload = { dataset_name: file?.name || 'example', data: previewData ? Object.assign({}, ...previewData.map((r, i) => ({[i]: r}))) : {} };
-    api.post('/analyze', payload)
-      .then(res => {
-        const reportId = res.data.reportId || res.data.analysisId || res.data.analysis_id;
+    // Use an async handler to keep types clear and payload shaped as columns->arrays
+    (async () => {
+      setIsAnalyzing(true);
+      toast({
+        title: "Analysis Started",
+        description: "Your dataset is being analyzed for fairness.",
+      });
+
+      // Convert preview rows [{colA: v, colB: v}, ...] into {colA: [..], colB: [..]}
+      const rowsToColumns = (rows: any[]) => {
+        if (!rows || rows.length === 0) return {};
+        const cols: Record<string, any[]> = {};
+        Object.keys(rows[0]).forEach((k) => (cols[k] = []));
+        rows.forEach((r) => {
+          Object.entries(r).forEach(([k, v]) => cols[k].push(v));
+        });
+        return cols;
+      };
+
+      try {
+        const data = previewData ? rowsToColumns(previewData) : {};
+        const payload = { dataset_name: file?.name || 'example', data };
+        const res = await api.post('/analyze', payload);
+        const reportId = res?.data?.reportId || res?.data?.analysisId || res?.data?.analysis_id;
         toast({ title: 'Analysis Complete', description: 'Results are available.' });
         if (reportId) router.push(`/report/${reportId}`);
         else router.push('/dashboard/fairlens');
-      })
-      .catch(err => {
+      } catch (err: any) {
         console.error('Analyze error', err);
-        toast({ title: 'Analysis Failed', description: String(err?.response?.data?.error || err?.message) , variant: 'destructive' });
-      })
-      .finally(() => setIsAnalyzing(false));
+        toast({ title: 'Analysis Failed', description: String(err?.response?.data?.error || err?.message), variant: 'destructive' });
+      } finally {
+        setIsAnalyzing(false);
+      }
+    })();
   };
 
   const loadExample = () => {

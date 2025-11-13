@@ -55,6 +55,16 @@ npm test
 cd frontend
 npm ci
 npm run build
+
+End-to-end smoke test (local)
+----------------------------
+After starting services with `docker-compose up --build` you can run a lightweight smoke test (node required):
+
+```bash
+node tools/e2e/smoke_test.js
+```
+
+The script will call the system API to register/login, request an analysis, and attempt to fetch the persisted report.
 ```
 
 
