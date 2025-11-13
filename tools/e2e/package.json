@@ -1,0 +1,12 @@
+{
+  "name": "ethixai-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end smoke tests for EthixAI",
+  "main": "smoke_test.js",
+  "scripts": {
+    "test": "node smoke_test.js"
+  },
+  "dependencies": {
+    "axios": "^1.4.0"
+  }
+}
