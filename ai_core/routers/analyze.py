@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, Any
-from utils.fairlens_helper import run_fairness_stub
-from utils.persistence import get_db, store_analysis
-from utils.dataset import generate_bias_demo
-from utils.model_helper import train_quick_model, explain_model
+from ai_core.utils.fairlens_helper import run_fairness_stub
+from ai_core.utils.persistence import get_db, store_analysis
+from ai_core.utils.dataset import generate_bias_demo
+from ai_core.utils.model_helper import train_quick_model, explain_model
 
 router = APIRouter(prefix="/ai_core")
 

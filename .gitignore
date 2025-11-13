@@ -22,5 +22,13 @@ Thumbs.db
 .venv/
 venv/
 
+# Local virtualenv used by tests
+.venv_ai_core/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
 # Temporary
 *.tmp

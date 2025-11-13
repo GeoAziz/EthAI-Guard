@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import analyze, reports
+
+# Use package-relative imports so tests and runtime can import this module whether
+# the package is loaded as `ai_core` or the module is executed directly.
+from .routers import analyze, reports
 
 app = FastAPI(title="EthixAI AI Core")
 

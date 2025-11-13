@@ -13,12 +13,11 @@ jobs:
           python-version: '3.11'
       - name: Install ai_core deps
         run: |
-          cd ai_core
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r ai_core/requirements.txt
       - name: Run ai_core tests
         run: |
-          cd ai_core
-          pytest -q
+          pytest -q ai_core/tests
 
   node-tests:
     runs-on: ubuntu-latest

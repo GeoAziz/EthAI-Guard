@@ -43,8 +43,8 @@ jobs:
           pip install -r ai_core/requirements.txt
       - name: Run pytest
         run: |
-          cd ai_core
-          pytest -q tests/
+          # Run pytest from the repository root so `ai_core` imports resolve correctly
+          pytest -q ai_core/tests
 
   backend_tests:
     name: Backend tests (Node)
