@@ -55,6 +55,10 @@ def analyze(req: AnalyzeRequest):
     summary = run_fairness_stub({"n_rows": len(X)})
 
     # Persist more detailed document with explanation (store small summary only)
-    analysis_doc = {"dataset_name": req.dataset_name, "summary": summary, "explanation": explanation}
+    analysis_doc = {
+        "dataset_name": req.dataset_name,
+        "summary": summary,
+        "explanation": explanation,
+    }
     analysis_id = store_analysis(db, req.dataset_name, analysis_doc)
     return AnalyzeResponse(analysis_id=analysis_id, summary=summary)

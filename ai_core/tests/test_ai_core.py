@@ -18,11 +18,13 @@ if REPO_ROOT not in sys.path:
 try:
     # prefer package-qualified import when possible
     from ai_core.main import app
-    ANALYZE_PATCH_TARGET = 'ai_core.routers.analyze'
+
+    ANALYZE_PATCH_TARGET = "ai_core.routers.analyze"
 except Exception:
     # fallback for running tests from inside ai_core/ (imports without package prefix)
     from main import app
-    ANALYZE_PATCH_TARGET = 'routers.analyze'
+
+    ANALYZE_PATCH_TARGET = "routers.analyze"
 
 
 client = TestClient(app)

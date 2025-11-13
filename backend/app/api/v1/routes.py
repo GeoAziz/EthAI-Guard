@@ -24,4 +24,6 @@ def explain_prediction(payload: schemas.PredictionRequest):
 @router.post("/audit", response_model=schemas.AuditResponse)
 def generate_audit(payload: schemas.PredictionRequest):
     # Create a simple audit artifact (stub)
-    return schemas.AuditResponse(audit_id="audit_001", status="created", artifacts=["report.json"])
+    return schemas.AuditResponse(
+        audit_id="audit_001", status="created", artifacts=["report.json"]
+    )

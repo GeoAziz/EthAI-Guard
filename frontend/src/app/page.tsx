@@ -108,7 +108,7 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-        
+
         {/* About Section */}
         <section id="features" className="py-20 bg-card/20">
           <div className="container">

@@ -8,6 +8,7 @@ from sklearn.pipeline import make_pipeline
 shap = None
 try:
     import shap
+
     SHAP_AVAILABLE = True
 except Exception:
     SHAP_AVAILABLE = False
@@ -35,7 +36,8 @@ def explain_model(model, X: pd.DataFrame) -> Dict[str, float]:
             # import shap dynamically to avoid static analyzers treating the top-level
             # 'shap = None' as the module and flagging 'Explainer' as unknown.
             import importlib
-            shap_mod = importlib.import_module('shap')
+
+            shap_mod = importlib.import_module("shap")
             explainer = shap_mod.Explainer(model.predict_proba, X)
             shap_values = explainer(X)
             # shap_values for class 1
@@ -50,12 +52,12 @@ def explain_model(model, X: pd.DataFrame) -> Dict[str, float]:
         # extract coef from pipeline
         lr = None
         for step in model.steps[::-1]:
-            if hasattr(step, 'coef_'):
+            if hasattr(step, "coef_"):
                 lr = step
                 break
         if lr is None:
             # sklearn pipeline: model.named_steps['logisticregression']
-            lr = model.named_steps.get('logisticregression')
+            lr = model.named_steps.get("logisticregression")
         coefs = np.abs(lr.coef_).flatten()
         # normalize
         coefs = coefs / (coefs.sum() + 1e-9)

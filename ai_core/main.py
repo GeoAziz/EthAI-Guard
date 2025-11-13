@@ -18,6 +18,7 @@ app.add_middleware(
 app.include_router(analyze.router)
 app.include_router(reports.router)
 
+
 @app.get("/health")
 def health():
     return {"status": "ai_core ok"}

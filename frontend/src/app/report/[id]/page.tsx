@@ -25,7 +25,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           </div>
         </CardHeader>
       </Card>
-      
+
       <div className="grid md:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
