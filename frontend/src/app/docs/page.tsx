@@ -42,7 +42,7 @@ export default function DocsPage() {
                     <h2>Overview</h2>
                     <p>EthixAI provides a suite of tools to help developers and financial institutions build and deploy AI models that are fair, transparent, and compliant with ethical guidelines and regulations. This documentation will guide you through integrating and utilizing the EthixAI engine.</p>
                 </section>
-                
+
                 <section id="quick-start">
                     <h2>Quick Start</h2>
                     <p>Get up and running in minutes.</p>

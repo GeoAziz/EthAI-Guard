@@ -36,9 +36,9 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     // Mock Firebase Auth call
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     console.log("Mock registration with:", values);
-    
+
     toast({
       title: "Registration Successful",
       description: "Redirecting to your dashboard...",

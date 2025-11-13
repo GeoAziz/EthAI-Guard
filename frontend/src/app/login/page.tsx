@@ -36,9 +36,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
     // Mock Firebase Auth call
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     console.log("Mock login with:", values);
-    
+
     toast({
       title: "Login Successful",
       description: "Redirecting to your dashboard...",

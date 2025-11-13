@@ -29,7 +29,7 @@ export default function CompliancePage() {
     if (score >= 60) return <Badge variant="destructive" className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30 hover:bg-yellow-600/30">Needs Review</Badge>;
     return <Badge variant="destructive">Non-Compliant</Badge>;
   };
-  
+
   const getIcon = (level: string) => {
     if (level === "High") return <ShieldAlert className="h-5 w-5 text-destructive" />;
     if (level === "Medium") return <AlertCircle className="h-5 w-5 text-yellow-400" />;

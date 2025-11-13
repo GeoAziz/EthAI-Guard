@@ -61,7 +61,7 @@ export default function SettingsPage() {
             </Button>
         </CardContent>
       </Card>
-      
+
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="text-destructive">Delete Account</CardTitle>

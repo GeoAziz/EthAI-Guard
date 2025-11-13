@@ -73,7 +73,7 @@ export function UploadForm() {
         });
     }, 300);
   };
-  
+
   const handleRemoveFile = () => {
     setFile(null);
     setIsUploading(false);
