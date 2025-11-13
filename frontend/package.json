@@ -45,6 +45,7 @@
   "clsx": "^2.1.1",
   "date-fns": "^3.6.0",
   "tailwind-merge": "^3.0.1",
+  "tailwindcss-animate": "^1.0.7",
     "recharts": "^2.6.2",
     "@reduxjs/toolkit": "^1.9.5",
     "react-redux": "^8.0.5",
