@@ -5,6 +5,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
+shap = None
 try:
     import shap
     SHAP_AVAILABLE = True
@@ -31,7 +32,11 @@ def explain_model(model, X: pd.DataFrame) -> Dict[str, float]:
     feature_names = list(X.columns)
     if SHAP_AVAILABLE:
         try:
-            explainer = shap.Explainer(model.predict_proba, X)
+            # import shap dynamically to avoid static analyzers treating the top-level
+            # 'shap = None' as the module and flagging 'Explainer' as unknown.
+            import importlib
+            shap_mod = importlib.import_module('shap')
+            explainer = shap_mod.Explainer(model.predict_proba, X)
             shap_values = explainer(X)
             # shap_values for class 1
             vals = np.abs(shap_values.values[..., 1]).mean(axis=0)
