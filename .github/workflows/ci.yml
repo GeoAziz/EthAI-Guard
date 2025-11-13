@@ -30,11 +30,6 @@ jobs:
   ai_core_tests:
     name: AI Core tests (Python)
     runs-on: ubuntu-latest
-    services:
-      mongo:
-        image: mongo:6
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -47,16 +42,12 @@ jobs:
           pip install -r ai_core/requirements.txt
       - name: Run pytest
         run: |
-          pytest -q ai_core/tests
+          cd ai_core
+          pytest -q tests/
 
   backend_tests:
     name: Backend tests (Node)
     runs-on: ubuntu-latest
-    services:
-      mongo:
-        image: mongo:6
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -89,23 +80,3 @@ jobs:
         run: |
           cd frontend
           npm run build
-name: CI
-
-on: [push, pull_request]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install backend deps
-        run: |
-          cd backend
-          pip install -r requirements.txt
-      - name: Run backend tests (placeholder)
-        run: |
-          echo "No tests yet"
