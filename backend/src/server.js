@@ -10,6 +10,8 @@ app.use(express.json());
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:27017/ethixai';
 const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY_DB === '1';
 
+const axios = require('axios');
+
 // Simple in-memory stores used for tests or when USE_IN_MEMORY is set
 const _users = [];
 const _datasets = [];
@@ -56,6 +58,16 @@ async function createDataset(name, type, ownerId) {
 async function findReportsByUser(userId) {
 	if (USE_IN_MEMORY) return _reports.filter(r => String(r.userId) === String(userId));
 	return Report.find({ userId });
+}
+
+async function createReport(analysisId, summary, userId, extras = {}) {
+	if (USE_IN_MEMORY) {
+		const id = String(_reports.length + 1);
+		const r = { _id: id, analysisId, summary, userId, ...extras };
+		_reports.push(r);
+		return r;
+	}
+	return Report.create({ analysisId, summary, userId, ...extras });
 }
 
 // Auth
@@ -112,6 +124,42 @@ app.post('/datasets/upload', authMiddleware, async (req, res) => {
 	const { name, type } = req.body;
 	const ds = await createDataset(name, type, req.user.sub);
 	res.json({ status: 'uploaded', id: ds._id });
+});
+
+// Run analysis by calling ai_core microservice, persist a Report and return the analysis summary
+app.post('/analyze', authMiddleware, async (req, res) => {
+	try {
+		const aiCoreUrl = process.env.AI_CORE_URL || 'http://ai_core:8100/ai_core/analyze';
+		// Forward request body to ai_core
+		const payload = { dataset_name: req.body.dataset_name || 'uploaded', data: req.body.data || {} };
+		const aiResp = await axios.post(aiCoreUrl, payload, { timeout: 60_000 });
+		const analysisId = aiResp.data.analysis_id || aiResp.data.analysisId || null;
+		const summary = aiResp.data.summary || aiResp.data || {};
+
+		// Persist report (associate with user)
+		const report = await createReport(analysisId, summary, req.user.sub, { datasetName: payload.dataset_name });
+		res.json({ status: 'ok', reportId: report._id || report.id || null, analysisId, summary });
+	} catch (err) {
+		console.error('Error calling ai_core:', err?.message || err);
+		return res.status(500).json({ error: 'Analysis failed', details: err?.message });
+	}
+});
+
+// Get an analysis/report by id (simple proxy to DB)
+app.get('/report/:id', authMiddleware, async (req, res) => {
+	try {
+		if (USE_IN_MEMORY) {
+			const r = _reports.find(rr => String(rr._id) === String(req.params.id));
+			if (!r) return res.status(404).json({ error: 'Not found' });
+			return res.json({ report: r });
+		}
+		const rpt = await Report.findById(req.params.id);
+		if (!rpt) return res.status(404).json({ error: 'Not found' });
+		return res.json({ report: rpt });
+	} catch (e) {
+		console.error('Error fetching report:', e);
+		return res.status(500).json({ error: 'Server error' });
+	}
 });
 
 // Reports for a user
