@@ -17,7 +17,7 @@ services:
       - "3000:3000"
     environment:
       # Use NEXT_PUBLIC_* so the frontend can access at build/runtime
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://system_api:5000
     depends_on:
       - backend
 
