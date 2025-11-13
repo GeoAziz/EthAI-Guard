@@ -18,7 +18,9 @@ services:
       - "3000:3000"
     environment:
       # Browser-accessible URL (localhost for development)
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      # When running via docker-compose, use the backend service hostname so
+      # the frontend container can reach the backend at `http://system_api:5000`.
+      - NEXT_PUBLIC_API_URL=http://system_api:5000
     depends_on:
       - system_api
 

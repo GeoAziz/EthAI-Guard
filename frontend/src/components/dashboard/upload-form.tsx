@@ -146,7 +146,10 @@ export function UploadForm() {
       </div>
 
       <div className="text-center">
-        <Button variant="outline" onClick={loadExample}>Load Example Dataset</Button>
+        <Button variant="outline" onClick={loadExample} disabled={isUploading || isAnalyzing}>
+          {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          Load Example Dataset
+        </Button>
       </div>
 
       {file && (
@@ -189,10 +192,15 @@ export function UploadForm() {
 
       {file && uploadProgress === 100 && (
         <div className="flex justify-end">
-          <Button onClick={handleRunAnalysis} disabled={isAnalyzing}>
-            {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Run Fairness Analysis
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-muted-foreground">
+              {isAnalyzing ? 'Running analysis…' : 'Ready to analyze'}
+            </div>
+            <Button onClick={handleRunAnalysis} disabled={isAnalyzing}>
+              {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isAnalyzing ? 'Analyzing' : 'Run Fairness Analysis'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
