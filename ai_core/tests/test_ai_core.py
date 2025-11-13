@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
-from main import app
+from ai_core.main import app
 
 
 client = TestClient(app)
@@ -11,8 +11,8 @@ def test_health():
     assert r.status_code == 200
 
 
-@patch('routers.analyze.get_db')
-@patch('routers.analyze.store_analysis')
+@patch('ai_core.routers.analyze.get_db')
+@patch('ai_core.routers.analyze.store_analysis')
 def test_analyze(mock_store, mock_get_db):
     # Mock the database calls to avoid needing a real MongoDB instance
     mock_db = MagicMock()
