@@ -14,9 +14,7 @@ services:
       - ai_core
 
   frontend:
-    build:
-      context: ./frontend
-      target: runner
+    build: ./frontend
     ports:
       - "3000:3000"
     environment:
@@ -40,10 +38,12 @@ services:
 
   mongo:
     image: mongo:6
-    # Bind to a non-default host port to avoid colliding with any local MongoDB
-    # instance that may be running on the developer machine.
+    # Use the default host binding for local development. If you have a host
+    # MongoDB instance running and need to avoid a port collision, consider
+    # changing this mapping locally (e.g. "27018:27017") or stopping the
+    # host Mongo service instead of committing a non-standard mapping.
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
       - mongo-data:/data/db
 
