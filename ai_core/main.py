@@ -3,7 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Use package-relative imports so tests and runtime can import this module whether
 # the package is loaded as `ai_core` or the module is executed directly.
-from .routers import analyze, reports
+try:
+    # Prefer package-relative import when running as a package
+    from .routers import analyze, reports
+except Exception:
+    # Fallback to top-level import when module is executed directly in Docker
+    from routers import analyze, reports
 
 app = FastAPI(title="EthixAI AI Core")
 

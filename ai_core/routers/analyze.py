@@ -1,10 +1,18 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, Any
-from ai_core.utils.fairlens_helper import run_fairness_stub
-from ai_core.utils.persistence import get_db, store_analysis
-from ai_core.utils.dataset import generate_bias_demo
-from ai_core.utils.model_helper import train_quick_model, explain_model
+try:
+    from ai_core.utils.fairlens_helper import run_fairness_stub
+    from ai_core.utils.persistence import get_db, store_analysis
+    from ai_core.utils.dataset import generate_bias_demo
+    from ai_core.utils.model_helper import train_quick_model, explain_model
+except Exception:
+    # When running modules directly in a container the package name may not be
+    # present on sys.path; fall back to top-level imports.
+    from utils.fairlens_helper import run_fairness_stub
+    from utils.persistence import get_db, store_analysis
+    from utils.dataset import generate_bias_demo
+    from utils.model_helper import train_quick_model, explain_model
 import io
 import base64
 

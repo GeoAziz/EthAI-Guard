@@ -76,7 +76,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 <FairnessChartsComponent summary={report?.summary} />
               </CardHeader>
               <CardContent>
-                <FairnessCharts summary={report?.summary} />
+                <FairnessChartsComponent summary={report?.summary} />
               </CardContent>
             </Card>
             <Card>

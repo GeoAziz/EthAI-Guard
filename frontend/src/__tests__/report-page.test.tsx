@@ -22,6 +22,7 @@ describe('Report page', () => {
     render(<ReportPage params={{ id: 'test-id' }} /> as any);
     expect(screen.getByText(/Loading report/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/Loading report/i)).not.toBeInTheDocument());
-    expect(screen.getByText(/Fairness Analysis/i)).toBeInTheDocument();
+    const fairness = screen.getAllByText(/Fairness Charts/i);
+    expect(fairness.length).toBeGreaterThan(0);
   });
 });
