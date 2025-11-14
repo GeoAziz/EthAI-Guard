@@ -134,7 +134,7 @@ export function UploadForm() {
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleFileDrop}
-        className="relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:border-primary transition-colors"
+        className="relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:border-primary transition-colors duration-200 ease-out hover:shadow-lg"
       >
         <input type="file" className="hidden" id="file-upload" onChange={handleFileChange} accept=".csv" />
         <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-center">
@@ -146,14 +146,20 @@ export function UploadForm() {
       </div>
 
       <div className="text-center">
-        <Button variant="outline" onClick={loadExample} disabled={isUploading || isAnalyzing}>
+        <Button
+          variant="outline"
+          onClick={loadExample}
+          disabled={isUploading || isAnalyzing}
+          title="Load a small synthetic dataset for the demo"
+          className="transition transform hover:-translate-y-0.5"
+        >
           {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Load Example Dataset
         </Button>
       </div>
 
       {file && (
-        <div className="p-4 border rounded-lg bg-muted/50">
+        <div className="p-4 border rounded-lg bg-muted/50 transition-shadow duration-150 hover:shadow-sm">
             <div className="flex items-center gap-4">
                 <File className="w-8 h-8 text-primary" />
                 <div className="flex-1">
@@ -193,7 +199,7 @@ export function UploadForm() {
       {file && uploadProgress === 100 && (
         <div className="flex justify-end">
           <div className="flex items-center gap-3">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
               {isAnalyzing ? 'Running analysis…' : 'Ready to analyze'}
             </div>
             <Button onClick={handleRunAnalysis} disabled={isAnalyzing}>
