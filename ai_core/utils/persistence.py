@@ -14,3 +14,17 @@ def store_analysis(db, dataset_name: str, summary: Dict[str, Any]) -> str:
     doc = {"dataset_name": dataset_name, "summary": summary}
     res = coll.insert_one(doc)
     return str(res.inserted_id)
+
+
+def get_shap_cache(db, model_hash: str, baseline_hash: str):
+    coll = db["shap_cache"]
+    q = {"model_hash": model_hash, "baseline_hash": baseline_hash}
+    doc = coll.find_one(q)
+    return doc
+
+
+def set_shap_cache(db, model_hash: str, baseline_hash: str, shap_summary: Dict[str, float]):
+    coll = db["shap_cache"]
+    doc = {"model_hash": model_hash, "baseline_hash": baseline_hash, "shap_summary": shap_summary}
+    coll.replace_one({"model_hash": model_hash, "baseline_hash": baseline_hash}, doc, upsert=True)
+    return True
