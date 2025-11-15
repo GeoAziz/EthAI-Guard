@@ -16,3 +16,11 @@ Next steps
 - Add auth rate limiting for sensitive endpoints (login/register) and CAPTCHAs for high-risk flows.
 - Integrate an audit log exporter (structured JSON logs to a logging backend) and rotate logs.
 
+Auth hardening implemented
+- Password policy: production defaults to minimum 12 characters (configurable with MIN_PASSWORD_LENGTH). Tests and in-memory mode keep a lower minimum to avoid breaking CI.
+- Login throttling: an additional login-specific rate limiter is enabled (10 attempts per 5 minutes by default).
+- Refresh token rotation: refresh tokens are rotated on use. Tokens are stored server-side (demo map in-memory); in production persist token hashes and revoke old tokens on rotation.
+- Secure cookie support: optional `USE_COOKIE_REFRESH=1` will cause the server to set refresh tokens as Secure, HttpOnly, SameSite=Strict cookies.
+- CAPTCHA: optional integration point exists and is disabled by default for dev; enable in production only behind feature flag.
+
+
