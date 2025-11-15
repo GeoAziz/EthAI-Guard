@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import make_asgi_app, CollectorRegistry, CONTENT_TYPE_LATEST
+import logging
+import os
 
 # Use package-relative imports so tests and runtime can import this module whether
 # the package is loaded as `ai_core` or the module is executed directly.
@@ -22,6 +25,40 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(reports.router)
+
+# Mount Prometheus metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+
+# Basic structured logger for ai_core (initialized before use)
+logger = logging.getLogger('ai_core')
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    from pythonjsonlogger import jsonlogger as json_logger_module
+    fmt = json_logger_module.JsonFormatter('%(asctime)s %(name)s %(levelname)s %(request_id)s %(analysis_id)s %(message)s')  # type: ignore
+    handler.setFormatter(fmt)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG if ("DEV" in (os.environ.get('ENV','')) or os.environ.get('PYTEST_CURRENT_TEST')) else logging.INFO)
+
+
+# Best-effort: ensure SHAP cache TTL index on startup when a real DB is configured.
+# This avoids unbounded growth of the `shap_cache` collection in production while
+# remaining a no-op in tests (where persistence.get_db() returns None or a fake DB).
+try:
+    from ai_core.utils.persistence import get_db, ensure_shap_cache_index
+
+    try:
+        db = get_db()
+        if db is not None:
+            ensure_shap_cache_index(db)
+            logger.info({"msg": "ensured_shap_cache_index"})
+    except Exception:
+        # best-effort; don't crash the app on index creation errors
+        logger.exception("shap_cache index creation failed (continuing)")
+except Exception:
+    # persistence module not available in minimal test environments
+    pass
 
 
 @app.get("/health")

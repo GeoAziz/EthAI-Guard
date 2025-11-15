@@ -35,3 +35,46 @@ def validate_dataset_mapping(data: Dict[str, Any]):
     # Check zero-variance columns: allowed but warn — caller can decide
     # We'll not fail on zero variance here, but upstream can handle stable behavior.
     return True, "ok"
+
+
+def evaluate_data_quality(df, *, max_missing_ratio=0.2, max_constant_ratio=0.5):
+    """Run lightweight data quality checks on a pandas DataFrame.
+
+    Returns a dict with keys: missing, constant, outliers.
+    """
+    import numpy as np
+
+    issues = {"missing": {}, "constant": [], "outliers": {}}
+    n = len(df)
+    for col in df.columns:
+        series = df[col]
+        # missing
+        miss = int(series.isna().sum())
+        if n > 0 and (miss / n) > max_missing_ratio:
+            issues["missing"][col] = float(miss) / float(n)
+        # constant
+        try:
+            nunique = series.nunique(dropna=True)
+            if nunique == 1:
+                issues["constant"].append(col)
+            elif nunique / max(1, n) > max_constant_ratio:
+                # many unique values; not a constant
+                pass
+        except Exception:
+            pass
+        # simple outlier detection via z-score
+        try:
+            arr = series.dropna().astype(float).to_numpy()
+            if arr.size > 3:
+                m = arr.mean()
+                s = arr.std()
+                if s > 0:
+                    z = np.abs((arr - m) / s)
+                    outlier_ratio = float((z > 5).sum()) / float(max(1, arr.size))
+                    if outlier_ratio > 0.01:
+                        issues["outliers"][col] = outlier_ratio
+        except Exception:
+            # non-numeric columns skipped for z-score
+            pass
+
+    return issues
