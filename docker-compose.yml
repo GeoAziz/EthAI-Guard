@@ -38,10 +38,9 @@ services:
 
   mongo:
     image: mongo:6
-    # Use the default host binding for local development. If you have a host
-    # MongoDB instance running and need to avoid a port collision, consider
-    # changing this mapping locally (e.g. "27018:27017") or stopping the
-    # host Mongo service instead of committing a non-standard mapping.
+    # Reverted to the default host binding for local development.
+    # If a host MongoDB service is running, stop it or configure a local
+    # override to avoid port collisions.
     ports:
       - "27017:27017"
     volumes:
