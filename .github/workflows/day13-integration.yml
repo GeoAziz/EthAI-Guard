@@ -1,0 +1,74 @@
+name: Day 13 Integration & Resilience Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-chaos:
+        description: "Include failure drills"
+        required: false
+        default: "true"
+  push:
+    branches: [ day13, main ]
+    paths:
+      - 'tools/integration/**'
+      - 'docker-compose.yml'
+      - 'backend/**'
+      - 'ai_core/**'
+      - 'frontend/**'
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start compose
+        run: |
+          docker compose up -d --build
+          docker ps
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Run Day 13 integration script
+        id: day13
+        env:
+          BACKEND_URL: http://localhost:5000
+          AICORE_URL: http://localhost:8100
+          FRONTEND_URL: http://localhost:3000
+        run: |
+          chmod +x tools/integration/day13_full_integration.sh
+          tools/integration/day13_full_integration.sh
+
+      - name: Archive logs & report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: day13-artifacts
+          path: |
+            docs/reports/day13-integration-report.md
+            tmp/day13/**
+
+      - name: Upload report to Code Scanning (SARIF bridge optional)
+        if: always()
+        run: |
+          echo "## Day 13 Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts: day13-artifacts" >> $GITHUB_STEP_SUMMARY
+
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose down -v
