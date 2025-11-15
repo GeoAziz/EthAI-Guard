@@ -1,6 +1,19 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, Any
+from fastapi import HTTPException
+import importlib
+
+_validation_mod = None
+for _modname in ("ai_core.utils.validation", "utils.validation"):
+    try:
+        _validation_mod = importlib.import_module(_modname)
+        break
+    except Exception:
+        _validation_mod = None
+if _validation_mod is None:
+    raise ImportError("Could not import validate_dataset_mapping from utils.validation")
+validate_dataset_mapping = _validation_mod.validate_dataset_mapping
 try:
     from ai_core.utils.fairlens_helper import run_fairness_stub
     from ai_core.utils.persistence import get_db, store_analysis
@@ -38,6 +51,9 @@ def analyze(req: AnalyzeRequest):
     # If client provided data dictionary, try to convert to DataFrame-like structure.
     try:
         if req.data:
+            ok, msg = validate_dataset_mapping(req.data)
+            if not ok:
+                raise HTTPException(status_code=400, detail=f"Invalid data payload: {msg}")
             # Expecting a mapping of column -> list-like; attempt to build DataFrame
             import pandas as pd
 
@@ -45,7 +61,10 @@ def analyze(req: AnalyzeRequest):
             y = None
         else:
             X, y = generate_bias_demo()
+    except HTTPException:
+        raise
     except Exception:
+        # Fall back to demo dataset on unexpected parsing errors
         X, y = generate_bias_demo()
 
     # If no target supplied, use synthetic labels
