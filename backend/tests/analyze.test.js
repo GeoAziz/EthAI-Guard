@@ -7,12 +7,11 @@ const axios = require('axios');
 describe('Integration: analyze flow (backend -> ai_core)', () => {
   test('authenticated /analyze forwards to ai_core and persists report', async () => {
     // register
-  const strongPassword = 'StrongPass123!';
-  const reg = await request(app).post('/auth/register').send({ name: 'Int', email: 'i@example.com', password: strongPassword });
-  expect(reg.statusCode).toBe(200);
+    const reg = await request(app).post('/auth/register').send({ name: 'Int', email: 'i@example.com', password: 'pass' });
+    expect(reg.statusCode).toBe(200);
 
-  // login
-  const login = await request(app).post('/auth/login').send({ email: 'i@example.com', password: strongPassword });
+    // login
+    const login = await request(app).post('/auth/login').send({ email: 'i@example.com', password: 'pass' });
     expect(login.statusCode).toBe(200);
     const accessToken = login.body.accessToken;
     expect(accessToken).toBeTruthy();

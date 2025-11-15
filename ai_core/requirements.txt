@@ -4,6 +4,7 @@ pymongo==4.4.0
 scikit-learn==1.4.0
 shap==0.41.0
 pandas==2.2.2
+numpy<2
 joblib==1.3.2
 
 # Test dependencies

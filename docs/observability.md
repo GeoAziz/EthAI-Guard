@@ -32,3 +32,11 @@ How to use
 - Scrape `/metrics` from the backend or ai_core to collect Prometheus metrics.
 - Use `request_id` to correlate logs across services (backend and ai_core).
 - The CI `chaos-smoke` job scrapes these endpoints after the scenario and archives metrics and logs for debugging.
+
+Additional ai_core metrics
+- ai_core_shap_cache_hits_total (counter): total number of SHAP cache hits when an explanation was returned from persistence.
+- ai_core_shap_cache_misses_total (counter): total number of SHAP cache misses where explainability computation was attempted.
+- ai_core_shap_cache_writes_total (counter): total number of times a computed explanation was written to the cache.
+
+Logs
+- explainability cache events are logged as structured JSON with messages `shap_cache_hit` and `shap_cache_miss` and include `model_hash` and `baseline_hash` when available.
