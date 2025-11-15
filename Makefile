@@ -94,6 +94,15 @@ clean: down
 	docker compose down -v 2>/dev/null || true
 	@echo "✅ Cleanup complete"
 
+.PHONY: day13 day13-report
+day13:
+	chmod +x tools/integration/day13_full_integration.sh
+	BACKEND_URL?=http://localhost:5000 AICORE_URL?=http://localhost:8100 FRONTEND_URL?=http://localhost:3000 \
+	tools/integration/day13_full_integration.sh
+
+day13-report:
+	@echo "Report at docs/reports/day13-integration-report.md"
+
 # Metrics
 metrics:
 	@echo "📊 Metrics Endpoints:"
