@@ -135,14 +135,24 @@ export function UploadForm() {
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleFileDrop}
         className="relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:border-primary transition-colors duration-200 ease-out hover:shadow-lg"
+        aria-busy={isUploading}
       >
-        <input type="file" className="hidden" id="file-upload" onChange={handleFileChange} accept=".csv" />
-        <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-center">
+        <input type="file" className="hidden" id="file-upload" onChange={handleFileChange} accept=".csv" disabled={isUploading} />
+        <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-center" title={isUploading ? 'Uploading...' : 'Click to select a CSV file'}>
           <UploadCloud className="w-12 h-12 text-muted-foreground" />
           <p className="mt-4 text-lg font-semibold">Drag & drop your file here</p>
           <p className="text-sm text-muted-foreground">or click to browse</p>
           <p className="mt-2 text-xs text-muted-foreground">CSV files up to 50MB</p>
         </label>
+
+        {isUploading && (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-lg" aria-hidden>
+            <div className="flex items-center gap-2 text-white">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="font-medium">Uploading… {uploadProgress}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="text-center">
@@ -151,7 +161,7 @@ export function UploadForm() {
           onClick={loadExample}
           disabled={isUploading || isAnalyzing}
           title="Load a small synthetic dataset for the demo"
-          className="transition transform hover:-translate-y-0.5"
+          className="transition-transform duration-200 transform hover:-translate-y-0.5"
         >
           {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Load Example Dataset
@@ -166,10 +176,10 @@ export function UploadForm() {
                     <p className="font-semibold">{file.name}</p>
                     <p className="text-sm text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
                 </div>
-                {isUploading && <Progress value={uploadProgress} className="w-1/3" />}
-                <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
-                    <X className="w-4 h-4" />
-                </Button>
+        {isUploading && <Progress value={uploadProgress} className="w-1/3" />}
+        <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
+          <X className="w-4 h-4" />
+        </Button>
             </div>
         </div>
       )}
@@ -202,7 +212,7 @@ export function UploadForm() {
             <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
               {isAnalyzing ? 'Running analysis…' : 'Ready to analyze'}
             </div>
-            <Button onClick={handleRunAnalysis} disabled={isAnalyzing}>
+            <Button onClick={handleRunAnalysis} disabled={isAnalyzing} title="Run the fairness & explainability analysis">
               {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isAnalyzing ? 'Analyzing' : 'Run Fairness Analysis'}
             </Button>
