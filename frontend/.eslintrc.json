@@ -1,0 +1,233 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "jest": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended"
+  ],
+  "plugins": [
+    "react",
+    "react-hooks",
+    "jsx-a11y"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "rules": {
+    "no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "caughtErrors": "all"
+    }],
+    "no-console": ["warn", {
+      "allow": ["warn", "error"]
+    }],
+    "no-magic-numbers": ["warn", {
+      "ignore": [0, 1, -1, 2, 100],
+      "ignoreArrayIndexes": true,
+      "ignoreDefaultValues": true,
+      "enforceConst": true
+    }],
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "quotes": ["error", "single", {
+      "avoidEscape": true,
+      "allowTemplateLiterals": true
+    }],
+    "semi": ["error", "always"],
+    "indent": ["error", 2, {
+      "SwitchCase": 1
+    }],
+    "no-trailing-spaces": "error",
+    "no-multiple-empty-lines": ["error", {
+      "max": 1,
+      "maxEOF": 0
+    }],
+    "comma-dangle": ["error", "always-multiline"],
+    "object-curly-spacing": ["error", "always"],
+    "array-bracket-spacing": ["error", "never"],
+    "no-warning-comments": ["warn", {
+      "terms": ["todo", "fixme", "xxx", "hack"],
+      "location": "anywhere"
+    }],
+    "camelcase": ["error", {
+      "properties": "never",
+      "ignoreDestructuring": false
+    }],
+    "react/prop-types": ["error", {
+      "ignore": [],
+      "skipUndeclared": false
+    }],
+    "react/jsx-uses-react": "error",
+    "react/jsx-uses-vars": "error",
+    "react/jsx-key": ["error", {
+      "checkFragmentShorthand": true,
+      "checkKeyMustBeforeSpread": true
+    }],
+    "react/jsx-no-duplicate-props": ["error", {
+      "ignoreCase": true
+    }],
+    "react/jsx-no-undef": "error",
+    "react/jsx-pascal-case": ["error", {
+      "allowAllCaps": false,
+      "allowNamespace": false,
+      "allowLeadingUnderscore": false
+    }],
+    "react/jsx-props-no-spreading": ["warn", {
+      "html": "enforce",
+      "custom": "enforce",
+      "explicitSpread": "ignore"
+    }],
+    "react/no-array-index-key": "warn",
+    "react/no-children-prop": "error",
+    "react/no-danger": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-deprecated": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-this-in-sfc": "error",
+    "react/no-unescaped-entities": "error",
+    "react/no-unknown-property": "error",
+    "react/no-unsafe": ["error", {
+      "checkAliases": true
+    }],
+    "react/no-unused-prop-types": "error",
+    "react/no-unused-state": "error",
+    "react/prefer-es6-class": ["error", "always"],
+    "react/prefer-stateless-function": ["warn", {
+      "ignorePureComponents": true
+    }],
+    "react/require-render-return": "error",
+    "react/self-closing-comp": ["error", {
+      "component": true,
+      "html": true
+    }],
+    "react/style-prop-object": "error",
+    "react/void-dom-elements-no-children": "error",
+    "react/jsx-boolean-value": ["error", "never"],
+    "react/jsx-closing-bracket-location": ["error", "line-aligned"],
+    "react/jsx-closing-tag-location": "error",
+    "react/jsx-curly-spacing": ["error", {
+      "when": "never",
+      "children": true
+    }],
+    "react/jsx-equals-spacing": ["error", "never"],
+    "react/jsx-first-prop-new-line": ["error", "multiline-multiprop"],
+    "react/jsx-indent": ["error", 2],
+    "react/jsx-indent-props": ["error", 2],
+    "react/jsx-max-props-per-line": ["error", {
+      "maximum": 1,
+      "when": "multiline"
+    }],
+    "react/jsx-no-bind": ["warn", {
+      "allowArrowFunctions": true,
+      "allowBind": false,
+      "ignoreRefs": true
+    }],
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-target-blank": ["error", {
+      "enforceDynamicLinks": "always"
+    }],
+    "react/jsx-tag-spacing": ["error", {
+      "closingSlash": "never",
+      "beforeSelfClosing": "always",
+      "afterOpening": "never",
+      "beforeClosing": "never"
+    }],
+    "react/jsx-wrap-multilines": ["error", {
+      "declaration": "parens-new-line",
+      "assignment": "parens-new-line",
+      "return": "parens-new-line",
+      "arrow": "parens-new-line",
+      "condition": "parens-new-line",
+      "logical": "parens-new-line",
+      "prop": "parens-new-line"
+    }],
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/anchor-is-valid": ["error", {
+      "components": ["Link"],
+      "specialLink": ["to"],
+      "aspects": ["invalidHref", "preferButton"]
+    }],
+    "jsx-a11y/aria-activedescendant-has-tabindex": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "jsx-a11y/aria-role": ["error", {
+      "ignoreNonDOM": false
+    }],
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/click-events-have-key-events": "error",
+    "jsx-a11y/heading-has-content": "error",
+    "jsx-a11y/html-has-lang": "error",
+    "jsx-a11y/iframe-has-title": "error",
+    "jsx-a11y/img-redundant-alt": "error",
+    "jsx-a11y/interactive-supports-focus": "error",
+    "jsx-a11y/label-has-associated-control": ["error", {
+      "assert": "either"
+    }],
+    "jsx-a11y/media-has-caption": "warn",
+    "jsx-a11y/mouse-events-have-key-events": "error",
+    "jsx-a11y/no-access-key": "error",
+    "jsx-a11y/no-autofocus": ["warn", {
+      "ignoreNonDOM": true
+    }],
+    "jsx-a11y/no-distracting-elements": "error",
+    "jsx-a11y/no-interactive-element-to-noninteractive-role": "error",
+    "jsx-a11y/no-noninteractive-element-interactions": "error",
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "error",
+    "jsx-a11y/no-noninteractive-tabindex": "error",
+    "jsx-a11y/no-redundant-roles": "error",
+    "jsx-a11y/no-static-element-interactions": "error",
+    "jsx-a11y/role-has-required-aria-props": "error",
+    "jsx-a11y/role-supports-aria-props": "error",
+    "jsx-a11y/scope": "error",
+    "jsx-a11y/tabindex-no-positive": "error",
+    "no-restricted-syntax": ["error", {
+      "selector": "JSXElement > JSXElement[name.name='div'] > JSXExpressionContainer > LogicalExpression[operator='&&']",
+      "message": "Avoid inline logic in JSX. Extract to helper function or use ternary operator."
+    }],
+    "max-lines": ["warn", {
+      "max": 400,
+      "skipBlankLines": true,
+      "skipComments": true
+    }],
+    "max-lines-per-function": ["warn", {
+      "max": 80,
+      "skipBlankLines": true,
+      "skipComments": true
+    }],
+    "complexity": ["warn", 10]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.js", "**/*.test.jsx", "**/*.spec.js", "**/*.spec.jsx"],
+      "rules": {
+        "no-magic-numbers": "off",
+        "max-lines-per-function": "off",
+        "react/jsx-props-no-spreading": "off"
+      }
+    }
+  ]
+}

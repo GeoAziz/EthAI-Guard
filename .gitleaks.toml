@@ -1,0 +1,54 @@
+title = "EthixAI Secret Detection"
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9]{20,})['"]'''
+tags = ["key", "API"]
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret"
+regex = '''(?i)(jwt[_-]?secret|secret[_-]?key|refresh[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9+/=]{16,})['"]'''
+tags = ["jwt", "secret"]
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY-----'''
+tags = ["key", "private"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "key"]
+
+[[rules]]
+id = "mongodb-password"
+description = "MongoDB Connection String"
+regex = '''mongodb(\+srv)?://[^:]+:([^@]{8,})@'''
+tags = ["mongodb", "password"]
+
+[[rules]]
+id = "encryption-key"
+description = "Encryption Key"
+regex = '''(?i)(encryption[_-]?key|field[_-]?encryption[_-]?key)\s*[:=]\s*['"]([a-zA-Z0-9+/=]{32,})['"]'''
+tags = ["encryption", "key"]
+
+[allowlist]
+description = "Allowlist for false positives"
+paths = [
+  ".env.example",
+  "docs/**",
+  "**/*.md",
+  "**/test/**",
+  "**/*.example"
+]
+
+regexes = [
+  '''example\.com''',
+  '''localhost''',
+  '''secret[_-]?key[_-]?(here|value|xxx)''',
+  '''your[_-](secret|key|password)'''
+]
