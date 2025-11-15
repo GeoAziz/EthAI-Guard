@@ -39,11 +39,11 @@ tags = ["encryption", "key"]
 [allowlist]
 description = "Allowlist for false positives"
 paths = [
-  ".env.example",
-  "docs/**",
-  "**/*.md",
-  "**/test/**",
-  "**/*.example"
+  '''^\.env\.example$''',
+  '''^docs/.*''',
+  '''.*\.md$''',
+  '''.*/test/.*''',
+  '''.*\.example$'''
 ]
 
 regexes = [
