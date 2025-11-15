@@ -6,6 +6,9 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const logger = require('./logger');
+const { withRequest } = require('./logger');
+const promClient = require('prom-client');
+const { v4: uuidv4 } = require('uuid');
 let User, Dataset, Report;
 
 // Accept reasonably-sized JSON bodies; keep it conservative for production
@@ -22,10 +25,65 @@ app.use(
 	})
 );
 
+// Request id middleware
+app.use((req, res, next) => {
+	const rid = req.headers['x-request-id'] || uuidv4();
+	req.headers['x-request-id'] = rid;
+	res.setHeader('X-Request-Id', rid);
+	req.request_id = rid;
+	next();
+});
+
+// Prometheus metrics
+const collectDefault = promClient.collectDefaultMetrics;
+collectDefault({ timeout: 5000 });
+const httpRequestDuration = new promClient.Histogram({
+	name: 'http_request_duration_seconds',
+	help: 'HTTP request duration in seconds',
+	labelNames: ['method', 'route', 'status']
+});
+const httpRequestCounter = new promClient.Counter({
+	name: 'http_requests_total',
+	help: 'Total HTTP requests',
+	labelNames: ['method', 'route', 'status']
+});
+const aiCoreDuration = new promClient.Histogram({
+	name: 'ai_core_analysis_seconds',
+	help: 'Time spent in ai_core analyze',
+	labelNames: ['route']
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+	try {
+		res.set('Content-Type', promClient.register.contentType);
+		res.end(await promClient.register.metrics());
+	} catch (ex) {
+		res.status(500).end(ex);
+	}
+});
+
+// instrumentation middleware (must be after request id middleware)
+app.use(async (req, res, next) => {
+	const end = httpRequestDuration.startTimer();
+	const route = req.path || 'unknown';
+	const start = Date.now();
+	res.on('finish', () => {
+		const status = String(res.statusCode || 200);
+		end({ method: req.method, route, status });
+		httpRequestCounter.inc({ method: req.method, route, status });
+		const dur = (Date.now() - start) / 1000;
+		const log = withRequest(req);
+		log.info({ route, status, duration: dur }, 'request_finished');
+	});
+	next();
+});
+
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:27017/ethixai';
 const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY_DB === '1';
 
 const axios = require('axios');
+const cookieParser = require('cookie-parser');
 
 // Simple in-memory stores used for tests or when USE_IN_MEMORY is set
 const _users = [];
@@ -94,9 +152,8 @@ app.post(
 	// validation
 	body('name').isString().trim().isLength({ min: 1, max: 200 }),
 	body('email').isEmail().normalizeEmail(),
-	// default minimum password length lowered to 4 for compatibility with existing tests;
-	// in production set MIN_PASSWORD_LENGTH env var to 8+.
-	body('password').isString().isLength({ min: Number(process.env.MIN_PASSWORD_LENGTH || 4) }),
+	// choose stronger default password policy in non-test mode
+	body('password').isString().isLength({ min: USE_IN_MEMORY ? Number(process.env.MIN_PASSWORD_LENGTH || 4) : Number(process.env.MIN_PASSWORD_LENGTH || 12) }),
 	async (req, res) => {
 		const errors = validationResult(req);
 		if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -114,8 +171,19 @@ app.post(
 	}
 );
 
+	app.use(cookieParser());
+
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, try later' }
+});
+
 app.post(
 	'/auth/login',
+	loginLimiter,
 	body('email').isEmail().normalizeEmail(),
 	body('password').isString(),
 	async (req, res) => {
@@ -129,7 +197,14 @@ app.post(
 			if (!ok) return res.status(401).json({ error: 'Invalid' });
 			const accessToken = jwt.sign({ sub: user._id, role: user.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
 			const refreshToken = jwt.sign({ sub: user._id }, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+			// store refresh token server-side (hashing optional for demo)
 			_refreshTokens.set(refreshToken, String(user._id));
+			// Optionally set refresh token as secure HttpOnly cookie in production
+			if (process.env.USE_COOKIE_REFRESH === '1') {
+				const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 };
+				res.cookie('refreshToken', refreshToken, cookieOpts);
+				return res.json({ accessToken });
+			}
 			return res.json({ accessToken, refreshToken });
 		} catch (err) {
 			logger.error({ err }, 'Error during login');
@@ -140,12 +215,22 @@ app.post(
 
 // Refresh token endpoint (scaffold)
 app.post('/auth/refresh', (req, res) => {
-	const { refreshToken } = req.body;
+	// accept refresh token in cookie or body
+	const refreshToken = req.body.refreshToken || req.cookies && req.cookies.refreshToken;
 	if (!refreshToken || !_refreshTokens.has(refreshToken)) return res.status(401).json({ error: 'Invalid refresh token' });
 	try {
 		const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
+		// rotate refresh token: revoke old, issue new
+		_refreshTokens.delete(refreshToken);
+		const newRefresh = jwt.sign({ sub: payload.sub }, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+		_refreshTokens.set(newRefresh, String(payload.sub));
 		const accessToken = jwt.sign({ sub: payload.sub, role: payload.role || 'user' }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
-		res.json({ accessToken });
+		if (process.env.USE_COOKIE_REFRESH === '1') {
+			const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 };
+			res.cookie('refreshToken', newRefresh, cookieOpts);
+			return res.json({ accessToken });
+		}
+		res.json({ accessToken, refreshToken: newRefresh });
 	} catch (e) {
 		return res.status(401).json({ error: 'Invalid refresh token' });
 	}
@@ -186,7 +271,12 @@ app.post(
 			const aiCoreUrl = process.env.AI_CORE_URL || 'http://ai_core:8100/ai_core/analyze';
 			// Forward request body to ai_core
 			const payload = { dataset_name: req.body.dataset_name || 'uploaded', data: req.body.data || {} };
-			const aiResp = await axios.post(aiCoreUrl, payload, { timeout: Number(process.env.AI_CORE_TIMEOUT_MS || 60_000) });
+			const tStart = Date.now();
+			// forward request-id so ai_core logs/metrics can correlate
+			const headers = { 'X-Request-Id': req.request_id };
+			const aiResp = await axios.post(aiCoreUrl, payload, { timeout: Number(process.env.AI_CORE_TIMEOUT_MS || 60_000), headers });
+			const tEnd = Date.now();
+			aiCoreDuration.observe({ route: '/ai_core/analyze' }, (tEnd - tStart) / 1000);
 			const analysisId = aiResp.data.analysis_id || aiResp.data.analysisId || null;
 			const summary = aiResp.data.summary || aiResp.data || {};
 

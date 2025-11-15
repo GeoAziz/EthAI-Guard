@@ -1,0 +1,29 @@
+name: chaos-smoke
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  chaos-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start ephemeral environment and run chaos smoke
+        env:
+          CI: true
+        run: |
+          chmod +x tools/ci/chaos_smoke_ci.sh
+          ./tools/ci/chaos_smoke_ci.sh
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-artifacts
+          path: /tmp/chaos_artifacts.tgz

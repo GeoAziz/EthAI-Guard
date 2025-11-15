@@ -7,11 +7,12 @@ describe('Auth and dataset flow', () => {
 
   test('register -> login -> upload dataset -> get reports', async () => {
     // register
-    const reg = await request(app).post('/auth/register').send({ name: 'Test', email: 't@example.com', password: 'pass' });
+  const strongPassword = 'StrongPass123!';
+  const reg = await request(app).post('/auth/register').send({ name: 'Test', email: 't@example.com', password: strongPassword });
     expect(reg.statusCode).toBe(200);
 
     // login
-    const login = await request(app).post('/auth/login').send({ email: 't@example.com', password: 'pass' });
+  const login = await request(app).post('/auth/login').send({ email: 't@example.com', password: strongPassword });
     expect(login.statusCode).toBe(200);
     accessToken = login.body.accessToken;
     refreshToken = login.body.refreshToken;

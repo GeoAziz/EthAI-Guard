@@ -12,3 +12,5 @@ requests==2.31.0
 httpx==0.24.1
 matplotlib==3.8.1
 pillow==10.1.0
+prometheus_client==0.16.0
+python-json-logger==2.0.4
