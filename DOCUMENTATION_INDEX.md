@@ -40,6 +40,42 @@ Start here: [`SESSION_SUMMARY.md`](./SESSION_SUMMARY.md) - What's complete and w
 | [`docs/security_design.md`](./docs/security_design.md) | Security hardening | Password policy, rate limiting, token management |
 | [`docs/todo-7-completion.md`](./docs/todo-7-completion.md) | DB-backed tokens implementation | Argon2 hashing, token rotation, devices |
 
+### Reliability Engineering (Day 10)
+| Document | Purpose |
+|----------|---------|
+| [`docs/day10/README.md`](./docs/day10/README.md) | Overview and how to use this package |
+| [`docs/day10/load-testing-strategy.md`](./docs/day10/load-testing-strategy.md) | Load scenarios, SLIs, and execution guidance |
+| [`docs/day10/stress-chaos-testing.md`](./docs/day10/stress-chaos-testing.md) | Stress and chaos plans with pass/fail criteria |
+| [`docs/day10/slo-sla-sli.md`](./docs/day10/slo-sla-sli.md) | Indicators, SLO targets, and SLA guidance |
+| [`docs/day10/scaling-blueprint.md`](./docs/day10/scaling-blueprint.md) | Horizontal/vertical scaling and queue-based roadmap |
+| [`docs/day10/model-drift-monitoring.md`](./docs/day10/model-drift-monitoring.md) | Drift metrics, thresholds, and data hooks |
+| [`docs/day10/grafana-dashboards.md`](./docs/day10/grafana-dashboards.md) | Dashboard layout and PromQL examples |
+| [`docs/day10/checklist.md`](./docs/day10/checklist.md) | End-of-day checklist and PR plan |
+
+### Security & Compliance (Day 11)
+| Document | Purpose |
+|----------|---------|
+| [`docs/security/encryption-guide.md`](./docs/security/encryption-guide.md) | TLS, data-at-rest, field-level encryption, backups |
+| [`docs/security/secrets-management.md`](./docs/security/secrets-management.md) | Vault, key rotation, OIDC, Gitleaks |
+| [`docs/security/rbac-zero-trust.md`](./docs/security/rbac-zero-trust.md) | RBAC, JWT hardening, mTLS, MFA |
+| [`docs/security/audit-logging.md`](./docs/security/audit-logging.md) | Structured logs, immutable storage, integrity |
+| [`docs/security/supply-chain.md`](./docs/security/supply-chain.md) | Dependency scan, SBOM, image signing |
+| [`docs/security/incident-response.md`](./docs/security/incident-response.md) | IR playbook, runbooks, patch SLAs |
+| [`docs/security/soc2-readiness.md`](./docs/security/soc2-readiness.md) | Control mapping, gap analysis, evidence |
+| [`DAY11_SECURITY_COMPLETION.md`](./DAY11_SECURITY_COMPLETION.md) | Day 11 implementation summary |
+
+---
+
+### Quality, QA, and API Governance (Day 12)
+| Document | Purpose |
+|----------|---------|
+| [`docs/quality/red-lines.md`](./docs/quality/red-lines.md) | Non-negotiable coding and security rules (CI-enforced) |
+| [`docs/quality/test-coverage.md`](./docs/quality/test-coverage.md) | Coverage targets, methodology, and enforcement |
+| [`docs/quality/qa-checklist.md`](./docs/quality/qa-checklist.md) | Formal QA manual test plan and sign-off template |
+| [`docs/quality/security-controls-review.md`](./docs/quality/security-controls-review.md) | Validation of Day 11 controls and gap tracker |
+| [`docs/api/api-contract-v1.md`](./docs/api/api-contract-v1.md) | Frozen API contract v1.0 and versioning policy |
+| [`DAY12_COMPLETION.md`](./DAY12_COMPLETION.md) | Day 12 completion summary and next steps |
+
 ---
 
 ## 🎯 Todo Progress

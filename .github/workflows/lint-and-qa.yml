@@ -1,0 +1,285 @@
+name: Linting & QA Gates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  backend-lint:
+    name: Backend Linting (ESLint)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./backend
+        run: |
+          npm run lint || (echo "❌ ESLint failed - fix errors before merge" && exit 1)
+
+      - name: Check for TODOs
+        run: |
+          if grep -rn --include="*.js" "TODO\|FIXME\|HACK\|XXX" backend/src/; then
+            echo "❌ Found TODO/FIXME/HACK comments in backend/src/"
+            echo "Action: Remove or create tracked tickets"
+            exit 1
+          fi
+          echo "✅ No TODO comments found"
+
+      - name: Check for commented code
+        run: |
+          if grep -rn --include="*.js" "^[[:space:]]*//[[:space:]]*\(const\|let\|var\|function\|return\)" backend/src/; then
+            echo "❌ Found commented-out code in backend/src/"
+            echo "Action: Delete commented code, use git history if needed"
+            exit 1
+          fi
+          echo "✅ No commented code found"
+
+  frontend-lint:
+    name: Frontend Linting (ESLint + Accessibility)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: |
+          npm run lint || (echo "❌ ESLint failed - fix errors before merge" && exit 1)
+
+      - name: Check for missing PropTypes
+        run: |
+          if grep -rn --include="*.jsx" --include="*.js" "^export default function" frontend/src/components/ | while read line; do
+            file=$(echo "$line" | cut -d: -f1)
+            if ! grep -q "propTypes" "$file"; then
+              echo "❌ Missing PropTypes in: $file"
+              exit 1
+            fi
+          done; then
+            echo "✅ All components have PropTypes"
+          fi
+
+      - name: Check for TODO comments
+        run: |
+          if grep -rn --include="*.js" --include="*.jsx" "TODO\|FIXME\|HACK\|XXX" frontend/src/; then
+            echo "❌ Found TODO/FIXME/HACK comments in frontend/src/"
+            exit 1
+          fi
+          echo "✅ No TODO comments found"
+
+  ai-core-lint:
+    name: AI Core Linting (Pylint + Flake8)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: ai_core/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pylint flake8 flake8-docstrings flake8-bugbear bandit
+          cd ai_core && pip install -r requirements.txt
+
+      - name: Run Pylint
+        working-directory: ./ai_core
+        run: |
+          pylint --rcfile=.pylintrc --fail-under=8.0 . || (echo "❌ Pylint score below 8.0" && exit 1)
+
+      - name: Run Flake8
+        working-directory: ./ai_core
+        run: |
+          flake8 . || (echo "❌ Flake8 found issues" && exit 1)
+
+      - name: Check for missing docstrings
+        working-directory: ./ai_core
+        run: |
+          if grep -rn --include="*.py" "^def [a-z_]" . | while read line; do
+            file=$(echo "$line" | cut -d: -f1)
+            lineno=$(echo "$line" | cut -d: -f2)
+            nextline=$((lineno + 1))
+            if ! sed -n "${nextline}p" "$file" | grep -q '"""'; then
+              echo "❌ Missing docstring: $line"
+              exit 1
+            fi
+          done; then
+            echo "✅ All functions have docstrings"
+          fi
+
+      - name: Check for bare exceptions
+        run: |
+          if grep -rn --include="*.py" "except:" ai_core/ | grep -v "except Exception"; then
+            echo "❌ Found bare except: clauses"
+            echo "Action: Use specific exception types"
+            exit 1
+          fi
+          echo "✅ No bare exceptions found"
+
+      - name: Check for TODO comments
+        run: |
+          if grep -rn --include="*.py" "TODO\|FIXME\|HACK\|XXX" ai_core/; then
+            echo "❌ Found TODO/FIXME/HACK comments in ai_core/"
+            exit 1
+          fi
+          echo "✅ No TODO comments found"
+
+  test-coverage:
+    name: Test Coverage Check
+    runs-on: ubuntu-latest
+    needs: [backend-lint, frontend-lint, ai-core-lint]
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Backend coverage
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm test -- --coverage --watchAll=false
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Backend coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 85" | bc -l) )); then
+            echo "❌ Backend coverage $COVERAGE% below threshold 85%"
+            exit 1
+          fi
+
+      - name: AI Core coverage
+        working-directory: ./ai_core
+        run: |
+          pip install pytest pytest-cov
+          pip install -r requirements.txt
+          pytest --cov=. --cov-report=json --cov-report=term
+          COVERAGE=$(cat coverage.json | jq '.totals.percent_covered')
+          echo "AI Core coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+            echo "❌ AI Core coverage $COVERAGE% below threshold 90%"
+            exit 1
+          fi
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage/coverage-final.json,./ai_core/coverage.json
+          flags: unittests
+          name: codecov-umbrella
+
+  red-lines-check:
+    name: Red Lines Enforcement
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -rn --include="*.js" --include="*.py" -E "(password|api_key|secret)\s*=\s*['\"][^'\"]{8,}" backend/ ai_core/ --exclude-dir=test --exclude-dir=tests; then
+            echo "❌ Hardcoded secrets found"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets"
+
+      - name: Check for console.log in backend
+        run: |
+          if grep -rn --include="*.js" "console\.log" backend/src/; then
+            echo "❌ Found console.log in backend/src/"
+            echo "Action: Use structured logger instead"
+            exit 1
+          fi
+          echo "✅ No console.log found"
+
+      - name: Check for magic numbers
+        run: |
+          if grep -rn --include="*.js" --include="*.py" -E "[^a-zA-Z_](42|3\.14159|1000000)" backend/src/ ai_core/ | grep -v "test"; then
+            echo "⚠️ Potential magic numbers found - review manually"
+          fi
+
+      - name: Check API documentation sync
+        run: |
+          if [ ! -f "docs/api/api-contract-v1.md" ]; then
+            echo "❌ API contract document missing"
+            exit 1
+          fi
+          echo "✅ API contract exists"
+
+  quality-summary:
+    name: QA Summary
+    runs-on: ubuntu-latest
+    needs: [backend-lint, frontend-lint, ai-core-lint, test-coverage, red-lines-check]
+    if: always()
+    
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "## 🎯 Quality Gates Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Backend Linting: ${{ needs.backend-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Frontend Linting: ${{ needs.frontend-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ AI Core Linting: ${{ needs.ai-core-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Test Coverage: ${{ needs.test-coverage.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Red Lines Check: ${{ needs.red-lines-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.backend-lint.result }}" == "failure" || "${{ needs.frontend-lint.result }}" == "failure" || "${{ needs.ai-core-lint.result }}" == "failure" || "${{ needs.test-coverage.result }}" == "failure" || "${{ needs.red-lines-check.result }}" == "failure" ]]; then
+            echo "❌ **QUALITY GATES FAILED - MERGE BLOCKED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Action required: Fix linting errors, coverage issues, or red line violations" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **All quality gates passed - Ready to merge**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [quality-summary]
+    if: failure()
+    
+    steps:
+      - name: Notify team
+        run: |
+          echo "Quality gates failed. Review PR and fix issues before merge."
+          # Add Slack/email notification here if configured

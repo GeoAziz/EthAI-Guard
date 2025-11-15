@@ -14,6 +14,13 @@ help:
 	@echo "  make logs         Tail docker-compose logs"
 	@echo "  make metrics      Display metrics endpoints"
 	@echo "  make docs         Build and serve documentation"
+	@echo "  make load-baseline  Run baseline load test (Locust)"
+	@echo "  make load-spike     Run spike load test (Locust)"
+	@echo "  make load-sustained Run sustained load test (Locust)"
+	@echo "  make chaos-suite    Run Day10 chaos suite"
+	@echo "  make drift-check    Compute drift (PSI/KL) from CSVs"
+	@echo "  make scale-up       Scale services (compose)"
+	@echo "  make scale-down     Reset scaling (compose)"
 	@echo ""
 	@echo "Example workflow:"
 	@echo "  make install"
@@ -113,6 +120,39 @@ chaos:
 	@echo "⚡ Running local chaos smoke test..."
 	chmod +x tools/ci/chaos_smoke_ci.sh
 	./tools/ci/chaos_smoke_ci.sh
+
+# Day 10: Chaos suite
+chaos-suite:
+	@echo "⚡ Running Day10 chaos suite..."
+	chmod +x tools/chaos/day10_chaos_suite.sh
+	BACKEND_URL=http://localhost:5000 AI_CORE_URL=http://localhost:8100 ./tools/chaos/day10_chaos_suite.sh
+
+# Day 10: Load testing (Locust)
+load-baseline:
+	@echo "🏋️ Running baseline load (50 users, 2m)..."
+	BACKEND_HOST=http://localhost:5000 locust -f tools/load/locustfile.py --headless -u 50 -r 10 -t 2m --host http://localhost:5000
+
+load-spike:
+	@echo "🚀 Running spike load (300 users, 2m)..."
+	BACKEND_HOST=http://localhost:5000 locust -f tools/load/locustfile.py --headless -u 300 -r 300 -t 2m --host http://localhost:5000
+
+load-sustained:
+	@echo "🕒 Running sustained load (100 users, 10m)..."
+	BACKEND_HOST=http://localhost:5000 locust -f tools/load/locustfile.py --headless -u 100 -r 20 -t 10m --host http://localhost:5000
+
+# Day 10: Drift check
+drift-check:
+	@echo "📐 Example: python tools/drift/drift_check.py --baseline baseline.csv --current current.csv --columns feature1,feature2 --output drift.json"
+	@echo "Edit and run the above command with your files."
+
+# Day 10: Scaling demo (docker compose)
+scale-up:
+	@echo "📈 Scaling system_api=3, ai_core=2..."
+	docker compose up -d --scale system_api=3 --scale ai_core=2
+
+scale-down:
+	@echo "📉 Resetting to single replicas..."
+	docker compose up -d --scale system_api=1 --scale ai_core=1
 
 # Development targets
 dev: install up

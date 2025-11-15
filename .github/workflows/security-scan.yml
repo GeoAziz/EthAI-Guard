@@ -1,0 +1,238 @@
+name: Security Scanning (SAST + Dependency Check + Advanced Analysis)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+env:
+  FAIL_ON_HIGH_SEVERITY: true  # Block merge on HIGH/CRITICAL findings
+
+jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript', 'python']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: npm audit (backend)
+        working-directory: ./backend
+        run: |
+          npm install
+          npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: pip-audit (ai_core)
+        run: |
+          pip install pip-audit
+          cd ai_core
+          pip-audit -r requirements.txt --desc
+        continue-on-error: true
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for gitleaks
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Optional
+
+  container-scan:
+    name: Container Image Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build backend image
+        run: docker build -t ethixai/backend:${{ github.sha }} backend/
+
+      - name: Build ai_core image
+        run: docker build -t ethixai/ai_core:${{ github.sha }} ai_core/
+
+      - name: Run Trivy (backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ethixai/backend:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'  # Fail on HIGH/CRITICAL
+
+      - name: Upload Trivy results (backend)
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          category: 'trivy-backend'
+
+      - name: Run Trivy (ai_core)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ethixai/ai_core:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-ai-core.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'  # Fail on HIGH/CRITICAL
+
+      - name: Upload Trivy results (ai_core)
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-ai-core.sarif'
+          category: 'trivy-ai-core'
+
+  advanced-sast:
+    name: Advanced SAST Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm install
+          cd ../ai_core && pip install -r requirements.txt
+
+      - name: Bandit - Python Security Linter
+        run: |
+          pip install bandit[toml]
+          bandit -r ai_core/ -ll -f json -o bandit-report.json || true
+          echo "Bandit scan completed"
+
+      - name: Upload Bandit results
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+      - name: Check for SQL Injection patterns
+        run: |
+          echo "Scanning for SQL injection patterns..."
+          ! grep -rn --include="*.js" --include="*.py" -E "(sql.*\+|exec\(|eval\(|cursor\.execute.*format)" backend/ ai_core/ || (echo "⚠️ Potential SQL injection found" && exit 1)
+
+      - name: Check for token leakage patterns
+        run: |
+          echo "Scanning for potential token leakage..."
+          ! grep -rn --include="*.js" --include="*.py" -E "(console\.log.*token|print.*token|logger.*token.*\=)" backend/ ai_core/ || (echo "⚠️ Potential token leakage in logs" && exit 1)
+
+      - name: Check for unsafe logging
+        run: |
+          echo "Scanning for unsafe logging (PII/passwords)..."
+          ! grep -rn --include="*.js" --include="*.py" -E "(log.*password|log.*ssn|log.*credit_card)" backend/ ai_core/ || (echo "⚠️ Sensitive data in logs" && exit 1)
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for hardcoded secrets patterns..."
+          ! grep -rn --include="*.js" --include="*.py" -E "(password.*=.*['\"][^'\"]{8,}|api_key.*=.*['\"]|secret.*=.*['\"])" backend/ ai_core/ --exclude-dir=test --exclude-dir=tests || (echo "⚠️ Hardcoded secrets found" && exit 1)
+
+      - name: Check for missing rate limiters
+        run: |
+          echo "Checking for missing rate limiters on auth endpoints..."
+          if ! grep -q "rateLimit" backend/src/routes/auth.js 2>/dev/null; then
+            echo "⚠️ Auth routes missing rate limiter"
+            exit 1
+          fi
+
+      - name: Check for weak password policies
+        run: |
+          echo "Checking password policy enforcement..."
+          if ! grep -rq "password.*length.*12" backend/ ai_core/; then
+            echo "⚠️ Weak password policy (minimum 12 chars required)"
+            exit 1
+          fi
+
+      - name: Check for input validation
+        run: |
+          echo "Checking for input validation on API routes..."
+          if ! grep -q "validation\|validator\|joi\|yup" backend/src/routes/*.js 2>/dev/null; then
+            echo "⚠️ Missing input validation on routes"
+            exit 1
+          fi
+
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [codeql, dependency-scan, secret-scan, container-scan, advanced-sast]
+    if: always()
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🔐 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ CodeQL: ${{ needs.codeql.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Secret Detection: ${{ needs.secret-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Container Scan: ${{ needs.container-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Advanced SAST: ${{ needs.advanced-sast.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.codeql.result }}" == "failure" || "${{ needs.secret-scan.result }}" == "failure" || "${{ needs.container-scan.result }}" == "failure" || "${{ needs.advanced-sast.result }}" == "failure" ]]; then
+            echo "❌ **CRITICAL SECURITY FINDINGS - MERGE BLOCKED**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **All security checks passed**" >> $GITHUB_STEP_SUMMARY
+          fi
