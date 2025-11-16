@@ -17,6 +17,12 @@ help:
 	@echo "  make load-baseline  Run baseline load test (Locust)"
 	@echo "  make load-spike     Run spike load test (Locust)"
 	@echo "  make load-sustained Run sustained load test (Locust)"
+	@echo "  make load:baseline   Day14 baseline (k6 S1/S2)"
+	@echo "  make load:ramp       Day14 ramp explainability"
+	@echo "  make load:mixed      Day14 mixed hold"
+	@echo "  make load:spike      Day14 spike scenario"
+	@echo "  make load:stress     Day14 stress escalation"
+	@echo "  make load:soak       Day14 soak (30m)"
 	@echo "  make chaos-suite    Run Day10 chaos suite"
 	@echo "  make drift-check    Compute drift (PSI/KL) from CSVs"
 	@echo "  make scale-up       Scale services (compose)"
@@ -148,6 +154,39 @@ load-spike:
 load-sustained:
 	@echo "🕒 Running sustained load (100 users, 10m)..."
 	BACKEND_HOST=http://localhost:5000 locust -f tools/load/locustfile.py --headless -u 100 -r 20 -t 10m --host http://localhost:5000
+
+# Day 14 k6 targets (use BASE_URL override if needed)
+.PHONY: load:baseline load:ramp load:mixed load:spike load:stress load:soak
+BASE_URL?=http://localhost:5000
+
+load:baseline:
+	@echo "🔎 Day14 Baseline (auth dashboard + upload/analyze)"
+	k6 run tools/load/day14/s1_auth_dashboard.js --env BASE_URL=$(BASE_URL)
+	k6 run tools/load/day14/s2_upload_analyze.js --env BASE_URL=$(BASE_URL) --env VUS=3 --env DURATION=1m
+
+load:ramp:
+	@echo "📈 Day14 Ramp (explainability heavy)"
+	k6 run tools/load/day14/s3_explainability_heavy.js --env BASE_URL=$(BASE_URL) --env RATE_TARGET=25
+
+load:mixed:
+	@echo "🔀 Day14 Mixed weighted scenario hold"
+	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=50 --env DURATION=10m
+
+load:spike:
+	@echo "🚀 Day14 Spike (250 rps for 2m)"
+	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=250 --env DURATION=2m --env PRE_VUS=400 --env MAX_VUS=800 || true
+
+load:stress:
+	@echo "🔥 Day14 Stress escalation (300→600 rps)"
+	for r in 300 400 500 600; do \
+	  echo "-- rate=$$r"; \
+	  k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=$$r --env DURATION=2m --env PRE_VUS=$$((r*2)) --env MAX_VUS=$$((r*3)) || true; \
+	  sleep 8; \
+	done
+
+load:soak:
+	@echo "💧 Day14 Soak (40 rps for 30m)"
+	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=40 --env DURATION=30m --env PRE_VUS=120 --env MAX_VUS=200 || true
 
 # Day 10: Drift check
 drift-check:
