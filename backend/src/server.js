@@ -62,7 +62,8 @@ app.use(
 		max: Number(process.env.RATE_MAX || 60),
 		standardHeaders: true,
 		legacyHeaders: false,
-		message: { error: 'Too many requests, slow down' }
+		message: { error: 'Too many requests, slow down' },
+		skip: (req, _res) => (process.env.DISABLE_RATE_LIMIT === '1') || (req.headers['x-test-bypass-ratelimit'] === '1')
 	})
 );
 

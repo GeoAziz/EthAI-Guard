@@ -9,6 +9,8 @@ services:
       # Backend needs the full analyze path for the ai_core service
       - AI_CORE_URL=http://ai_core:8100/ai_core/analyze
       - PORT=5000
+      # Use in-memory stores during Day 13 integration tests to avoid native deps issues in Alpine
+      - USE_IN_MEMORY_DB=1
     depends_on:
       - mongo
       - ai_core
@@ -42,7 +44,9 @@ services:
     # If a host MongoDB service is running, stop it or configure a local
     # override to avoid port collisions.
     ports:
-      - "27017:27017"
+      # Changed host port to 27018 to avoid collision with an existing local MongoDB instance.
+      # Internal service-to-service communication still uses the service name `mongo:27017`.
+      - "27018:27017"
     volumes:
       - mongo-data:/data/db
 

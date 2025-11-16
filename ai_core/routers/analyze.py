@@ -6,7 +6,13 @@ create a new implementation file and point this module at it.
 
 from importlib import import_module as _import_module
 
-_impl = _import_module("ai_core.routers.analyze_impl")
+# Attempt to import implementation module whether package layout is nested (ai_core/routers)
+# or flat (routers/ directly in container working directory). This improves resilience
+# inside the Docker image where the source is copied at /app without the parent folder.
+try:
+    _impl = _import_module("ai_core.routers.analyze_impl")
+except ModuleNotFoundError:
+    _impl = _import_module("routers.analyze_impl")
 
 # re-export names the rest of the codebase expects
 __all__ = [
