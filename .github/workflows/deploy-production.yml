@@ -1,0 +1,535 @@
+# Production Deployment Workflow (Canary Strategy)
+#
+# Flow: main branch → Build & Test → Push Images → Deploy Staging → Smoke Tests
+#       → Deploy Canary (10%) → Monitor → Promote to 100% OR Rollback
+#
+# Secrets Required (GitHub Secrets):
+# - GCP_WORKLOAD_IDENTITY_PROVIDER: Workload Identity Federation provider
+# - GCP_SERVICE_ACCOUNT_EMAIL: Service account for deployments
+# - SLACK_WEBHOOK_URL: Notifications channel
+# - SENTRY_AUTH_TOKEN: Create Sentry release
+#
+# Manual Trigger Variables:
+# - environment: production (default) or staging
+# - skip_canary: false (default) or true (direct deploy to 100%)
+
+name: Deploy Production (Canary)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      skip_canary:
+        description: 'Skip canary phase (deploy directly to 100%)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  GCP_PROJECT_ID: ethixai-production
+  GCP_REGION: us-east1
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-backend
+  AI_CORE_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-ai-core
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-frontend
+
+jobs:
+  # =========================
+  # Job 1: Build & Test
+  # =========================
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend_image_tag: ${{ steps.meta-backend.outputs.tags }}
+      ai_core_image_tag: ${{ steps.meta-ai-core.outputs.tags }}
+      frontend_image_tag: ${{ steps.meta-frontend.outputs.tags }}
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+      release_version: ${{ steps.vars.outputs.release_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set variables
+        id: vars
+        run: |
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "release_version=v$(date +%Y%m%d)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Backend: Build + Test
+      - name: Extract metadata (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=${{ steps.vars.outputs.release_version }}
+            type=raw,value=latest
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache,mode=max
+
+      - name: Test backend (unit + integration)
+        run: |
+          docker run --rm \
+            -e NODE_ENV=test \
+            -e MONGO_URL=mongodb://localhost:27017/test \
+            ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }} \
+            npm test
+
+      - name: Push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:buildcache
+
+      # AI Core: Build + Test
+      - name: Extract metadata (ai_core)
+        id: meta-ai-core
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.AI_CORE_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=${{ steps.vars.outputs.release_version }}
+            type=raw,value=latest
+
+      - name: Build ai_core image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai_core
+          file: ./ai_core/Dockerfile
+          push: false
+          load: true
+          tags: ${{ steps.meta-ai-core.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.AI_CORE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.AI_CORE_IMAGE }}:buildcache,mode=max
+
+      - name: Test ai_core (unit tests)
+        run: |
+          docker run --rm \
+            -e ENVIRONMENT=test \
+            ${{ env.AI_CORE_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }} \
+            pytest tests/ -v --tb=short
+
+      - name: Push ai_core image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai_core
+          file: ./ai_core/Dockerfile
+          push: true
+          tags: ${{ steps.meta-ai-core.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.AI_CORE_IMAGE }}:buildcache
+
+      # Frontend: Build + Push
+      - name: Extract metadata (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=${{ steps.vars.outputs.release_version }}
+            type=raw,value=latest
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
+
+      - name: Scan images for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
+  # =========================
+  # Job 2: Deploy to Staging
+  # =========================
+  deploy-staging:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity)
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy backend to staging
+        run: |
+          gcloud run deploy ethixai-backend-staging \
+            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 3 \
+            --cpu 1 \
+            --memory 512Mi \
+            --set-env-vars NODE_ENV=staging,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
+            --service-account backend-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --tag staging-${{ needs.build-test.outputs.short_sha }}
+
+      - name: Deploy ai_core to staging
+        run: |
+          gcloud run deploy ethixai-ai-core-staging \
+            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 3 \
+            --cpu 2 \
+            --memory 1Gi \
+            --set-env-vars ENVIRONMENT=staging,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
+            --service-account ai-core-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --tag staging-${{ needs.build-test.outputs.short_sha }}
+
+      - name: Get staging URLs
+        id: staging-urls
+        run: |
+          BACKEND_URL=$(gcloud run services describe ethixai-backend-staging --region ${{ env.GCP_REGION }} --format 'value(status.url)')
+          AI_CORE_URL=$(gcloud run services describe ethixai-ai-core-staging --region ${{ env.GCP_REGION }} --format 'value(status.url)')
+          echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "ai_core_url=$AI_CORE_URL" >> $GITHUB_OUTPUT
+
+      - name: Run smoke tests (staging)
+        run: |
+          BACKEND_URL=${{ steps.staging-urls.outputs.backend_url }}
+          
+          # Health check
+          curl -f -s $BACKEND_URL/health/readiness || exit 1
+          
+          # Auth flow
+          REGISTER_RESP=$(curl -s -X POST $BACKEND_URL/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"email":"smoke-test-'$(date +%s)'@example.com","password":"TestPass123"}')
+          
+          echo $REGISTER_RESP | jq -e '.token' || exit 1
+          echo "✅ Smoke tests passed"
+
+      - name: Notify Slack (staging deployed)
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🚀 Staging deployed successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment* ✅\n*Version:* `${{ needs.build-test.outputs.release_version }}`\n*Backend:* ${{ steps.staging-urls.outputs.backend_url }}"
+                  }
+                }
+              ]
+            }'
+
+  # =========================
+  # Job 3: Deploy Canary (10%)
+  # =========================
+  deploy-canary:
+    name: Deploy Canary (10%)
+    runs-on: ubuntu-latest
+    needs: [build-test, deploy-staging]
+    if: github.ref == 'refs/heads/main' && inputs.skip_canary != true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy canary backend (10% traffic)
+        run: |
+          gcloud run deploy ethixai-backend \
+            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --no-traffic \
+            --tag canary-${{ needs.build-test.outputs.short_sha }}
+          
+          # Get current stable revision
+          STABLE_REVISION=$(gcloud run services describe ethixai-backend \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.traffic[0].revisionName)')
+          
+          # Split traffic: 90% stable, 10% canary
+          gcloud run services update-traffic ethixai-backend \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=$STABLE_REVISION=90,canary-${{ needs.build-test.outputs.short_sha }}=10
+
+      - name: Deploy canary ai_core (10% traffic)
+        run: |
+          gcloud run deploy ethixai-ai-core \
+            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --no-traffic \
+            --tag canary-${{ needs.build-test.outputs.short_sha }}
+          
+          STABLE_REVISION=$(gcloud run services describe ethixai-ai-core \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.traffic[0].revisionName)')
+          
+          gcloud run services update-traffic ethixai-ai-core \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=$STABLE_REVISION=90,canary-${{ needs.build-test.outputs.short_sha }}=10
+
+      - name: Notify Slack (canary deployed)
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🐤 Canary deployed (10% traffic)",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Canary Deployment* 🐤\n*Version:* `${{ needs.build-test.outputs.release_version }}`\n*Traffic Split:* 10% canary / 90% stable\n*Monitoring for 15 minutes...*"
+                  }
+                }
+              ]
+            }'
+
+      - name: Monitor canary metrics (15 minutes)
+        run: |
+          echo "Monitoring canary for 15 minutes..."
+          sleep 900  # Wait 15 minutes
+          
+          # Query Prometheus for error rate (last 15m)
+          # Example: rate(http_requests_total{status=~"5.."}[15m]) / rate(http_requests_total[15m])
+          # TODO: Replace with actual Prometheus query
+          
+          ERROR_RATE=$(curl -s 'http://prometheus:9090/api/v1/query?query=rate(http_requests_total{job="backend",status=~"5.."}[15m])/rate(http_requests_total{job="backend"}[15m])' | jq -r '.data.result[0].value[1]')
+          
+          echo "Canary error rate: $ERROR_RATE"
+          
+          # Fail if error rate > 0.5% (0.005)
+          if (( $(echo "$ERROR_RATE > 0.005" | bc -l) )); then
+            echo "❌ Canary error rate too high: $ERROR_RATE"
+            exit 1
+          fi
+          
+          echo "✅ Canary metrics healthy"
+
+      - name: Rollback canary on failure
+        if: failure()
+        run: |
+          echo "Rolling back canary..."
+          STABLE_REVISION=$(gcloud run services describe ethixai-backend \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.traffic[0].revisionName)')
+          
+          gcloud run services update-traffic ethixai-backend \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=$STABLE_REVISION=100
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"❌ Canary rollback triggered due to high error rate"}'
+
+  # =========================
+  # Job 4: Promote Canary to 100%
+  # =========================
+  promote-canary:
+    name: Promote to Production (100%)
+    runs-on: ubuntu-latest
+    needs: [build-test, deploy-canary]
+    if: success() && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Promote backend to 100%
+        run: |
+          gcloud run services update-traffic ethixai-backend \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=canary-${{ needs.build-test.outputs.short_sha }}=100
+
+      - name: Promote ai_core to 100%
+        run: |
+          gcloud run services update-traffic ethixai-ai-core \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=canary-${{ needs.build-test.outputs.short_sha }}=100
+
+      - name: Create Sentry release
+        run: |
+          curl -X POST https://sentry.io/api/0/organizations/ethixai/releases/ \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ needs.build-test.outputs.release_version }}",
+              "refs": [{
+                "repository": "${{ github.repository }}",
+                "commit": "${{ github.sha }}"
+              }],
+              "projects": ["backend", "ai-core"]
+            }'
+
+      - name: Notify Slack (production deployed)
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "✅ Production deployment complete",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment* 🚀\n*Version:* `${{ needs.build-test.outputs.release_version }}`\n*Status:* Fully promoted (100% traffic)\n*Commit:* `${{ github.sha }}`"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {"type": "plain_text", "text": "View Logs"},
+                      "url": "https://console.cloud.google.com/run?project=${{ env.GCP_PROJECT_ID }}"
+                    }
+                  ]
+                }
+              ]
+            }'
+
+  # =========================
+  # Job 5: Deploy Direct (Skip Canary)
+  # =========================
+  deploy-direct:
+    name: Deploy Production (Direct 100%)
+    runs-on: ubuntu-latest
+    needs: [build-test, deploy-staging]
+    if: github.ref == 'refs/heads/main' && inputs.skip_canary == true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy backend (100% traffic)
+        run: |
+          gcloud run deploy ethixai-backend \
+            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 3 \
+            --max-instances 13 \
+            --cpu 1 \
+            --memory 512Mi \
+            --set-env-vars NODE_ENV=production,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},RELEASE_VERSION=${{ needs.build-test.outputs.release_version }} \
+            --service-account backend@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Deploy ai_core (100% traffic)
+        run: |
+          gcloud run deploy ethixai-ai-core \
+            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 6 \
+            --max-instances 11 \
+            --cpu 2 \
+            --memory 1Gi \
+            --set-env-vars ENVIRONMENT=production,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},RELEASE_VERSION=${{ needs.build-test.outputs.release_version }} \
+            --service-account ai-core@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Notify Slack (direct deploy)
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "⚠️ Production deployed directly (canary skipped)",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment* ⚡\n*Version:* `${{ needs.build-test.outputs.release_version }}`\n*Mode:* Direct (100% traffic, no canary)\n*Triggered by:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }'
