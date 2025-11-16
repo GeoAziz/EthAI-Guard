@@ -17,6 +17,12 @@ help:
 	@echo "  make load-baseline  Run baseline load test (Locust)"
 	@echo "  make load-spike     Run spike load test (Locust)"
 	@echo "  make load-sustained Run sustained load test (Locust)"
+	@echo "  make day14-baseline-artifacts  Baseline with JSON artifacts"
+	@echo "  make day14-ramp-artifacts      Ramp with JSON export"
+	@echo "  make day14-mixed-artifacts     Mixed hold JSON export"
+	@echo "  make day14-spike-artifacts     Spike JSON export"
+	@echo "  make day14-stress-artifacts    Stress escalation JSON export"
+	@echo "  make day14-soak-artifacts      Soak JSON export"
 	@echo "  make day14-baseline   Day14 baseline (k6 S1/S2)"
 	@echo "  make day14-ramp       Day14 ramp explainability"
 	@echo "  make day14-mixed      Day14 mixed hold"
@@ -161,20 +167,47 @@ BASE_URL?=http://localhost:5000
 
 day14-baseline:
 	@echo "🔎 Day14 Baseline (auth dashboard + upload/analyze)"
+	mkdir -p docs/perf/day14/artifacts/k6
 	k6 run tools/load/day14/s1_auth_dashboard.js --env BASE_URL=$(BASE_URL)
 	k6 run tools/load/day14/s2_upload_analyze.js --env BASE_URL=$(BASE_URL) --env VUS=3 --env DURATION=1m
+	@echo "✅ Baseline complete (no JSON exports). Use day14-baseline-artifacts for captured data."
+
+day14-baseline-artifacts:
+	@echo "🗂 Day14 Baseline with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	k6 run --summary-export docs/perf/day14/artifacts/k6/baseline_auth_dashboard.json tools/load/day14/s1_auth_dashboard.js --env BASE_URL=$(BASE_URL) || true
+	k6 run --summary-export docs/perf/day14/artifacts/k6/baseline_upload_analyze.json tools/load/day14/s2_upload_analyze.js --env BASE_URL=$(BASE_URL) --env VUS=3 --env DURATION=1m || true
+	@echo "✅ Baseline artifacts saved to docs/perf/day14/artifacts/k6 (threshold failures ignored)"
 
 day14-ramp:
 	@echo "📈 Day14 Ramp (explainability heavy)"
 	k6 run tools/load/day14/s3_explainability_heavy.js --env BASE_URL=$(BASE_URL) --env RATE_TARGET=25
 
+day14-ramp-artifacts:
+	@echo "📈 Day14 Ramp with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	k6 run --summary-export docs/perf/day14/artifacts/k6/ramp_explain.json tools/load/day14/s3_explainability_heavy.js --env BASE_URL=$(BASE_URL) --env RATE_TARGET=25 || true
+	@echo "✅ Ramp artifacts saved (threshold failures ignored)"
+
 day14-mixed:
 	@echo "🔀 Day14 Mixed weighted scenario hold"
 	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=50 --env DURATION=10m
 
+day14-mixed-artifacts:
+	@echo "🔀 Day14 Mixed hold with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	k6 run --summary-export docs/perf/day14/artifacts/k6/mixed_hold.json tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=50 --env DURATION=10m
+	@echo "✅ Mixed hold artifacts saved"
+
 day14-spike:
 	@echo "🚀 Day14 Spike (250 rps for 2m)"
 	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=250 --env DURATION=2m --env PRE_VUS=400 --env MAX_VUS=800 || true
+
+day14-spike-artifacts:
+	@echo "🚀 Day14 Spike with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	k6 run --summary-export docs/perf/day14/artifacts/k6/spike_mixed.json tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=250 --env DURATION=2m --env PRE_VUS=400 --env MAX_VUS=800 || true
+	@echo "✅ Spike artifacts saved"
 
 day14-stress:
 	@echo "🔥 Day14 Stress escalation (300→600 rps)"
@@ -184,9 +217,29 @@ day14-stress:
 	  sleep 8; \
 	done
 
+day14-stress-artifacts:
+	@echo "🔥 Day14 Stress with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	for r in 300 400 500 600; do \
+	  echo "-- rate=$$r"; \
+	  k6 run --summary-export docs/perf/day14/artifacts/k6/stress_rate_$$r.json tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=$$r --env DURATION=2m --env PRE_VUS=$$((r*2)) --env MAX_VUS=$$((r*3)) || true; \
+	  sleep 8; \
+	done
+	@echo "✅ Stress artifacts saved"
+
 day14-soak:
 	@echo "💧 Day14 Soak (40 rps for 30m)"
 	k6 run tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=40 --env DURATION=30m --env PRE_VUS=120 --env MAX_VUS=200 || true
+
+day14-soak-artifacts:
+	@echo "💧 Day14 Soak with artifact export"
+	mkdir -p docs/perf/day14/artifacts/k6
+	k6 run --summary-export docs/perf/day14/artifacts/k6/soak_mixed.json tools/load/day14/s5_mixed_weighted.js --env BASE_URL=$(BASE_URL) --env RATE=40 --env DURATION=30m --env PRE_VUS=120 --env MAX_VUS=200 || true
+	@echo "✅ Soak artifacts saved"
+
+.PHONY: day14-all-artifacts
+day14-all-artifacts: day14-baseline-artifacts day14-ramp-artifacts day14-mixed-artifacts day14-spike-artifacts day14-stress-artifacts day14-soak-artifacts
+	@echo "📦 All Day14 artifact phases complete"
 
 # Day 10: Drift check
 drift-check:
