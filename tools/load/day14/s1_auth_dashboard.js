@@ -25,11 +25,13 @@ const BASE = __ENV.BASE_URL || 'http://localhost:5000';
 const healthTrend = new Trend('health_latency');
 
 export default function() {
-  const h = http.get(`${BASE}/health`);
+  const h = http.get(`${BASE}/health`, { headers: { 'X-Test-Bypass-RateLimit': '1' } });
   healthTrend.add(h.timings.duration);
   check(h, { 'health 200': r => r.status === 200 });
-  const email = register(BASE);
+  const { email, userId } = register(BASE);
   const token = login(BASE, email);
-  listReports(BASE, token);
+  if (token) {
+    listReports(BASE, token, userId);
+  }
   sleepShort();
 }

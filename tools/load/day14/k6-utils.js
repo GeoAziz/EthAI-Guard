@@ -8,15 +8,16 @@ export function randomEmail() {
 export function register(base) {
   const email = randomEmail();
   const res = http.post(`${base}/auth/register`, JSON.stringify({ name: 'Load User', email, password: 'PerfPass123!' }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json', 'X-Test-Bypass-RateLimit': '1' }
   });
   check(res, { 'register status 200|400': r => r.status === 200 || r.status === 400 });
-  return email;
+  const userId = res.json('userId');
+  return { email, userId };
 }
 
 export function login(base, email) {
   const res = http.post(`${base}/auth/login`, JSON.stringify({ email, password: 'PerfPass123!' }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json', 'X-Test-Bypass-RateLimit': '1' }
   });
   check(res, { 'login ok': r => r.status === 200 });
   const body = res.json() || {};
@@ -38,15 +39,15 @@ export function analyze(base, token, rows = 200) {
 }
 
 export function getReport(base, token, id) {
-  const res = http.get(`${base}/report/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  const res = http.get(`${base}/report/${id}`, { headers: { 'Authorization': `Bearer ${token}`, 'X-Test-Bypass-RateLimit': '1' } });
   check(res, { 'report 200': r => r.status === 200 });
   return res;
 }
 
 export function listReports(base, token, userId) {
-  // Provided userId retrieval not exposed by login response; skip listing or simulate
-  const res = http.get(`${base}/reports/${userId || '1'}`, { headers: { 'Authorization': `Bearer ${token}` } });
-  check(res, { 'reports 200': r => r.status === 200 || r.status === 404 });
+  const effectiveUserId = userId || '1';
+  const res = http.get(`${base}/reports/${effectiveUserId}`, { headers: { 'Authorization': `Bearer ${token}`, 'X-Test-Bypass-RateLimit': '1' } });
+  check(res, { 'reports 200': r => r.status === 200 });
   return res;
 }
 

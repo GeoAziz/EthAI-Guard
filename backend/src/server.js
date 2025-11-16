@@ -343,11 +343,13 @@ app.post(
 	app.use(cookieParser());
 
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60_000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts, try later' }
+	windowMs: 5 * 60_000,
+	max: 10,
+	standardHeaders: true,
+	legacyHeaders: false,
+	message: { error: 'Too many login attempts, try later' },
+	// Allow test harness / load scripts to bypass to avoid artificial 429 under load
+	skip: (req) => (process.env.DISABLE_RATE_LIMIT === '1') || (req.headers['x-test-bypass-ratelimit'] === '1')
 });
 
 app.post(

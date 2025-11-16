@@ -18,7 +18,7 @@ export const options = {
 const BASE = __ENV.BASE_URL || 'http://localhost:5000';
 
 export default function() {
-  const email = register(BASE);
+  const { email } = register(BASE);
   const token = login(BASE, email);
   const reportId = analyze(BASE, token, Number(__ENV.ROWS || 500));
   // Poll for report readiness (in-memory typically immediate)
