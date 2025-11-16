@@ -4,9 +4,17 @@
   "description": "End-to-end smoke tests for EthixAI",
   "main": "smoke_test.js",
   "scripts": {
-    "test": "node smoke_test.js"
+    "test": "jest --runInBand --forceExit",
+    "test:smoke": "node smoke_test.js",
+    "test:journey": "jest full_user_journey.spec.js --runInBand --forceExit",
+    "test:all": "jest --runInBand --forceExit"
   },
   "dependencies": {
-    "axios": "^1.4.0"
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "jest": "^29.5.0"
   }
 }

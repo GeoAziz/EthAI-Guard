@@ -1,0 +1,26 @@
+{
+  "name": "ethixai-integration-tests",
+  "version": "1.0.0",
+  "description": "Day 13 Integration, Failure, and Resilience Tests for EthixAI",
+  "scripts": {
+    "test": "jest --runInBand --forceExit --detectOpenHandles",
+    "test:failure": "jest failure_drills.spec.js --runInBand --forceExit --detectOpenHandles",
+    "test:observability": "jest observability_validation.spec.js --runInBand --forceExit",
+    "test:resilience": "jest resilience_tests.spec.js --runInBand --forceExit --detectOpenHandles",
+    "test:all": "jest --runInBand --forceExit --detectOpenHandles",
+    "test:integration": "bash day13_full_integration.sh"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "jest": "^29.5.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 120000,
+    "verbose": true
+  }
+}
