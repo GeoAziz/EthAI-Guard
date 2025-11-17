@@ -70,12 +70,28 @@ async function firebaseAuth(req, res, next) {
     req.userId = decoded.uid;
     req.role = 'user';
 
-    // Optionally load user role from DB if available
+    // Optionally load user role from DB if available; auto-provision user if missing
     try {
       const mongoose = require('mongoose');
       if (mongoose.connection && mongoose.connection.readyState === 1) {
         const User = require('../models/User');
-        const userDoc = await User.findOne({ firebase_uid: decoded.uid }) || await User.findOne({ email: decoded.email });
+        let userDoc = await User.findOne({ firebase_uid: decoded.uid }) || await User.findOne({ email: decoded.email });
+        if (!userDoc) {
+          // Auto-create a minimal user record for Firebase-authenticated users
+          const displayName = decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user');
+          try {
+            userDoc = await User.create({
+              name: displayName,
+              email: decoded.email,
+              password_hash: null,
+              firebase_uid: decoded.uid,
+              role: 'user'
+            });
+          } catch (createErr) {
+            // Race: if another request created it first, fetch again by firebase_uid
+            userDoc = await User.findOne({ firebase_uid: decoded.uid }) || userDoc;
+          }
+        }
         if (userDoc) {
           req.role = userDoc.role || 'user';
           req.userId = String(userDoc._id);
