@@ -1,0 +1,64 @@
+{
+  "title": "Service Health Overview",
+  "description": "Day16 initial dashboard for backend & ai_core probes + key HTTP metrics",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "HTTP Request Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "sum(rate(http_requests_total[1m]))", "refId": "A"}
+      ],
+      "gridPos": {"x":0,"y":0,"w":6,"h":4}
+    },
+    {
+      "type": "graph",
+      "title": "Request Duration (p95)",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "refId": "A"}
+      ],
+      "gridPos": {"x":6,"y":0,"w":9,"h":4}
+    },
+    {
+      "type": "stat",
+      "title": "Error Rate (5xx %)",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "(sum(rate(http_requests_total{status=\"500\"}[5m])) + sum(rate(http_requests_total{status=\"502\"}[5m])) + sum(rate(http_requests_total{status=\"503\"}[5m])))/(sum(rate(http_requests_total[5m])) ) * 100", "refId": "A"}
+      ],
+      "gridPos": {"x":15,"y":0,"w":9,"h":4},
+      "fieldConfig": {"defaults": {"unit": "percent"}}
+    },
+    {
+      "type": "stat",
+      "title": "Backend Readiness",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "max_over_time(probe_success{job=\"backend-readiness\"}[1m])", "refId": "A"}
+      ],
+      "gridPos": {"x":0,"y":4,"w":6,"h":4}
+    },
+    {
+      "type": "stat",
+      "title": "AI Core Readiness",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "max_over_time(probe_success{job=\"ai-core-readiness\"}[1m])", "refId": "A"}
+      ],
+      "gridPos": {"x":6,"y":4,"w":6,"h":4}
+    },
+    {
+      "type": "graph",
+      "title": "AI Core Analyze Duration",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(ai_core_http_request_duration_seconds_bucket{route=\"/ai_core/analyze\"}[5m])) by (le))", "refId": "A"}
+      ],
+      "gridPos": {"x":12,"y":4,"w":12,"h":8}
+    }
+  ],
+  "time": {"from": "now-6h", "to": "now"}
+}

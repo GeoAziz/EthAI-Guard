@@ -1,0 +1,44 @@
+name: Day16 Smoke & Health Probes
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  smoke-probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Build & Start Services (Docker Compose)
+        run: |
+          docker compose up -d --build
+          echo "Waiting for backend readiness..."
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:5000/health/readiness | jq -e '.status=="ready"' >/dev/null 2>&1; then
+              echo "Backend ready"; break; fi; sleep 2;
+          done
+          curl -fs http://localhost:8100/health/liveness || (echo "AI Core liveness failed" && exit 1)
+
+      - name: Run Smoke Tests
+        run: bash tools/smoke_tests/run_smoke_tests.sh http://localhost:5000
+
+      - name: Dump Metrics Sample (Optional Artifact)
+        if: always()
+        run: |
+          mkdir -p artifacts
+          curl -fs http://localhost:5000/metrics > artifacts/backend_metrics.txt || true
+          curl -fs http://localhost:8100/metrics > artifacts/ai_core_metrics.txt || true
+
+      - name: Upload Metrics Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: day16-metrics
+          path: artifacts

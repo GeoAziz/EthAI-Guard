@@ -133,6 +133,9 @@ app.use(async (req, res, next) => {
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:27017/ethixai';
 const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY_DB === '1';
+// Track startup lifecycle for /health/startup endpoint
+let STARTUP_COMPLETE = false;
+const STARTUP_AT = Date.now();
 
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
@@ -151,10 +154,15 @@ if (!USE_IN_MEMORY) {
 	RefreshToken = require('./models/RefreshToken');
 	mongoose
 		.connect(MONGO_URL)
-		.then(() => logger.info({ mongo: MONGO_URL }, 'Connected to MongoDB'))
+		.then(() => {
+			logger.info({ mongo: MONGO_URL }, 'Connected to MongoDB');
+			STARTUP_COMPLETE = true;
+		})
 		.catch(err => logger.error({ err }, 'MongoDB connection error'));
 } else {
 	logger.info('Using in-memory stores for backend (test mode)');
+	// In-memory mode considered immediate startup completion after a short defer to allow route registration.
+	setTimeout(() => { STARTUP_COMPLETE = true; }, 250);
 }
 
 // Initialize Firebase Admin SDK at startup (only if AUTH_PROVIDER is firebase)
@@ -162,7 +170,46 @@ if (process.env.AUTH_PROVIDER === 'firebase') {
 	initFirebase();
 }
 
+// Existing simple health (legacy) retained for backward compatibility
 app.get('/health', (req, res) => res.json({ status: 'backend ok' }));
+
+// Liveness: process is up and event loop responsive
+app.get('/health/liveness', (req, res) => {
+	const mem = process.memoryUsage();
+	res.json({ status: 'ok', pid: process.pid, uptime_seconds: Math.round(process.uptime()), rss_mb: (mem.rss/1024/1024).toFixed(1) });
+});
+
+// Readiness: DB connected (or in-memory mode), optional ai_core reachability
+app.get('/health/readiness', async (req, res) => {
+	let dbReady = true;
+	if (!USE_IN_MEMORY) {
+		const state = mongoose.connection && mongoose.connection.readyState;
+		dbReady = state === 1; // 1 = connected
+	}
+	let aiCoreReady = true;
+	try {
+		if (process.env.AI_CORE_URL) {
+			// ping analyze base path's health sibling by replacing trailing path if needed
+			const base = process.env.AI_CORE_URL.replace(/\/ai_core\/analyze.*$/, '/health');
+			await axios.get(base, { timeout: 2000 });
+		}
+	} catch (e) {
+		aiCoreReady = false;
+	}
+	if (dbReady && aiCoreReady && STARTUP_COMPLETE) {
+		return res.json({ status: 'ready', db: dbReady, ai_core: aiCoreReady });
+	}
+	return res.status(503).json({ status: 'not_ready', db: dbReady, ai_core: aiCoreReady, startup_complete: STARTUP_COMPLETE });
+});
+
+// Startup: indicates whether initial bootstrap completed (DB connection / model warmup etc.)
+app.get('/health/startup', (req, res) => {
+	const since = Date.now() - STARTUP_AT;
+	if (STARTUP_COMPLETE) {
+		return res.json({ status: 'started', ms_since_start: since });
+	}
+	return res.status(202).json({ status: 'starting', ms_since_start: since });
+});
 
 // Helper functions (abstract persistence)
 async function findUserByEmail(email) {
@@ -527,6 +574,14 @@ app.post('/datasets/upload', authMiddleware, async (req, res) => {
 	const ds = await createDataset(name, type, req.user.sub);
 	res.json({ status: 'uploaded', id: ds._id });
 });
+
+// Evaluation pipeline route (E2E-DEEP Day17)
+try {
+	const evaluateRouter = require('./routes/evaluate');
+	app.use(evaluateRouter); // mounts /v1/evaluate
+} catch (e) {
+	logger.error({ err: e }, 'failed_to_mount_evaluate_router');
+}
 
 // Run analysis by calling ai_core microservice, persist a Report and return the analysis summary
 app.post(
