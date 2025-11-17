@@ -575,12 +575,14 @@ app.post('/datasets/upload', authMiddleware, async (req, res) => {
 	res.json({ status: 'uploaded', id: ds._id });
 });
 
-// Evaluation pipeline route (E2E-DEEP Day17)
+// Evaluation pipeline routes (E2E-DEEP Day17 + Storage Day18)
 try {
 	const evaluateRouter = require('./routes/evaluate');
 	app.use(evaluateRouter); // mounts /v1/evaluate
+	const evaluationHistoryRouter = require('./routes/evaluationHistory');
+	app.use(evaluationHistoryRouter); // mounts /v1/evaluations, /v1/evaluations/:id
 } catch (e) {
-	logger.error({ err: e }, 'failed_to_mount_evaluate_router');
+	logger.error({ err: e }, 'failed_to_mount_evaluation_routers');
 }
 
 // Run analysis by calling ai_core microservice, persist a Report and return the analysis summary
