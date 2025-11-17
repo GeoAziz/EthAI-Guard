@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'zod';
 
 const GenerateFairnessInsightsInputSchema = z.object({
   fairnessMetrics: z
@@ -58,7 +58,7 @@ const generateFairnessInsightsFlow = ai.defineFlow(
     inputSchema: GenerateFairnessInsightsInputSchema,
     outputSchema: GenerateFairnessInsightsOutputSchema,
   },
-  async input => {
+  async (input: GenerateFairnessInsightsInput) => {
     const {output} = await prompt(input);
     return output!;
   }

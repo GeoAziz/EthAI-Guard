@@ -17,12 +17,15 @@ interface EvaluationResponse {
 
 const initialRow: FeatureRow = { key: 'feature_a', value: '1,2,3' };
 
-function parseFeatures(rows: FeatureRow) {
+function parseFeatures(rows: FeatureRow[]): Record<string, any> {
   const out: Record<string, any> = {};
-  rows.forEach(r => {
+  rows.forEach((r: FeatureRow) => {
     if (!r.key) return;
     if (r.value.includes(',')) {
-      out[r.key] = r.value.split(',').map(v => Number(v.trim())).filter(v => !isNaN(v));
+      out[r.key] = r.value
+        .split(',')
+        .map((v: string) => Number(v.trim()))
+        .filter((v: number) => !isNaN(v));
     } else {
       const num = Number(r.value);
       out[r.key] = isNaN(num) ? r.value : num;

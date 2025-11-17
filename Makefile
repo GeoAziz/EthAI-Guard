@@ -33,6 +33,10 @@ help:
 	@echo "  make drift-check    Compute drift (PSI/KL) from CSVs"
 	@echo "  make scale-up       Scale services (compose)"
 	@echo "  make scale-down     Reset scaling (compose)"
+	@echo "  make firebase-login Login to Firebase CLI (opens browser)"
+	@echo "  make deploy-firestore-indexes Deploy Firestore indexes (requires project + auth)"
+	@echo "  make deploy-firestore-rules   Deploy Firestore rules (requires project + auth)"
+	@echo "  make deploy-firestore-all     Deploy both rules and indexes"
 	@echo ""
 	@echo "Example workflow:"
 	@echo "  make install"
@@ -269,3 +273,37 @@ watch-backend:
 watch-ai-core:
 	@echo "👀 Watching ai_core for changes..."
 	cd ai_core && python -m pytest tests/ -v --tb=short --watch || python -m pytest tests/ -v --tb=short
+
+# Firebase deployment helpers (requires firebase-tools and auth)
+.PHONY: firebase-login deploy-firestore-indexes deploy-firestore-rules deploy-firestore-all
+
+# Opens a browser to authenticate the Firebase CLI for your account
+firebase-login:
+	@if ! command -v npx >/dev/null 2>&1; then echo "npx not found. Please install Node.js."; exit 1; fi
+	@npx --yes firebase-tools login
+
+# Deploy Firestore composite indexes from firestore.indexes.json
+# Usage:
+#   make deploy-firestore-indexes FIREBASE_PROJECT_ID=my-project
+# Or set FIREBASE_TOKEN for CI usage
+deploy-firestore-indexes:
+	@if [ -z "$(FIREBASE_PROJECT_ID)" ]; then echo "FIREBASE_PROJECT_ID is required. Example: make $@ FIREBASE_PROJECT_ID=my-project"; exit 1; fi
+	@echo "🚀 Deploying Firestore indexes to project $(FIREBASE_PROJECT_ID)..."
+	@npx --yes firebase-tools deploy --only firestore:indexes --project $(FIREBASE_PROJECT_ID)
+	@echo "✅ Firestore indexes deployment triggered. Index build may take several minutes."
+
+# Deploy Firestore security rules from firestore.rules
+# Usage:
+#   make deploy-firestore-rules FIREBASE_PROJECT_ID=my-project
+deploy-firestore-rules:
+	@if [ -z "$(FIREBASE_PROJECT_ID)" ]; then echo "FIREBASE_PROJECT_ID is required. Example: make $@ FIREBASE_PROJECT_ID=my-project"; exit 1; fi
+	@echo "🔐 Deploying Firestore rules to project $(FIREBASE_PROJECT_ID)..."
+	@npx --yes firebase-tools deploy --only firestore:rules --project $(FIREBASE_PROJECT_ID)
+	@echo "✅ Firestore rules deployed."
+
+# Deploy both rules and indexes together
+deploy-firestore-all:
+	@if [ -z "$(FIREBASE_PROJECT_ID)" ]; then echo "FIREBASE_PROJECT_ID is required. Example: make $@ FIREBASE_PROJECT_ID=my-project"; exit 1; fi
+	@echo "🚀 Deploying Firestore rules + indexes to project $(FIREBASE_PROJECT_ID)..."
+	@npx --yes firebase-tools deploy --only firestore --project $(FIREBASE_PROJECT_ID)
+	@echo "✅ Firestore deployment complete (rules + indexes)."

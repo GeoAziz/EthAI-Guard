@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'zod';
 
 const GenerateComplianceRecommendationsInputSchema = z.object({
   cbkScore: z
@@ -60,7 +60,7 @@ const generateComplianceRecommendationsFlow = ai.defineFlow(
     inputSchema: GenerateComplianceRecommendationsInputSchema,
     outputSchema: GenerateComplianceRecommendationsOutputSchema,
   },
-  async input => {
+  async (input: GenerateComplianceRecommendationsInput) => {
     const {output} = await prompt(input);
     return output!;
   }
