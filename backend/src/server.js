@@ -585,6 +585,14 @@ try {
 	logger.error({ err: e }, 'failed_to_mount_evaluation_routers');
 }
 
+// Model validation routes (MVE Day19)
+try {
+	const validationRouter = require('./routes/validation');
+	app.use(firebaseAuth, validationRouter); // mounts /v1/validate-model, /v1/validation-reports
+} catch (e) {
+	logger.error({ err: e }, 'failed_to_mount_validation_routers');
+}
+
 // Run analysis by calling ai_core microservice, persist a Report and return the analysis summary
 app.post(
 	'/analyze',

@@ -133,12 +133,41 @@ Environment
 - Configure Firebase Admin credentials via environment (see security docs); Firestore is accessed server-side only
 - Frontend expects `NEXT_PUBLIC_BACKEND_URL` for API calls (default http://localhost:5001 in dev pages)
 
+Day 19 — Model Validation Engine + Synthetic Fairness Benchmarking
+------------------------------------------------------------------
+Implemented comprehensive model validation with synthetic data generation and fairness metrics.
+
+- **Synthetic Data Generator**: Creates 100-500 diverse test cases with realistic attributes and edge cases
+- **Fairness Metrics Engine**: Calculates 6 core metrics:
+  - Disparate Impact (80% rule compliance)
+  - Equal Opportunity (TPR differences across groups)
+  - Demographic Parity (outcome rate equality)
+  - Consistency (variance for similar profiles)
+  - Stability (robustness to input noise)
+  - Rule Violation Severity (ethical policy compliance)
+- **Validation Pipeline**: Orchestrates synthetic data → model evaluation → metrics → report
+- **Report Generator**: Produces JSON and HTML reports with pass/fail status, recommendations, confidence scores
+- **Storage**: Firestore `validation_reports` collection with per-user access control
+- **API Endpoints**:
+  - `POST /v1/validate-model` — trigger validation
+  - `GET /v1/validation-reports` — list reports
+  - `GET /v1/validation-reports/:id` — full report details
+- **Frontend**:
+  - Validation dashboard: `frontend/src/app/validation/page.tsx`
+  - Report detail view: `frontend/src/app/validation/[id]/page.tsx`
+- **Docs**:
+  - `docs/model-validation-engine.md` — architecture and usage
+  - `docs/fairness-metrics.md` — metric definitions and thresholds
+  - `docs/api/validation-api.md` — API specifications
+
 Try it
 ------
 1. Run the stack with Docker Compose.
 2. Open `/decision-analysis`, submit an evaluation.
 3. You should see a `storage_id` in the response and a new record in Firestore.
 4. Open `/history` to view your evaluations; click through to details.
+5. Open `/validation`, run a model validation with synthetic data.
+6. View validation reports with fairness scores and recommendations.
 
 
 More details and troubleshooting are in `docs/day6-demo.md`.
