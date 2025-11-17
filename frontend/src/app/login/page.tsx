@@ -13,6 +13,7 @@ import { AuthLayout } from "@/components/auth/auth-layout";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import React from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -22,6 +23,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -34,18 +36,42 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    // Mock Firebase Auth call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    console.log("Mock login with:", values);
-
-    toast({
-      title: "Login Successful",
-      description: "Redirecting to your dashboard...",
-    });
-
-    router.push("/dashboard");
-    setIsSubmitting(false);
+    
+    try {
+      await login(values.email, values.password);
+      
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to your dashboard...",
+      });
+      
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      let errorMessage = "Failed to sign in. Please check your credentials.";
+      
+      // Firebase error codes
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email.";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password. Please try again.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "This account has been disabled.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Too many failed attempts. Please try again later.";
+      }
+      
+      toast({
+        title: "Login Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from './firebase';
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -9,17 +10,26 @@ const api = axios.create({
   },
 });
 
-// Attach JWT from localStorage automatically
+// Attach Firebase ID token automatically
 api.interceptors.request.use((config) => {
-  try {
-    const token = (typeof window !== 'undefined') ? localStorage.getItem('ethixai_token') : null;
-    if (token && config?.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && auth.currentUser) {
+      // Get fresh Firebase ID token
+      auth.currentUser.getIdToken()
+        .then((token) => {
+          if (config?.headers && token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          resolve(config);
+        })
+        .catch((error) => {
+          console.error('Error getting ID token:', error);
+          resolve(config);
+        });
+    } else {
+      resolve(config);
     }
-  } catch (e) {
-    // ignore in non-browser contexts
-  }
-  return config;
+  });
 });
 
 export default api;

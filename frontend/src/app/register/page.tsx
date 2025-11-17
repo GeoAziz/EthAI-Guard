@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -22,6 +23,7 @@ const formSchema = z.object({
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { register: registerUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -34,18 +36,40 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    // Mock Firebase Auth call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    console.log("Mock registration with:", values);
-
-    toast({
-      title: "Registration Successful",
-      description: "Redirecting to your dashboard...",
-    });
-
-    router.push("/dashboard");
-    setIsSubmitting(false);
+    
+    try {
+      await registerUser(values.email, values.password);
+      
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been created. Redirecting to your dashboard...",
+      });
+      
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      
+      let errorMessage = "Failed to create account. Please try again.";
+      
+      // Firebase error codes
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "An account with this email already exists.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak. Please use a stronger password.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = "Email/password accounts are not enabled. Please contact support.";
+      }
+      
+      toast({
+        title: "Registration Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
