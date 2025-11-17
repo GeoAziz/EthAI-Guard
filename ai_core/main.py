@@ -10,10 +10,10 @@ import time
 # the package is loaded as `ai_core` or the module is executed directly.
 try:
     # Prefer package-relative import when running as a package
-    from .routers import analyze, reports
+    from .routers import analyze, reports, validation
 except Exception:
     # Fallback to top-level import when module is executed directly in Docker
-    from routers import analyze, reports
+    from routers import analyze, reports, validation
 
 app = FastAPI(title="EthixAI AI Core")
 _STARTUP_COMPLETE = False
@@ -29,6 +29,7 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(reports.router)
+app.include_router(validation.router, prefix="/validation", tags=["validation"])
 
 # Mount Prometheus metrics endpoint
 metrics_app = make_asgi_app()
