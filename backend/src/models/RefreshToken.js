@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const RefreshTokenSchema = new mongoose.Schema({
-  // Reference to user
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // Reference to user - supports both ObjectId (JWT auth) and String (Firebase UID)
+  userId: { type: mongoose.Schema.Types.Mixed, required: true, index: true },
   
   // Hashed token (Argon2) for secure storage
   tokenHash: { type: String, required: true, index: true },
