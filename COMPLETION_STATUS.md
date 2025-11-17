@@ -22,8 +22,13 @@
 | 10 | End-to-end demo script and docs | ✅ | Day 9 | demo/run_demo.sh |
 | 11 | Observability and logging polish | ✅ | Day 9 | Metrics + logs guide |
 | 12 | Prepare Day-9 release PR & QA | ✅ | Day 9 | Checklist + QA plan |
+| 13 | Full integration & resilience (E2E + failure drills) | ✅ | Day 13 | day13 test suites + orchestrator |
+| 14 | Load & performance baselines (k6 scenarios) | ✅ | Day 14 | k6 scripts + artifacts + capacity calc |
+| 15 | Production deployment architecture & CI/CD | ✅ | Day 15 | prod plan + secrets + DR + deploy workflow |
+| 16 | Health probes, smoke automation, ops dashboard | ✅ | Day 16 | /health/* endpoints + updated smoke tests + Grafana dashboard |
+| 17 | E2E ethical evaluation pipeline (simulation, rules, risk, explainability, UI) | ✅ | Day 17 | POST /v1/evaluate + Decision Analysis UI + comprehensive docs |
 
-**Project Progress**: 12/12 Todos (100%) ✅
+**Project Progress**: 17/17 Todos (100%) ✅ (extended scope)
 
 ---
 

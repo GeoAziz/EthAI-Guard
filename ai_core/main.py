@@ -16,6 +16,8 @@ except Exception:
     from routers import analyze, reports
 
 app = FastAPI(title="EthixAI AI Core")
+_STARTUP_COMPLETE = False
+_STARTUP_AT = time.perf_counter()
 
 app.add_middleware(
     CORSMiddleware,
@@ -95,6 +97,7 @@ try:
         if db is not None:
             ensure_shap_cache_index(db)
             logger.info({"msg": "ensured_shap_cache_index"})
+        _STARTUP_COMPLETE = True
     except Exception:
         # best-effort; don't crash the app on index creation errors
         logger.exception("shap_cache index creation failed (continuing)")
@@ -106,3 +109,40 @@ except Exception:
 @app.get("/health")
 def health():
     return {"status": "ai_core ok"}
+
+
+@app.get("/health/liveness")
+def liveness():
+    """Basic liveness: process responding; memory from resource module (portable)."""
+    import resource
+    try:
+        rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # On Linux ru_maxrss is in KB; on macOS it's bytes. Normalize assuming > 10^7 implies bytes.
+        if rss_kb > 10_000_000:  # heuristic for macOS bytes value
+            rss_mb = rss_kb / 1024 / 1024
+        else:
+            rss_mb = rss_kb / 1024  # KB -> MB
+    except Exception:
+        rss_mb = None
+    return {"status": "ok", "uptime_seconds": round(time.perf_counter() - _STARTUP_AT, 2), "rss_mb": rss_mb}
+
+
+@app.get("/health/startup")
+def startup():
+    status = "started" if _STARTUP_COMPLETE else "starting"
+    code = 200 if _STARTUP_COMPLETE else 202
+    return {"status": status, "uptime_seconds": round(time.perf_counter() - _STARTUP_AT, 2)}
+
+
+@app.get("/health/readiness")
+def readiness():
+    db_ready = True
+    try:
+        from ai_core.utils.persistence import get_db
+        db_ready = get_db() is not None
+    except Exception:
+        db_ready = False
+    ready = db_ready and _STARTUP_COMPLETE
+    if ready:
+        return {"status": "ready", "db": db_ready}
+    return {"status": "not_ready", "db": db_ready, "startup_complete": _STARTUP_COMPLETE}
