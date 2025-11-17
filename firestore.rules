@@ -15,6 +15,25 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Model validation reports (Day 19)
+    match /validation_reports/{report_id} {
+      // Read: only the owner can read their own reports
+      allow read: if request.auth != null &&
+                   resource.data.user_id == request.auth.uid;
+
+      // Create: only the authenticated user can create their own report
+      allow create: if request.auth != null &&
+                     request.resource.data.user_id == request.auth.uid;
+
+      // Update: allow owner to update (for adding notes/tags in future)
+      allow update: if request.auth != null &&
+                     resource.data.user_id == request.auth.uid;
+
+      // Delete: only owner can delete their own reports
+      allow delete: if request.auth != null &&
+                     resource.data.user_id == request.auth.uid;
+    }
+
     // Future: audit access logs, compliance dashboards, etc.
     // Add additional collections with least-privilege rules when implemented.
   }
