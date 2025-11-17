@@ -10,6 +10,7 @@ const logger = require('./logger');
 const { withRequest } = require('./logger');
 const promClient = require('prom-client');
 const { v4: uuidv4 } = require('uuid');
+const { firebaseAuth, initFirebase } = require('./middleware/firebaseAuth');
 // Lightweight in-process cache (simple LRU by insertion order) to avoid external deps
 class SimpleCache {
 	constructor(options = {}) {
@@ -154,6 +155,11 @@ if (!USE_IN_MEMORY) {
 		.catch(err => logger.error({ err }, 'MongoDB connection error'));
 } else {
 	logger.info('Using in-memory stores for backend (test mode)');
+}
+
+// Initialize Firebase Admin SDK at startup (only if AUTH_PROVIDER is firebase)
+if (process.env.AUTH_PROVIDER === 'firebase') {
+	initFirebase();
 }
 
 app.get('/health', (req, res) => res.json({ status: 'backend ok' }));
@@ -495,8 +501,14 @@ app.delete('/auth/devices/:deviceId', authMiddleware, async (req, res) => {
 	}
 });
 
-// Auth middleware
+// Auth middleware - use Firebase or JWT based on AUTH_PROVIDER
 function authMiddleware(req, res, next) {
+	// If Firebase is configured, use Firebase auth
+	if (process.env.AUTH_PROVIDER === 'firebase') {
+		return firebaseAuth(req, res, next);
+	}
+	
+	// Otherwise fallback to JWT auth
 	const auth = req.headers.authorization;
 	if (!auth) return res.status(401).json({ error: 'No token' });
 	const token = auth.split(' ')[1];
