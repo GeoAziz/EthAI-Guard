@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Ethical evaluations audit trail (Day 18)
+    match /ethical_evaluations/{evaluation_id} {
+      // Read: only the owner can read their own records
+      allow read: if request.auth != null &&
+                   resource.data.user_id == request.auth.uid;
+
+      // Create: only the authenticated user can create their own record
+      allow create: if request.auth != null &&
+                     request.resource.data.user_id == request.auth.uid;
+
+      // Immutable records: no updates or deletes allowed
+      allow update, delete: if false;
+    }
+
+    // Future: audit access logs, compliance dashboards, etc.
+    // Add additional collections with least-privilege rules when implemented.
+  }
+}

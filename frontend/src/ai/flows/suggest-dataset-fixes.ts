@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { z } from 'zod';
 
 const SuggestDatasetFixesInputSchema = z.object({
   datasetDescription: z
@@ -56,7 +56,7 @@ const suggestDatasetFixesFlow = ai.defineFlow(
     inputSchema: SuggestDatasetFixesInputSchema,
     outputSchema: SuggestDatasetFixesOutputSchema,
   },
-  async input => {
+  async (input: SuggestDatasetFixesInput) => {
     const {output} = await prompt(input);
     return output!;
   }
