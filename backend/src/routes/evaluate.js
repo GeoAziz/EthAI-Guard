@@ -7,6 +7,7 @@ const { computeRisk } = require('../risk/scoring');
 const { generateExplanation } = require('../explainability/generator');
 const promClient = require('prom-client');
 const logger = require('../logger');
+const { saveEvaluation } = require('../storage/evaluations');
 
 // Metrics counters (register only once)
 let evalCounter = promClient.register.getSingleMetric('evaluations_total');
@@ -63,8 +64,16 @@ router.post('/v1/evaluate', validationChain, async (req, res) => {
       simulation,
       rules,
       risk,
-      explanation
+      explanation,
+      context: augmentedContext
     };
+
+    // 6. Persist to Firestore (non-blocking, graceful failure)
+    const storage_id = await saveEvaluation(response);
+    if (storage_id) {
+      response.storage_id = storage_id;
+    }
+
     return res.json(response);
   } catch (e) {
     logger.error({ err: e }, 'evaluation_failed');

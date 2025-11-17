@@ -8,10 +8,10 @@ This repository contains the EthixAI ethical AI governance engine prototype (Fas
 
 What’s here
 -----------
-- `backend/` — FastAPI service, ML logic, fairness and explainability endpoints.
-- `frontend/` — React + Tailwind dashboard UI.
-- `ml/` — notebooks and scripts for dataset prep, fairness experiments.
-- `docs/` — product spec and CBK-aligned submission documents.
+- `backend/` — Express system API (evaluation pipeline, storage layer), authentication, health probes.
+- `ai_core/` — FastAPI ML microservice for analysis and reports.
+- `frontend/` — Next.js + Tailwind dashboard UI.
+- `docs/` — product spec, architecture, UX, and compliance docs.
 
 Run locally (Docker)
 --------------------
@@ -98,6 +98,48 @@ Quick how-to:
 chmod +x tools/e2e_demo.sh
 ./tools/e2e_demo.sh
 ```
+
+Day 17 — E2E Ethical Evaluation Pipeline
+----------------------------------------
+We implemented the E2E-DEEP pipeline in the backend and UI:
+- Simulation engine (deterministic pseudo-model)
+- Rules engine (fairness/bias/compliance)
+- Risk scoring (0-100 + low/medium/high)
+- Explanation generator (summary, details, recommended action)
+- API: `POST /v1/evaluate`
+- Frontend: `src/app/decision-analysis/page.tsx` with animated RiskGauge
+
+Day 18 — Advanced Evaluation Pipeline + Storage Layer
+-----------------------------------------------------
+Added a compliance-grade audit trail and history UI.
+
+- Storage: Firebase Firestore collection `ethical_evaluations`
+- Backend storage module: `backend/src/storage/evaluations.js`
+- Persist every evaluation result (non-blocking) and return `storage_id`
+- API endpoints:
+	- `GET /v1/evaluations` — list with filters (risk_level, model_id, pagination)
+	- `GET /v1/evaluations/:id` — full evaluation detail
+- Frontend:
+	- History dashboard: `frontend/src/app/history/page.tsx`
+	- Evaluation details: `frontend/src/app/history/[id]/page.tsx`
+- Docs:
+	- `docs/storage-architecture.md`
+	- `docs/audit-trail-design.md`
+	- `docs/ux-design/history-ui.md`
+
+Environment
+-----------
+- Set `AUTH_PROVIDER=firebase` to enable Firebase auth (required for history endpoints)
+- Configure Firebase Admin credentials via environment (see security docs); Firestore is accessed server-side only
+- Frontend expects `NEXT_PUBLIC_BACKEND_URL` for API calls (default http://localhost:5001 in dev pages)
+
+Try it
+------
+1. Run the stack with Docker Compose.
+2. Open `/decision-analysis`, submit an evaluation.
+3. You should see a `storage_id` in the response and a new record in Firestore.
+4. Open `/history` to view your evaluations; click through to details.
+
 
 More details and troubleshooting are in `docs/day6-demo.md`.
 
