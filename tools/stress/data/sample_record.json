@@ -1,0 +1,11 @@
+{
+  "id": "sample_record_001",
+  "credit_score": 720,
+  "income": 65000,
+  "debt_to_income_ratio": 0.35,
+  "employment_years": 8,
+  "existing_credit_lines": 3,
+  "age": "36-45",
+  "gender": "female",
+  "ethnicity": "group_a"
+}

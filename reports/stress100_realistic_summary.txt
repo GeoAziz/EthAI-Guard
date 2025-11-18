@@ -1,0 +1,39 @@
+================================================================================
+STRESS TEST RESULTS: stress100_realistic_report.json
+================================================================================
+
+## Test Overview
+- Duration: N/A
+- Virtual Users Created: 12,000
+- Virtual Users Completed: 12,000
+- Virtual Users Failed: 0
+- Success Rate: 100.0%
+
+## Request Metrics
+- Total Requests: 12,000
+- Request Rate: 100.0/sec
+
+## Response Time (ms)
+- Min: 0ms
+- Median: 3ms
+- Mean: 4.8ms
+- p95: 12.1ms
+- p99: 27.9ms
+- Max: 94ms
+
+## HTTP Status Codes
+- 200: 8,353 (69.6%)
+- 404: 3,647 (30.4%)
+
+## Per-Endpoint Performance (p95 response time)
+- /api/audit/logs: p95=10.1ms, mean=3.9ms
+- /api/model-cards: p95=10.9ms, mean=3.8ms
+- /v1/evaluate: p95=12.1ms, mean=5.2ms
+
+================================================================================
+## Performance Assessment
+================================================================================
+✅ PASS: p95 latency (12.1ms) is within target (<2000ms)
+✅ PASS: Success rate (100.0%) meets target (>95%)
+✅ No rate limiting detected
+

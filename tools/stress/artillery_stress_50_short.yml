@@ -1,0 +1,46 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 90  # short run for CI/session execution (~1.5 minutes)
+      arrivalRate: 50  # 50 new users per second
+      name: "Stress Test - 50 Users (Short)"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "stress-50-short-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+
+scenarios:
+  - name: "Heavy Analyze Load"
+    weight: 80
+    flow:
+      - post:
+          url: "/api/analyze"
+          json:
+            model_type: "credit_scoring"
+            dataset: "{{ payload_100 }}"
+            protected_attributes: ["gender", "age"]
+            target_column: "approved"
+          capture:
+            - json: "$.report_id"
+              as: "reportId"
+          expect:
+            - statusCode: [200, 201, 503]  # Allow 503 under stress
+      - think: 1
+      - get:
+          url: "/api/reports/{{ reportId }}"
+          ifTrue: "reportId"  # Only if reportId was captured
+          expect:
+            - statusCode: [200, 404]  # 404 if report not ready yet
+
+  - name: "Query Operations"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/model-cards"
+          expect:
+            - statusCode: [200, 503]
+      - get:
+          url: "/api/audit/logs?limit=10"
+          expect:
+            - statusCode: [200, 503]

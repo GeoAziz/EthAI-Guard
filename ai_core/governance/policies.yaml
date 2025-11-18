@@ -1,0 +1,141 @@
+# Governance Compliance Policies
+# Version: 1.0
+# Date: November 18, 2025
+
+fairness_policies:
+  demographic_parity:
+    max_difference: 0.10
+    severity: "CRITICAL"
+    regulation: "EU AI Act Article 10"
+    description: "Maximum allowed difference in positive outcome rates across protected groups"
+  
+  disparate_impact:
+    min_ratio: 0.80  # 80% rule (US EEOC standard)
+    severity: "CRITICAL"
+    regulation: "Kenya Employment Act Section 5"
+    description: "Minimum ratio of positive outcome rates (protected/reference group)"
+  
+  equal_opportunity:
+    max_difference: 0.05
+    severity: "HIGH"
+    regulation: "Internal Policy v2.0"
+    description: "Maximum difference in true positive rates across protected groups"
+
+performance_policies:
+  minimum_accuracy:
+    threshold: 0.75
+    severity: "HIGH"
+    applies_to: ["classification"]
+    description: "Minimum acceptable overall accuracy for classification models"
+  
+  minimum_auc_roc:
+    threshold: 0.70
+    severity: "HIGH"
+    applies_to: ["binary_classification"]
+    description: "Minimum AUC-ROC score for binary classification models"
+  
+  minimum_precision:
+    threshold: 0.70
+    severity: "MEDIUM"
+    applies_to: ["classification"]
+    description: "Minimum precision for high-stakes predictions"
+
+explainability_policies:
+  interpretability_score:
+    min_score: 0.70
+    severity: "MEDIUM"
+    regulation: "EU AI Act Article 13"
+    description: "Minimum interpretability score (0-1 scale)"
+  
+  protected_attribute_leakage:
+    check: "top_5_features"
+    severity: "CRITICAL"
+    regulation: "Kenya Data Protection Act Section 30"
+    description: "Protected attributes must NOT appear in top 5 most important features"
+  
+  explanation_availability:
+    required: true
+    severity: "HIGH"
+    regulation: "EU AI Act Article 13"
+    description: "Per-prediction explanations must be available (SHAP, LIME, etc.)"
+
+data_quality_policies:
+  minimum_samples:
+    threshold: 1000
+    per_group: true
+    severity: "HIGH"
+    description: "Minimum number of samples required per protected group"
+  
+  completeness:
+    min_score: 0.90
+    severity: "MEDIUM"
+    description: "Minimum data completeness (% of required fields populated)"
+  
+  consistency:
+    min_score: 0.95
+    severity: "LOW"
+    description: "Minimum data consistency score (internal validation checks)"
+
+regulatory_requirements:
+  eu_ai_act:
+    risk_level: "high"
+    required_fields:
+      - "intended_use"
+      - "ethical_considerations.human_oversight"
+      - "audit_trail"
+      - "performance.overall_accuracy"
+      - "fairness_metrics"
+    severity: "CRITICAL"
+    description: "High-risk AI system requirements under EU AI Act"
+  
+  kenya_data_protection:
+    required_fields:
+      - "training_data.sensitive_data"
+      - "compliance.regulations"
+    severity: "CRITICAL"
+    description: "Kenya Data Protection Act 2019 compliance requirements"
+  
+  cbk_guidelines:
+    required_fields:
+      - "version_history"
+      - "compliance.audit_trail"
+      - "performance.confidence_intervals"
+    severity: "HIGH"
+    description: "Central Bank of Kenya Prudential Guidelines 2023"
+
+monitoring_policies:
+  drift_check_frequency:
+    production: "weekly"
+    staging: "monthly"
+    severity: "MEDIUM"
+  
+  fairness_reeval_frequency:
+    production: "monthly"
+    staging: "quarterly"
+    severity: "HIGH"
+  
+  model_retraining_assessment:
+    frequency: "quarterly"
+    severity: "MEDIUM"
+    description: "Assess need for model retraining based on drift and performance"
+
+deployment_policies:
+  pre_deployment_checks:
+    required:
+      - "compliance_validation"
+      - "model_card_generated"
+      - "audit_log_created"
+      - "stakeholder_approval"
+    severity: "CRITICAL"
+    description: "All checks must pass before production deployment"
+  
+  rollback_requirement:
+    required: true
+    severity: "HIGH"
+    description: "Previous model version must be available for rollback"
+  
+  human_review_threshold:
+    high_stakes_decisions: true
+    threshold_amount: 100000  # $100k for financial decisions
+    severity: "CRITICAL"
+    description: "High-stakes decisions require human review"

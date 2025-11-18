@@ -1,0 +1,452 @@
+name: Governance Compliance Check
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'ai_core/**'
+      - 'backend/src/models/**'
+  pull_request:
+    branches:
+      - main
+      - staging
+    paths:
+      - 'ai_core/**'
+      - 'backend/src/models/**'
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: 'Model ID to check'
+        required: false
+        type: string
+      model_version:
+        description: 'Model version to check'
+        required: false
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  detect-model-changes:
+    name: Detect Model Changes
+    runs-on: ubuntu-latest
+    outputs:
+      models_changed: ${{ steps.detect.outputs.models_changed }}
+      model_list: ${{ steps.detect.outputs.model_list }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed models
+        id: detect
+        run: |
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          
+          # Check if any model files changed
+          MODELS_CHANGED=false
+          MODEL_LIST="[]"
+          
+          if echo "$CHANGED_FILES" | grep -q "ai_core/models/\|ai_core/logs/"; then
+            MODELS_CHANGED=true
+            
+            # Extract model IDs from changed files
+            MODEL_IDS=$(echo "$CHANGED_FILES" | grep -E "logs/(training|metrics|fairness)" | sed -E 's/.*\/(fairlens|explainboard|riskassess)_.*/\1/' | sort -u | jq -R . | jq -s .)
+            MODEL_LIST="$MODEL_IDS"
+          fi
+          
+          echo "models_changed=$MODELS_CHANGED" >> $GITHUB_OUTPUT
+          echo "model_list=$MODEL_LIST" >> $GITHUB_OUTPUT
+          echo "Models changed: $MODELS_CHANGED"
+          echo "Model list: $MODEL_LIST"
+
+  generate-model-cards:
+    name: Generate Model Cards
+    runs-on: ubuntu-latest
+    needs: detect-model-changes
+    if: needs.detect-model-changes.outputs.models_changed == 'true' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        model: ${{ fromJson(needs.detect-model-changes.outputs.model_list) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          cd ai_core
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyyaml
+
+      - name: Find latest training artifacts
+        id: artifacts
+        run: |
+          MODEL_ID="${{ matrix.model }}"
+          
+          # Find latest artifacts for this model
+          TRAINING_LOG=$(ls -t ai_core/logs/training/${MODEL_ID}_*.json 2>/dev/null | head -1 || echo "")
+          METRICS=$(ls -t ai_core/logs/metrics/${MODEL_ID}_*.json 2>/dev/null | head -1 || echo "")
+          FAIRNESS=$(ls -t ai_core/logs/fairness/${MODEL_ID}_*.json 2>/dev/null | head -1 || echo "")
+          
+          echo "training_log=$TRAINING_LOG" >> $GITHUB_OUTPUT
+          echo "metrics=$METRICS" >> $GITHUB_OUTPUT
+          echo "fairness=$FAIRNESS" >> $GITHUB_OUTPUT
+          
+          if [ -z "$TRAINING_LOG" ] || [ -z "$METRICS" ] || [ -z "$FAIRNESS" ]; then
+            echo "Error: Missing artifacts for model $MODEL_ID"
+            exit 1
+          fi
+
+      - name: Extract version from training log
+        id: version
+        run: |
+          TRAINING_LOG="${{ steps.artifacts.outputs.training_log }}"
+          VERSION=$(python -c "import json; print(json.load(open('$TRAINING_LOG'))['model_id'].split('_')[-1])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate Model Card
+        run: |
+          cd ai_core
+          python governance/model_card_generator.py \
+            --model-id "${{ matrix.model }}" \
+            --version "${{ steps.version.outputs.version }}" \
+            --training-log "${{ steps.artifacts.outputs.training_log }}" \
+            --metrics "${{ steps.artifacts.outputs.metrics }}" \
+            --fairness-report "${{ steps.artifacts.outputs.fairness }}" \
+            --output-format json \
+            --output-dir ../docs/model_cards/
+
+      - name: Upload Model Card artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-card-${{ matrix.model }}
+          path: docs/model_cards/${{ matrix.model }}_v*.json
+          retention-days: 90
+
+  compliance-validation:
+    name: Validate Compliance
+    runs-on: ubuntu-latest
+    needs: generate-model-cards
+    strategy:
+      matrix:
+        model: ${{ fromJson(needs.detect-model-changes.outputs.model_list) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          cd ai_core
+          pip install pyyaml
+
+      - name: Download Model Card
+        uses: actions/download-artifact@v4
+        with:
+          name: model-card-${{ matrix.model }}
+          path: docs/model_cards/
+
+      - name: Run Compliance Check
+        id: compliance
+        run: |
+          cd ai_core
+          MODEL_CARD=$(ls -t ../docs/model_cards/${{ matrix.model }}_v*.json | head -1)
+          
+          python governance/compliance_checker.py \
+            --model-card "$MODEL_CARD" \
+            --policies governance/policies.yaml \
+            --output-format json \
+            --output-file compliance_report_${{ matrix.model }}.json
+          
+          COMPLIANCE_STATUS=$?
+          echo "status=$COMPLIANCE_STATUS" >> $GITHUB_OUTPUT
+          
+          if [ $COMPLIANCE_STATUS -eq 1 ]; then
+            echo "❌ COMPLIANCE FAILED - Blocking deployment"
+            exit 1
+          elif [ $COMPLIANCE_STATUS -eq 2 ]; then
+            echo "⚠️ COMPLIANCE WARNING - Review required"
+          else
+            echo "✅ COMPLIANCE PASSED"
+          fi
+
+      - name: Upload Compliance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report-${{ matrix.model }}
+          path: ai_core/compliance_report_${{ matrix.model }}.json
+          retention-days: 90
+
+      - name: Comment PR with Compliance Status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('ai_core/compliance_report_${{ matrix.model }}.json', 'utf8'));
+            
+            const status = report.overall_status;
+            const emoji = status === 'PASS' ? '✅' : (status === 'WARNING' ? '⚠️' : '❌');
+            
+            let body = `## ${emoji} Compliance Check: ${{ matrix.model }}\n\n`;
+            body += `**Status:** ${status}\n`;
+            body += `**Total Checks:** ${report.summary.total_checks}\n`;
+            body += `**Passed:** ${report.summary.passed}\n`;
+            body += `**Warnings:** ${report.summary.warnings}\n`;
+            body += `**Failures:** ${report.summary.failures}\n\n`;
+            
+            if (report.failures && report.failures.length > 0) {
+              body += `### ❌ Failures\n`;
+              report.failures.forEach(f => {
+                body += `- **${f.check}** (${f.severity}): ${f.message}\n`;
+              });
+            }
+            
+            if (report.warnings && report.warnings.length > 0) {
+              body += `### ⚠️ Warnings\n`;
+              report.warnings.forEach(w => {
+                body += `- **${w.check}** (${w.severity}): ${w.message}\n`;
+              });
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  upload-to-mongodb:
+    name: Upload to MongoDB
+    runs-on: ubuntu-latest
+    needs: [generate-model-cards, compliance-validation]
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        model: ${{ fromJson(needs.detect-model-changes.outputs.model_list) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package.json
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Download Model Card
+        uses: actions/download-artifact@v4
+        with:
+          name: model-card-${{ matrix.model }}
+          path: docs/model_cards/
+
+      - name: Download Compliance Report
+        uses: actions/download-artifact@v4
+        with:
+          name: compliance-report-${{ matrix.model }}
+          path: ai_core/
+
+      - name: Upload to MongoDB
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          cd backend
+          MODEL_CARD=$(ls -t ../docs/model_cards/${{ matrix.model }}_v*.json | head -1)
+          COMPLIANCE_REPORT="../ai_core/compliance_report_${{ matrix.model }}.json"
+          
+          node -e "
+          const mongoose = require('mongoose');
+          const fs = require('fs');
+          
+          async function upload() {
+            await mongoose.connect(process.env.MONGODB_URI);
+            
+            const modelCard = JSON.parse(fs.readFileSync('$MODEL_CARD', 'utf8'));
+            const complianceReport = JSON.parse(fs.readFileSync('$COMPLIANCE_REPORT', 'utf8'));
+            
+            const ModelCard = mongoose.model('ModelCard', new mongoose.Schema({}, { strict: false }));
+            await ModelCard.findOneAndUpdate(
+              { 'model_metadata.model_id': modelCard.model_metadata.model_id },
+              { ...modelCard, compliance_report: complianceReport, uploaded_at: new Date() },
+              { upsert: true, new: true }
+            );
+            
+            console.log('✅ Model Card uploaded to MongoDB');
+            await mongoose.disconnect();
+          }
+          
+          upload().catch(err => {
+            console.error('❌ Upload failed:', err);
+            process.exit(1);
+          });
+          "
+
+  audit-logging:
+    name: Create Audit Log
+    runs-on: ubuntu-latest
+    needs: [compliance-validation, upload-to-mongodb]
+    if: always() && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        model: ${{ fromJson(needs.detect-model-changes.outputs.model_list) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Download Compliance Report
+        uses: actions/download-artifact@v4
+        with:
+          name: compliance-report-${{ matrix.model }}
+          path: ai_core/
+
+      - name: Create Audit Log
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          cd backend
+          COMPLIANCE_REPORT="../ai_core/compliance_report_${{ matrix.model }}.json"
+          
+          node -e "
+          const mongoose = require('mongoose');
+          const fs = require('fs');
+          const fetch = require('node-fetch');
+          
+          async function createAuditLog() {
+            await mongoose.connect(process.env.MONGODB_URI);
+            
+            const complianceReport = JSON.parse(fs.readFileSync('$COMPLIANCE_REPORT', 'utf8'));
+            
+            const AuditLogSchema = new mongoose.Schema({
+              timestamp: { type: Date, default: Date.now, immutable: true },
+              event_type: { type: String, required: true, immutable: true },
+              model_id: { type: String, required: true, immutable: true },
+              model_version: { type: String, immutable: true },
+              actor: { type: String, required: true, immutable: true },
+              action: { type: String, required: true, immutable: true },
+              result: { type: String, required: true, enum: ['success', 'failure', 'warning'], immutable: true },
+              details: { type: mongoose.Schema.Types.Mixed, immutable: true },
+              compliance_status: { type: String, enum: ['PASS', 'WARNING', 'FAIL'], immutable: true },
+              metadata: { type: mongoose.Schema.Types.Mixed, immutable: true }
+            });
+            
+            const AuditLog = mongoose.model('AuditLog', AuditLogSchema);
+            
+            const auditLog = await AuditLog.create({
+              event_type: 'COMPLIANCE_CHECK',
+              model_id: '${{ matrix.model }}',
+              model_version: complianceReport.model_id.split('_').pop(),
+              actor: 'github-actions',
+              action: 'compliance_validation',
+              result: complianceReport.overall_status === 'PASS' ? 'success' : (complianceReport.overall_status === 'WARNING' ? 'warning' : 'failure'),
+              details: complianceReport,
+              compliance_status: complianceReport.overall_status,
+              metadata: {
+                commit_sha: '${{ github.sha }}',
+                branch: '${{ github.ref_name }}',
+                workflow_run_id: '${{ github.run_id }}'
+              }
+            });
+            
+            console.log('✅ Audit log created:', auditLog._id);
+            
+            // Send Slack notification for FAIL or WARNING
+            if (complianceReport.overall_status !== 'PASS' && process.env.SLACK_WEBHOOK_URL) {
+              const emoji = complianceReport.overall_status === 'WARNING' ? '⚠️' : '❌';
+              const color = complianceReport.overall_status === 'WARNING' ? 'warning' : 'danger';
+              
+              const slackMessage = {
+                text: \`\${emoji} Compliance Check: ${{ matrix.model }}\`,
+                attachments: [{
+                  color: color,
+                  fields: [
+                    { title: 'Status', value: complianceReport.overall_status, short: true },
+                    { title: 'Model', value: '${{ matrix.model }}', short: true },
+                    { title: 'Commit', value: '${{ github.sha }}'.substring(0, 7), short: true },
+                    { title: 'Branch', value: '${{ github.ref_name }}', short: true }
+                  ]
+                }]
+              };
+              
+              await fetch(process.env.SLACK_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(slackMessage)
+              });
+              
+              console.log('📢 Slack notification sent');
+            }
+            
+            await mongoose.disconnect();
+          }
+          
+          createAuditLog().catch(err => {
+            console.error('❌ Audit logging failed:', err);
+            process.exit(1);
+          });
+          "
+
+  deployment-gate:
+    name: Deployment Gate
+    runs-on: ubuntu-latest
+    needs: [compliance-validation, upload-to-mongodb, audit-logging]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Check Compliance Status
+        run: |
+          COMPLIANCE_STATUS="${{ needs.compliance-validation.result }}"
+          
+          if [ "$COMPLIANCE_STATUS" == "failure" ]; then
+            echo "❌ DEPLOYMENT BLOCKED: Compliance check failed"
+            exit 1
+          else
+            echo "✅ DEPLOYMENT APPROVED: Compliance checks passed"
+          fi
+
+      - name: Trigger Deployment Workflow
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'main'
+            });
+            console.log('✅ Deployment workflow triggered');

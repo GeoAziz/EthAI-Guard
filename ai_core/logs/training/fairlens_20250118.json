@@ -1,0 +1,103 @@
+{
+  "model_name": "FairLens",
+  "model_type": "Fairness Analyzer",
+  "author": "EthixAI ML Team",
+  "purpose": "Detect fairness violations in credit scoring models",
+  "target_users": ["Risk Managers", "Compliance Officers", "ML Engineers"],
+  "tasks": [
+    "Demographic Parity Analysis",
+    "Equal Opportunity Detection",
+    "Disparate Impact Calculation"
+  ],
+  "business_context": "Financial Services - Credit Risk Assessment",
+  "expected_volume": "10,000 predictions/day",
+  "constraints": [
+    "Requires minimum 1000 samples per protected group",
+    "Only supports binary and multi-class classification",
+    "Cannot analyze time-series models"
+  ],
+  "out_of_scope": [
+    "Not suitable for medical diagnosis fairness",
+    "Not designed for regression model bias detection"
+  ],
+  "algorithm": "Gradient Boosted Trees (LightGBM)",
+  "hyperparameters": {
+    "num_leaves": 31,
+    "learning_rate": 0.05,
+    "n_estimators": 500,
+    "max_depth": 7,
+    "min_child_samples": 20,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8
+  },
+  "fairness_constraints": {
+    "constraint_type": "Demographic Parity",
+    "epsilon": 0.05,
+    "weight": 0.3
+  },
+  "training_start_time": "2025-01-15T09:00:00Z",
+  "training_end_time": "2025-01-15T13:23:00Z",
+  "training_duration": "4 hours 23 minutes",
+  "compute_resource": "AWS EC2 c5.4xlarge (16 vCPUs, 32 GB RAM)",
+  "framework": "LightGBM 4.0.0 + Fairlearn 0.10.0",
+  "model_size": {
+    "disk": "45 MB",
+    "memory_runtime": "120 MB",
+    "parameters": "2.3 million"
+  },
+  "datasets": [
+    {
+      "name": "Historical Credit Applications 2020-2024",
+      "source": "Partner Bank ABC",
+      "size": 150000,
+      "date_range": "2020-01-01 to 2024-12-31",
+      "license": "Commercial License (Partner Agreement)",
+      "sensitive_data": true,
+      "protected_attributes_included": ["gender", "age", "ethnicity"]
+    }
+  ],
+  "preprocessing": {
+    "steps": [
+      "Missing value imputation (median for numerical, mode for categorical)",
+      "Outlier removal (IQR method, 1.5x threshold)",
+      "Feature scaling (StandardScaler)",
+      "Categorical encoding (One-Hot Encoding)"
+    ],
+    "feature_count": {
+      "original": 87,
+      "after_engineering": 142,
+      "final_selected": 45
+    }
+  },
+  "data_splits": {
+    "training": "70%",
+    "validation": "15%",
+    "test": "15%",
+    "splitting_strategy": "Stratified by outcome and protected groups"
+  },
+  "data_quality": {
+    "completeness": 0.96,
+    "consistency_score": 0.94,
+    "outliers_removed": 0.032,
+    "duplicates_removed": 0.005
+  },
+  "group_distribution": {
+    "gender": {
+      "male": 0.52,
+      "female": 0.48
+    },
+    "age": {
+      "18-25": 0.15,
+      "26-35": 0.32,
+      "36-45": 0.28,
+      "46-55": 0.18,
+      "56+": 0.07
+    },
+    "ethnicity": {
+      "group_a": 0.45,
+      "group_b": 0.30,
+      "group_c": 0.18,
+      "group_d": 0.07
+    }
+  }
+}

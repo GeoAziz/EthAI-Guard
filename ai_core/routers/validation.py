@@ -8,11 +8,19 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import logging
 
-# Import validation components (relative within ai_core package)
-from ..synthetic.generator import generate_synthetic_cases, get_dataset_stats  # type: ignore[reportMissingImports]
-from ..validation.validator import run_validation, extract_validation_summary  # type: ignore[reportMissingImports]
-from ..validation.metrics import calculate_all_metrics  # type: ignore[reportMissingImports]
-from ..validation.report import generate_validation_report  # type: ignore[reportMissingImports]
+# Import validation components (with fallback for direct execution)
+try:
+    # Package-relative imports
+    from ..synthetic.generator import generate_synthetic_cases, get_dataset_stats  # type: ignore[reportMissingImports]
+    from ..validation.validator import run_validation, extract_validation_summary  # type: ignore[reportMissingImports]
+    from ..validation.metrics import calculate_all_metrics  # type: ignore[reportMissingImports]
+    from ..validation.report import generate_validation_report  # type: ignore[reportMissingImports]
+except ImportError:
+    # Fallback for direct execution (Docker)
+    from synthetic.generator import generate_synthetic_cases, get_dataset_stats  # type: ignore[reportMissingImports]
+    from validation.validator import run_validation, extract_validation_summary  # type: ignore[reportMissingImports]
+    from validation.metrics import calculate_all_metrics  # type: ignore[reportMissingImports]
+    from validation.report import generate_validation_report  # type: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

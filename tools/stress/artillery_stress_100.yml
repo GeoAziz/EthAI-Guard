@@ -1,0 +1,36 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 300  # 5 minutes
+      arrivalRate: 100  # 100 new users per second - pushing to limit
+      name: "Stress Test - 100 Concurrent Users"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "stress-100-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+  timeout: 30  # Increase timeout to 30 seconds
+
+scenarios:
+  - name: "Maximum Load Analysis"
+    weight: 90
+    flow:
+      - post:
+          url: "/api/analyze"
+          json:
+            model_type: "credit_scoring"
+            dataset: "{{ payload_100 }}"
+            protected_attributes: ["gender"]
+            target_column: "approved"
+          expect:
+            - statusCode: [200, 201, 429, 503, 504]  # Accept rate limiting & timeouts
+      
+      - think: 0.5  # Minimal thinking time to maximize load
+
+  - name: "Health Checks"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: [200, 503]

@@ -1,0 +1,69 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 300  # 5 minutes
+      arrivalRate: 10  # 10 new users per second (total ~10 concurrent)
+      name: "Baseline Performance Test"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "stress-test-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+  plugins:
+    metrics-by-endpoint:
+      stripQueryString: true
+
+scenarios:
+  - name: "Analyze Credit Scoring Dataset"
+    weight: 60
+    flow:
+      - post:
+          url: "/api/analyze"
+          json:
+            model_type: "credit_scoring"
+            dataset: "{{ payload_100 }}"
+            protected_attributes: ["gender", "age", "ethnicity"]
+            target_column: "approved"
+          capture:
+            - json: "$.report_id"
+              as: "reportId"
+          expect:
+            - statusCode: [200, 201]
+            - contentType: json
+            - hasProperty: "report_id"
+      
+      - think: 2  # Wait 2 seconds
+      
+      - get:
+          url: "/api/reports/{{ reportId }}"
+          expect:
+            - statusCode: 200
+
+  - name: "Generate Explainability Report"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/explain"
+          json:
+            model_type: "credit_scoring"
+            sample_data: "{{ sample_record }}"
+            explanation_type: "shap"
+          expect:
+            - statusCode: [200, 201]
+            - contentType: json
+
+  - name: "Query Model Cards"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/model-cards?page=1&limit=20"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      
+      - think: 1
+      
+      - get:
+          url: "/api/model-cards/stats"
+          expect:
+            - statusCode: 200

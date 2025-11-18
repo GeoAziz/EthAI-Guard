@@ -1,0 +1,58 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 1800  # 30 minutes
+      arrivalRate: 20  # 20 concurrent users sustained
+      name: "Endurance Test - 30 Minutes Sustained Load"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "endurance-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+
+scenarios:
+  - name: "Sustained Operations"
+    weight: 70
+    flow:
+      - post:
+          url: "/api/analyze"
+          json:
+            model_type: "credit_scoring"
+            dataset: "{{ payload_100 }}"
+            protected_attributes: ["gender", "age"]
+            target_column: "approved"
+          capture:
+            - json: "$.report_id"
+              as: "reportId"
+          expect:
+            - statusCode: [200, 201]
+      
+      - think: 2
+      
+      - get:
+          url: "/api/reports/{{ reportId }}"
+          ifTrue: "reportId"
+          expect:
+            - statusCode: [200, 404]
+
+  - name: "Background Queries"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/model-cards?page={{ $randomNumber(1, 5) }}"
+          expect:
+            - statusCode: 200
+      
+      - think: 3
+      
+      - get:
+          url: "/api/audit/logs?limit=50"
+          expect:
+            - statusCode: 200
+      
+      - think: 5
+      
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200

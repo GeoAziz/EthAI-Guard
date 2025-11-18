@@ -1,0 +1,38 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 120  # 2 minutes warmup
+      arrivalRate: 5
+      name: "Warmup Phase"
+    - duration: 60  # 1 minute spike
+      arrivalRate: 100
+      name: "Spike Phase - Sudden Load Burst"
+    - duration: 120  # 2 minutes cooldown
+      arrivalRate: 10
+      name: "Cooldown Phase"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "spike-test-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+  timeout: 30
+
+scenarios:
+  - name: "Spike Load Pattern"
+    flow:
+      - post:
+          url: "/api/analyze"
+          json:
+            model_type: "credit_scoring"
+            dataset: "{{ payload_100 }}"
+            protected_attributes: ["gender", "age"]
+            target_column: "approved"
+          expect:
+            - statusCode: [200, 201, 429, 503, 504]
+      
+      - think: 1
+      
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: [200, 503]

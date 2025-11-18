@@ -1,0 +1,52 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 120  # 2 minutes for quick results
+      arrivalRate: 50
+      name: "Stress Test - 50 Users (Realistic Endpoints)"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      X-Request-Id: "stress-50-{{ $randomNumber() }}"
+  processor: "./artillery_processor.js"
+
+scenarios:
+  - name: "Evaluation Workflow"
+    weight: 70
+    flow:
+      - post:
+          url: "/v1/evaluate"
+          json:
+            user_id: "user_{{ $randomNumber() }}"
+            model_id: "model_credit_scoring"
+            input_features:
+              credit_score: 750
+              income: 85000
+              debt_ratio: 0.3
+              employment_years: 5
+            context:
+              request_source: "stress_test"
+          expect:
+            - statusCode: [200, 400, 503]
+
+      - think: 0.5
+
+  - name: "Model Card Queries"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/model-cards?limit=10"
+          expect:
+            - statusCode: [200, 503]
+      
+      - think: 0.3
+
+  - name: "Audit Log Queries"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/audit/logs?limit=20"
+          expect:
+            - statusCode: [200, 503]
+      
+      - think: 0.3

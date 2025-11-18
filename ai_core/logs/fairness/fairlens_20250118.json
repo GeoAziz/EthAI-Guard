@@ -1,0 +1,133 @@
+{
+  "protected_attributes": ["gender", "age", "ethnicity"],
+  "demographic_parity": {
+    "gender": {
+      "male": 0.72,
+      "female": 0.68,
+      "difference": 0.04,
+      "status": "PASS"
+    },
+    "age": {
+      "18-25": 0.69,
+      "26-35": 0.71,
+      "36-45": 0.70,
+      "46-55": 0.68,
+      "56+": 0.67,
+      "max_difference": 0.04,
+      "status": "PASS"
+    },
+    "ethnicity": {
+      "group_a": 0.70,
+      "group_b": 0.69,
+      "group_c": 0.71,
+      "group_d": 0.68,
+      "max_difference": 0.03,
+      "status": "PASS"
+    }
+  },
+  "equal_opportunity": {
+    "gender": {
+      "male_tpr": 0.89,
+      "female_tpr": 0.87,
+      "difference": 0.02,
+      "status": "PASS"
+    },
+    "age": {
+      "18-25_tpr": 0.86,
+      "26-35_tpr": 0.89,
+      "36-45_tpr": 0.88,
+      "46-55_tpr": 0.87,
+      "56+_tpr": 0.85,
+      "max_difference": 0.04,
+      "status": "PASS"
+    }
+  },
+  "disparate_impact": {
+    "gender": {
+      "ratio": 0.94,
+      "threshold": 0.80,
+      "status": "PASS"
+    },
+    "age": {
+      "min_ratio": 0.94,
+      "threshold": 0.80,
+      "status": "PASS"
+    },
+    "ethnicity": {
+      "min_ratio": 0.91,
+      "threshold": 0.80,
+      "status": "PASS"
+    }
+  },
+  "calibration": {
+    "overall_calibration_error": 0.03,
+    "per_group_calibration": {
+      "male": 0.029,
+      "female": 0.031,
+      "max_difference": 0.002
+    },
+    "status": "PASS"
+  },
+  "bias_mitigation": {
+    "preprocessing": [
+      "Reweighting training samples by protected group",
+      "Stratified sampling to balance groups"
+    ],
+    "inprocessing": [
+      "Fairness constraints during training (epsilon=0.05)"
+    ],
+    "postprocessing": [
+      "Threshold optimization per group"
+    ],
+    "effectiveness": {
+      "before_mitigation": {
+        "demographic_parity_diff": 0.12,
+        "disparate_impact_ratio": 0.73
+      },
+      "after_mitigation": {
+        "demographic_parity_diff": 0.04,
+        "disparate_impact_ratio": 0.94
+      }
+    }
+  },
+  "explainability_method": "SHAP",
+  "feature_importance": {
+    "top_features": [
+      {
+        "feature": "credit_score",
+        "importance": 0.35,
+        "direction": "positive"
+      },
+      {
+        "feature": "income_to_debt_ratio",
+        "importance": 0.28,
+        "direction": "positive"
+      },
+      {
+        "feature": "employment_years",
+        "importance": 0.18,
+        "direction": "positive"
+      },
+      {
+        "feature": "existing_credit_lines",
+        "importance": 0.12,
+        "direction": "negative"
+      },
+      {
+        "feature": "age",
+        "importance": 0.07,
+        "direction": "positive"
+      }
+    ]
+  },
+  "interpretability_score": 0.87,
+  "limitations": [
+    "Model trained on historical data (2020-2024), may not reflect recent economic shifts",
+    "Limited representation of age group 18-21 (only 3% of training data)",
+    "Does not account for intersectional bias (e.g., Black women as distinct group)"
+  ],
+  "detected_biases": [
+    "Slight age bias: 55+ age group has 2% lower approval rate",
+    "Urban vs rural bias: Urban applicants 5% higher approval"
+  ]
+}

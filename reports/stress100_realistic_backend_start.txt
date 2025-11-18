@@ -1,0 +1,287 @@
+# HELP process_cpu_user_seconds_total Total user CPU time spent in seconds.
+# TYPE process_cpu_user_seconds_total counter
+process_cpu_user_seconds_total 63.728618
+
+# HELP process_cpu_system_seconds_total Total system CPU time spent in seconds.
+# TYPE process_cpu_system_seconds_total counter
+process_cpu_system_seconds_total 15.126472
+
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 78.85508999999999
+
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1763484003
+
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 56082432
+
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 12049387520
+
+# HELP process_heap_bytes Process heap size in bytes.
+# TYPE process_heap_bytes gauge
+process_heap_bytes 148512768
+
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 24
+
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 1048576
+
+# HELP nodejs_eventloop_lag_seconds Lag of event loop in seconds.
+# TYPE nodejs_eventloop_lag_seconds gauge
+nodejs_eventloop_lag_seconds 0.004334544
+
+# HELP nodejs_eventloop_lag_min_seconds The minimum recorded event loop delay.
+# TYPE nodejs_eventloop_lag_min_seconds gauge
+nodejs_eventloop_lag_min_seconds 0.008237056
+
+# HELP nodejs_eventloop_lag_max_seconds The maximum recorded event loop delay.
+# TYPE nodejs_eventloop_lag_max_seconds gauge
+nodejs_eventloop_lag_max_seconds 1.152385023
+
+# HELP nodejs_eventloop_lag_mean_seconds The mean of the recorded event loop delays.
+# TYPE nodejs_eventloop_lag_mean_seconds gauge
+nodejs_eventloop_lag_mean_seconds 0.010150278515839042
+
+# HELP nodejs_eventloop_lag_stddev_seconds The standard deviation of the recorded event loop delays.
+# TYPE nodejs_eventloop_lag_stddev_seconds gauge
+nodejs_eventloop_lag_stddev_seconds 0.0019764994433464395
+
+# HELP nodejs_eventloop_lag_p50_seconds The 50th percentile of the recorded event loop delays.
+# TYPE nodejs_eventloop_lag_p50_seconds gauge
+nodejs_eventloop_lag_p50_seconds 0.010141695
+
+# HELP nodejs_eventloop_lag_p90_seconds The 90th percentile of the recorded event loop delays.
+# TYPE nodejs_eventloop_lag_p90_seconds gauge
+nodejs_eventloop_lag_p90_seconds 0.010199039
+
+# HELP nodejs_eventloop_lag_p99_seconds The 99th percentile of the recorded event loop delays.
+# TYPE nodejs_eventloop_lag_p99_seconds gauge
+nodejs_eventloop_lag_p99_seconds 0.010723327
+
+# HELP nodejs_active_handles Number of active libuv handles grouped by handle type. Every handle type is C++ class name.
+# TYPE nodejs_active_handles gauge
+nodejs_active_handles{type="Socket"} 3
+nodejs_active_handles{type="Server"} 1
+
+# HELP nodejs_active_handles_total Total number of active handles.
+# TYPE nodejs_active_handles_total gauge
+nodejs_active_handles_total 4
+
+# HELP nodejs_active_requests Number of active libuv requests grouped by request type. Every request type is C++ class name.
+# TYPE nodejs_active_requests gauge
+
+# HELP nodejs_active_requests_total Total number of active requests.
+# TYPE nodejs_active_requests_total gauge
+nodejs_active_requests_total 0
+
+# HELP nodejs_heap_size_total_bytes Process heap size from Node.js in bytes.
+# TYPE nodejs_heap_size_total_bytes gauge
+nodejs_heap_size_total_bytes 29110272
+
+# HELP nodejs_heap_size_used_bytes Process heap size used from Node.js in bytes.
+# TYPE nodejs_heap_size_used_bytes gauge
+nodejs_heap_size_used_bytes 26420536
+
+# HELP nodejs_external_memory_bytes Node.js external memory size in bytes.
+# TYPE nodejs_external_memory_bytes gauge
+nodejs_external_memory_bytes 21746356
+
+# HELP nodejs_heap_space_size_total_bytes Process heap space size total from Node.js in bytes.
+# TYPE nodejs_heap_space_size_total_bytes gauge
+nodejs_heap_space_size_total_bytes{space="read_only"} 0
+nodejs_heap_space_size_total_bytes{space="new"} 2097152
+nodejs_heap_space_size_total_bytes{space="old"} 21463040
+nodejs_heap_space_size_total_bytes{space="code"} 2097152
+nodejs_heap_space_size_total_bytes{space="shared"} 0
+nodejs_heap_space_size_total_bytes{space="new_large_object"} 0
+nodejs_heap_space_size_total_bytes{space="large_object"} 3452928
+nodejs_heap_space_size_total_bytes{space="code_large_object"} 0
+nodejs_heap_space_size_total_bytes{space="shared_large_object"} 0
+
+# HELP nodejs_heap_space_size_used_bytes Process heap space size used from Node.js in bytes.
+# TYPE nodejs_heap_space_size_used_bytes gauge
+nodejs_heap_space_size_used_bytes{space="read_only"} 0
+nodejs_heap_space_size_used_bytes{space="new"} 558248
+nodejs_heap_space_size_used_bytes{space="old"} 20714120
+nodejs_heap_space_size_used_bytes{space="code"} 1794496
+nodejs_heap_space_size_used_bytes{space="shared"} 0
+nodejs_heap_space_size_used_bytes{space="new_large_object"} 0
+nodejs_heap_space_size_used_bytes{space="large_object"} 3357600
+nodejs_heap_space_size_used_bytes{space="code_large_object"} 0
+nodejs_heap_space_size_used_bytes{space="shared_large_object"} 0
+
+# HELP nodejs_heap_space_size_available_bytes Process heap space size available from Node.js in bytes.
+# TYPE nodejs_heap_space_size_available_bytes gauge
+nodejs_heap_space_size_available_bytes{space="read_only"} 0
+nodejs_heap_space_size_available_bytes{space="new"} 472632
+nodejs_heap_space_size_available_bytes{space="old"} 341656
+nodejs_heap_space_size_available_bytes{space="code"} 171168
+nodejs_heap_space_size_available_bytes{space="shared"} 0
+nodejs_heap_space_size_available_bytes{space="new_large_object"} 1048576
+nodejs_heap_space_size_available_bytes{space="large_object"} 0
+nodejs_heap_space_size_available_bytes{space="code_large_object"} 0
+nodejs_heap_space_size_available_bytes{space="shared_large_object"} 0
+
+# HELP nodejs_version_info Node.js version info.
+# TYPE nodejs_version_info gauge
+nodejs_version_info{version="v20.19.5",major="20",minor="19",patch="5"} 1
+
+# HELP nodejs_gc_duration_seconds Garbage collection duration by kind, one of major, minor, incremental or weakcb.
+# TYPE nodejs_gc_duration_seconds histogram
+nodejs_gc_duration_seconds_bucket{le="0.001",kind="minor"} 27
+nodejs_gc_duration_seconds_bucket{le="0.01",kind="minor"} 179
+nodejs_gc_duration_seconds_bucket{le="0.1",kind="minor"} 188
+nodejs_gc_duration_seconds_bucket{le="1",kind="minor"} 188
+nodejs_gc_duration_seconds_bucket{le="2",kind="minor"} 188
+nodejs_gc_duration_seconds_bucket{le="5",kind="minor"} 188
+nodejs_gc_duration_seconds_bucket{le="+Inf",kind="minor"} 188
+nodejs_gc_duration_seconds_sum{kind="minor"} 0.7270761520266531
+nodejs_gc_duration_seconds_count{kind="minor"} 188
+nodejs_gc_duration_seconds_bucket{le="0.001",kind="major"} 0
+nodejs_gc_duration_seconds_bucket{le="0.01",kind="major"} 23
+nodejs_gc_duration_seconds_bucket{le="0.1",kind="major"} 30
+nodejs_gc_duration_seconds_bucket{le="1",kind="major"} 30
+nodejs_gc_duration_seconds_bucket{le="2",kind="major"} 30
+nodejs_gc_duration_seconds_bucket{le="5",kind="major"} 30
+nodejs_gc_duration_seconds_bucket{le="+Inf",kind="major"} 30
+nodejs_gc_duration_seconds_sum{kind="major"} 0.25316511273384096
+nodejs_gc_duration_seconds_count{kind="major"} 30
+nodejs_gc_duration_seconds_bucket{le="0.001",kind="incremental"} 16
+nodejs_gc_duration_seconds_bucket{le="0.01",kind="incremental"} 28
+nodejs_gc_duration_seconds_bucket{le="0.1",kind="incremental"} 29
+nodejs_gc_duration_seconds_bucket{le="1",kind="incremental"} 29
+nodejs_gc_duration_seconds_bucket{le="2",kind="incremental"} 29
+nodejs_gc_duration_seconds_bucket{le="5",kind="incremental"} 29
+nodejs_gc_duration_seconds_bucket{le="+Inf",kind="incremental"} 29
+nodejs_gc_duration_seconds_sum{kind="incremental"} 0.048771901845932004
+nodejs_gc_duration_seconds_count{kind="incremental"} 29
+
+# HELP http_request_duration_seconds HTTP request duration in seconds
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{le="0.005",method="GET",route="/health",status="200"} 0
+http_request_duration_seconds_bucket{le="0.01",method="GET",route="/health",status="200"} 1
+http_request_duration_seconds_bucket{le="0.025",method="GET",route="/health",status="200"} 1
+http_request_duration_seconds_bucket{le="0.05",method="GET",route="/health",status="200"} 1
+http_request_duration_seconds_bucket{le="0.1",method="GET",route="/health",status="200"} 1
+http_request_duration_seconds_bucket{le="0.25",method="GET",route="/health",status="200"} 1
+http_request_duration_seconds_bucket{le="0.5",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="1",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="2.5",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="5",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="10",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_sum{method="GET",route="/health",status="200"} 0.342280936
+http_request_duration_seconds_count{method="GET",route="/health",status="200"} 2
+http_request_duration_seconds_bucket{le="0.005",method="POST",route="/api/analyze",status="404"} 3896
+http_request_duration_seconds_bucket{le="0.01",method="POST",route="/api/analyze",status="404"} 3910
+http_request_duration_seconds_bucket{le="0.025",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="0.05",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="0.1",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="0.25",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="0.5",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="1",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="2.5",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="5",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="10",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="+Inf",method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_sum{method="POST",route="/api/analyze",status="404"} 3.0242391340000085
+http_request_duration_seconds_count{method="POST",route="/api/analyze",status="404"} 3911
+http_request_duration_seconds_bucket{le="0.005",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.01",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.025",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.05",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.1",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.25",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.5",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="1",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="2.5",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="5",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="10",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="+Inf",method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_sum{method="POST",route="/api/explain",status="404"} 0.09292707399999998
+http_request_duration_seconds_count{method="POST",route="/api/explain",status="404"} 139
+http_request_duration_seconds_bucket{le="0.005",method="GET",route="/api/model-cards",status="404"} 2139
+http_request_duration_seconds_bucket{le="0.01",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.025",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.05",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.1",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.25",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.5",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="1",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="2.5",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="5",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="10",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_sum{method="GET",route="/api/model-cards",status="404"} 1.7863400770000009
+http_request_duration_seconds_count{method="GET",route="/api/model-cards",status="404"} 2148
+http_request_duration_seconds_bucket{le="0.005",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.01",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.025",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.05",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.1",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.25",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.5",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="1",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="2.5",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="5",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="10",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_sum{method="GET",route="/api/model-cards/stats",status="404"} 0.039756968
+http_request_duration_seconds_count{method="GET",route="/api/model-cards/stats",status="404"} 46
+http_request_duration_seconds_bucket{le="0.005",method="GET",route="/api/audit/logs",status="404"} 1446
+http_request_duration_seconds_bucket{le="0.01",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.025",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.05",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.1",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.25",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.5",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="1",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="2.5",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="5",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="10",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_sum{method="GET",route="/api/audit/logs",status="404"} 1.2645500029999983
+http_request_duration_seconds_count{method="GET",route="/api/audit/logs",status="404"} 1451
+http_request_duration_seconds_bucket{le="0.005",method="POST",route="/v1/evaluate",status="200"} 4086
+http_request_duration_seconds_bucket{le="0.01",method="POST",route="/v1/evaluate",status="200"} 4141
+http_request_duration_seconds_bucket{le="0.025",method="POST",route="/v1/evaluate",status="200"} 4150
+http_request_duration_seconds_bucket{le="0.05",method="POST",route="/v1/evaluate",status="200"} 4154
+http_request_duration_seconds_bucket{le="0.1",method="POST",route="/v1/evaluate",status="200"} 4155
+http_request_duration_seconds_bucket{le="0.25",method="POST",route="/v1/evaluate",status="200"} 4155
+http_request_duration_seconds_bucket{le="0.5",method="POST",route="/v1/evaluate",status="200"} 4155
+http_request_duration_seconds_bucket{le="1",method="POST",route="/v1/evaluate",status="200"} 4155
+http_request_duration_seconds_bucket{le="2.5",method="POST",route="/v1/evaluate",status="200"} 4156
+http_request_duration_seconds_bucket{le="5",method="POST",route="/v1/evaluate",status="200"} 4156
+http_request_duration_seconds_bucket{le="10",method="POST",route="/v1/evaluate",status="200"} 4156
+http_request_duration_seconds_bucket{le="+Inf",method="POST",route="/v1/evaluate",status="200"} 4156
+http_request_duration_seconds_sum{method="POST",route="/v1/evaluate",status="200"} 8.229635937000014
+http_request_duration_seconds_count{method="POST",route="/v1/evaluate",status="200"} 4156
+
+# HELP http_requests_total Total HTTP requests
+# TYPE http_requests_total counter
+http_requests_total{method="GET",route="/health",status="200"} 2
+http_requests_total{method="POST",route="/api/analyze",status="404"} 3911
+http_requests_total{method="POST",route="/api/explain",status="404"} 139
+http_requests_total{method="GET",route="/api/model-cards",status="404"} 2148
+http_requests_total{method="GET",route="/api/model-cards/stats",status="404"} 46
+http_requests_total{method="GET",route="/api/audit/logs",status="404"} 1451
+http_requests_total{method="POST",route="/v1/evaluate",status="200"} 4156
+
+# HELP ai_core_analysis_seconds Time spent in ai_core analyze
+# TYPE ai_core_analysis_seconds histogram
+
+# HELP evaluations_total Total evaluation requests
+# TYPE evaluations_total counter
+evaluations_total 4156
+
+# HELP evaluations_high_risk_total High risk evaluation count
+# TYPE evaluations_high_risk_total counter
+evaluations_high_risk_total 4156

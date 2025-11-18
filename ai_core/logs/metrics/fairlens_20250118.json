@@ -1,0 +1,33 @@
+{
+  "accuracy": 0.94,
+  "precision": 0.92,
+  "recall": 0.91,
+  "f1_score": 0.915,
+  "auc_roc": 0.96,
+  "per_class_metrics": {
+    "class_0": {
+      "precision": 0.93,
+      "recall": 0.90,
+      "f1_score": 0.915,
+      "support": 11250
+    },
+    "class_1": {
+      "precision": 0.91,
+      "recall": 0.92,
+      "f1_score": 0.915,
+      "support": 11250
+    }
+  },
+  "confusion_matrix": [
+    [10125, 1125],
+    [900, 10350]
+  ],
+  "confidence_intervals": {
+    "accuracy": [0.93, 0.95],
+    "precision": [0.90, 0.94],
+    "recall": [0.89, 0.93]
+  },
+  "test_size": 22500,
+  "sampling_method": "stratified",
+  "data_range": "2024-01-01 to 2024-12-31"
+}

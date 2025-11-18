@@ -1,0 +1,149 @@
+# HELP python_gc_objects_collected_total Objects collected during gc
+# TYPE python_gc_objects_collected_total counter
+python_gc_objects_collected_total{generation="0"} 317.0
+python_gc_objects_collected_total{generation="1"} 407.0
+python_gc_objects_collected_total{generation="2"} 0.0
+# HELP python_gc_objects_uncollectable_total Uncollectable object found during GC
+# TYPE python_gc_objects_uncollectable_total counter
+python_gc_objects_uncollectable_total{generation="0"} 0.0
+python_gc_objects_uncollectable_total{generation="1"} 0.0
+python_gc_objects_uncollectable_total{generation="2"} 0.0
+# HELP python_gc_collections_total Number of times this generation was collected
+# TYPE python_gc_collections_total counter
+python_gc_collections_total{generation="0"} 118.0
+python_gc_collections_total{generation="1"} 10.0
+python_gc_collections_total{generation="2"} 0.0
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation="CPython",major="3",minor="11",patchlevel="14",version="3.11.14"} 1.0
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 2.4029184e+08
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 9.568256e+06
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.763482279e+09
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 11.25
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 15.0
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 1.048576e+06
+# HELP ai_core_requests_total Total ai_core analyze requests
+# TYPE ai_core_requests_total counter
+# HELP ai_core_analyze_seconds ai_core analyze duration seconds
+# TYPE ai_core_analyze_seconds histogram
+ai_core_analyze_seconds_bucket{le="0.005"} 0.0
+ai_core_analyze_seconds_bucket{le="0.01"} 0.0
+ai_core_analyze_seconds_bucket{le="0.025"} 0.0
+ai_core_analyze_seconds_bucket{le="0.05"} 0.0
+ai_core_analyze_seconds_bucket{le="0.075"} 0.0
+ai_core_analyze_seconds_bucket{le="0.1"} 0.0
+ai_core_analyze_seconds_bucket{le="0.25"} 0.0
+ai_core_analyze_seconds_bucket{le="0.5"} 0.0
+ai_core_analyze_seconds_bucket{le="0.75"} 0.0
+ai_core_analyze_seconds_bucket{le="1.0"} 0.0
+ai_core_analyze_seconds_bucket{le="2.5"} 0.0
+ai_core_analyze_seconds_bucket{le="5.0"} 0.0
+ai_core_analyze_seconds_bucket{le="7.5"} 0.0
+ai_core_analyze_seconds_bucket{le="10.0"} 0.0
+ai_core_analyze_seconds_bucket{le="+Inf"} 0.0
+ai_core_analyze_seconds_count 0.0
+ai_core_analyze_seconds_sum 0.0
+# HELP ai_core_analyze_seconds_created ai_core analyze duration seconds
+# TYPE ai_core_analyze_seconds_created gauge
+ai_core_analyze_seconds_created 1.7634822855490873e+09
+# HELP ai_core_errors_total ai_core analyze errors
+# TYPE ai_core_errors_total counter
+ai_core_errors_total 0.0
+# HELP ai_core_errors_created ai_core analyze errors
+# TYPE ai_core_errors_created gauge
+ai_core_errors_created 1.7634822855492046e+09
+# HELP ai_core_http_request_duration_seconds AI Core HTTP request duration in seconds
+# TYPE ai_core_http_request_duration_seconds histogram
+ai_core_http_request_duration_seconds_bucket{le="0.005",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.01",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.025",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.05",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.1",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.25",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.5",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="1.0",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="2.0",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="3.0",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="5.0",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="10.0",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_count{method="GET",route="/health",status="200"} 2.0
+ai_core_http_request_duration_seconds_sum{method="GET",route="/health",status="200"} 0.002374073024839163
+ai_core_http_request_duration_seconds_bucket{le="0.005",method="GET",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.01",method="GET",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.025",method="GET",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.05",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.1",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.25",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.5",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="1.0",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="2.0",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="3.0",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="5.0",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="10.0",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_count{method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_request_duration_seconds_sum{method="GET",route="/metrics",status="307"} 0.027008922945242375
+ai_core_http_request_duration_seconds_bucket{le="0.005",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.01",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.025",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.05",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.1",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.25",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="0.5",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="1.0",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="2.0",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="3.0",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="5.0",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="10.0",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_bucket{le="+Inf",method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_count{method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_request_duration_seconds_sum{method="HEAD",route="/metrics",status="307"} 0.0007280159625224769
+ai_core_http_request_duration_seconds_bucket{le="0.005",method="GET",route="/metrics/",status="200"} 2.0
+ai_core_http_request_duration_seconds_bucket{le="0.01",method="GET",route="/metrics/",status="200"} 3.0
+ai_core_http_request_duration_seconds_bucket{le="0.025",method="GET",route="/metrics/",status="200"} 3.0
+ai_core_http_request_duration_seconds_bucket{le="0.05",method="GET",route="/metrics/",status="200"} 3.0
+ai_core_http_request_duration_seconds_bucket{le="0.1",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="0.25",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="0.5",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="1.0",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="2.0",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="3.0",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="5.0",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="10.0",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_bucket{le="+Inf",method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_count{method="GET",route="/metrics/",status="200"} 4.0
+ai_core_http_request_duration_seconds_sum{method="GET",route="/metrics/",status="200"} 0.0637776050134562
+# HELP ai_core_http_request_duration_seconds_created AI Core HTTP request duration in seconds
+# TYPE ai_core_http_request_duration_seconds_created gauge
+ai_core_http_request_duration_seconds_created{method="GET",route="/health",status="200"} 1.7634822999295347e+09
+ai_core_http_request_duration_seconds_created{method="GET",route="/metrics",status="307"} 1.763484116078889e+09
+ai_core_http_request_duration_seconds_created{method="HEAD",route="/metrics",status="307"} 1.7634856723347383e+09
+ai_core_http_request_duration_seconds_created{method="GET",route="/metrics/",status="200"} 1.7634856898055785e+09
+# HELP ai_core_http_requests_total Total AI Core HTTP requests
+# TYPE ai_core_http_requests_total counter
+ai_core_http_requests_total{method="GET",route="/health",status="200"} 2.0
+ai_core_http_requests_total{method="GET",route="/metrics",status="307"} 2.0
+ai_core_http_requests_total{method="HEAD",route="/metrics",status="307"} 1.0
+ai_core_http_requests_total{method="GET",route="/metrics/",status="200"} 4.0
+# HELP ai_core_http_requests_created Total AI Core HTTP requests
+# TYPE ai_core_http_requests_created gauge
+ai_core_http_requests_created{method="GET",route="/health",status="200"} 1.7634822999296443e+09
+ai_core_http_requests_created{method="GET",route="/metrics",status="307"} 1.7634841161094565e+09
+ai_core_http_requests_created{method="HEAD",route="/metrics",status="307"} 1.7634856723348951e+09
+ai_core_http_requests_created{method="GET",route="/metrics/",status="200"} 1.7634856898056524e+09
+# HELP ai_core_http_requests_in_progress Number of AI Core HTTP requests in progress
+# TYPE ai_core_http_requests_in_progress gauge
+ai_core_http_requests_in_progress 1.0
