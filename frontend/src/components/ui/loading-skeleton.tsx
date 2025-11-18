@@ -8,12 +8,14 @@ import React from 'react';
 interface SkeletonProps {
   className?: string;
   animate?: boolean;
+  style?: React.CSSProperties;
 }
 
-export function Skeleton({ className = '', animate = true }: SkeletonProps) {
+export function Skeleton({ className = '', animate = true, style }: SkeletonProps) {
   return (
     <div
       className={`bg-gray-200 rounded ${animate ? 'animate-pulse' : ''} ${className}`}
+      style={style}
       role="status"
       aria-label="Loading..."
     />

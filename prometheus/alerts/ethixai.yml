@@ -1,0 +1,318 @@
+# Prometheus Alert Rules for EthixAI
+# Defines conditions that trigger alerts
+
+groups:
+  # ========================================
+  # API Performance Alerts
+  # ========================================
+  - name: api_performance
+    interval: 30s
+    rules:
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            sum(rate(ethixai_backend_http_errors_total[5m])) 
+            / 
+            sum(rate(ethixai_backend_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          
+      - alert: SlowAPIResponses
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(ethixai_backend_http_request_duration_ms_bucket[5m])) by (le)
+          ) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "Slow API responses detected"
+          description: "95th percentile API response time is {{ $value }}ms (threshold: 1000ms)"
+      
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(ethixai_backend_http_request_duration_ms_bucket[5m])) by (le)
+          ) > 2000
+        for: 5m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Very high API latency"
+          description: "99th percentile API response time is {{ $value }}ms (threshold: 2000ms)"
+
+  # ========================================
+  # AI Core Performance Alerts
+  # ========================================
+  - name: ai_core_performance
+    interval: 30s
+    rules:
+      - alert: SlowModelInference
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(ethixai_aicore_inference_duration_seconds_bucket[5m])) by (le, model_type)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: ai-core
+        annotations:
+          summary: "Slow model inference detected"
+          description: "Model {{ $labels.model_type }} inference P95 is {{ $value }}s (threshold: 0.5s)"
+      
+      - alert: HighInferenceErrorRate
+        expr: |
+          (
+            sum(rate(ethixai_aicore_inference_errors_total[5m])) 
+            / 
+            sum(rate(ethixai_aicore_inference_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: ai-core
+        annotations:
+          summary: "High inference error rate"
+          description: "Inference error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+      
+      - alert: SlowSHAPComputation
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(ethixai_aicore_shap_computation_duration_seconds_bucket[5m])) by (le, model_type)
+          ) > 5.0
+        for: 10m
+        labels:
+          severity: warning
+          component: ai-core
+        annotations:
+          summary: "Slow SHAP computation"
+          description: "SHAP computation P95 is {{ $value }}s (threshold: 5s)"
+
+  # ========================================
+  # Bias Detection Alerts
+  # ========================================
+  - name: bias_detection
+    interval: 1m
+    rules:
+      - alert: HighBiasDetectionRate
+        expr: |
+          sum(increase(ethixai_aicore_bias_detections_total[1h])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: compliance
+        annotations:
+          summary: "High bias detection rate"
+          description: "{{ $value }} bias detections in the last hour (threshold: 10)"
+      
+      - alert: CriticalBiasDetected
+        expr: |
+          sum(increase(ethixai_aicore_bias_detections_total{severity="critical"}[15m])) > 3
+        for: 1m
+        labels:
+          severity: critical
+          component: compliance
+        annotations:
+          summary: "Critical bias detected"
+          description: "{{ $value }} critical bias detections in 15 minutes"
+      
+      - alert: LowFairnessScore
+        expr: |
+          ethixai_aicore_fairness_score < 0.6
+        for: 5m
+        labels:
+          severity: warning
+          component: compliance
+        annotations:
+          summary: "Low fairness score"
+          description: "Fairness score for {{ $labels.model_type }}/{{ $labels.protected_attribute }} is {{ $value }} (threshold: 0.6)"
+
+  # ========================================
+  # System Resource Alerts
+  # ========================================
+  - name: system_resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 80%)"
+      
+      - alert: CriticalCPUUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 90%)"
+      
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% (threshold: 80%)"
+      
+      - alert: CriticalMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value }}% (threshold: 90%)"
+      
+      - alert: HighDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage on {{ $labels.mountpoint }} is {{ $value }}% (threshold: 80%)"
+
+  # ========================================
+  # Database Alerts
+  # ========================================
+  - name: database
+    interval: 30s
+    rules:
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(ethixai_backend_db_query_duration_ms_bucket[5m])) by (le)
+          ) > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries"
+          description: "Database query P95 is {{ $value }}ms (threshold: 100ms)"
+      
+      - alert: HighDatabaseErrorRate
+        expr: |
+          sum(rate(ethixai_backend_db_errors_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "High database error rate"
+          description: "Database errors: {{ $value }} per second"
+
+  # ========================================
+  # Cache Alerts
+  # ========================================
+  - name: cache
+    interval: 1m
+    rules:
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            sum(rate(ethixai_backend_cache_hits_total[5m])) 
+            / 
+            (sum(rate(ethixai_backend_cache_hits_total[5m])) + sum(rate(ethixai_backend_cache_misses_total[5m])))
+          ) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+      
+      - alert: LowModelCacheHitRate
+        expr: |
+          (
+            sum(rate(ethixai_aicore_model_cache_hits_total[5m])) 
+            / 
+            (sum(rate(ethixai_aicore_model_cache_hits_total[5m])) + sum(rate(ethixai_aicore_model_cache_misses_total[5m])))
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: ai-core
+        annotations:
+          summary: "Low model cache hit rate"
+          description: "Model cache hit rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+
+  # ========================================
+  # Service Health Alerts
+  # ========================================
+  - name: service_health
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Service is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} is down"
+      
+      - alert: HighRequestQueueDepth
+        expr: |
+          ethixai_backend_http_requests_in_progress > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High request queue depth"
+          description: "{{ $value }} requests currently in progress (threshold: 50)"
+
+  # ========================================
+  # Authentication & Security Alerts
+  # ========================================
+  - name: security
+    interval: 1m
+    rules:
+      - alert: HighAuthenticationFailureRate
+        expr: |
+          sum(rate(ethixai_backend_auth_attempts_total{status="failed"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} failed authentication attempts per second"
+      
+      - alert: SuspiciousAuthenticationActivity
+        expr: |
+          sum(increase(ethixai_backend_auth_attempts_total{status="failed"}[1m])) > 20
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Suspicious authentication activity"
+          description: "{{ $value }} failed authentication attempts in 1 minute - possible brute force attack"

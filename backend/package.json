@@ -25,7 +25,9 @@
     "pino": "^8.17.0",
     "pino-pretty": "^9.1.1",
     "prom-client": "^13.2.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "winston": "^3.18.3",
+    "winston-mongodb": "^7.0.1"
   },
   "devDependencies": {
     "eslint": "^8.50.0",

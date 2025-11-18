@@ -144,17 +144,19 @@ class PerformanceTimer:
         self.start_time = time.time()
         return self
     
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.time()
-        duration = self.end_time - self.start_time
-        print(f"[PERF] {self.name} took {duration:.3f}s")
-    
+        # Do not suppress exceptions; return False so exceptions propagate.
+        return False
+
     @property
     def elapsed(self) -> float:
         """Get elapsed time in seconds"""
-        if self.end_time:
+        if self.start_time is None:
+            return 0.0
+        if self.end_time is not None:
             return self.end_time - self.start_time
-        return time.time() - self.start_time if self.start_time else 0
+        return time.time() - self.start_time
 
 
 def clear_analysis_cache():
