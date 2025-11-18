@@ -53,6 +53,7 @@ class E2ETestSuite:
         """Test 1: Health check endpoint"""
         print("\n--- Test 1: Health Check ---")
         try:
+            assert self.session is not None, "Session not initialized"
             async with self.session.get(f"{self.base_url}/health") as resp:
                 await self.assert_test(
                     "Health check status",
@@ -72,6 +73,7 @@ class E2ETestSuite:
         """Test 2: User registration"""
         print("\n--- Test 2: User Registration ---")
         try:
+            assert self.session is not None, "Session not initialized"
             async with self.session.post(
                 f"{self.base_url}/auth/register",
                 json=self.test_user
@@ -96,6 +98,7 @@ class E2ETestSuite:
         """Test 3: User login"""
         print("\n--- Test 3: User Login ---")
         try:
+            assert self.session is not None, "Session not initialized"
             async with self.session.post(
                 f"{self.base_url}/auth/login",
                 json={
@@ -132,6 +135,7 @@ class E2ETestSuite:
         dataset = self._generate_test_dataset(100)
         
         try:
+            assert self.session is not None, "Session not initialized"
             headers = {}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
@@ -167,6 +171,7 @@ class E2ETestSuite:
         dataset = self._generate_test_dataset(100)
         
         try:
+            assert self.session is not None, "Session not initialized"
             headers = {}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
@@ -224,6 +229,7 @@ class E2ETestSuite:
         print("\n--- Test 6: View Results ---")
         
         try:
+            assert self.session is not None, "Session not initialized"
             headers = {}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
@@ -255,6 +261,7 @@ class E2ETestSuite:
         # For now, just test that the endpoint exists
         # Full implementation would require getting a report ID first
         try:
+            assert self.session is not None, "Session not initialized"
             headers = {}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
