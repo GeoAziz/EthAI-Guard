@@ -175,7 +175,7 @@ class AlertManager:
         if not self.db:
             return []
         
-        query = {'resolved': False}
+        query: Dict[str, Any] = {'resolved': False}
         if model_id:
             query['model_id'] = model_id
         if severity:

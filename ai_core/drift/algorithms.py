@@ -7,7 +7,7 @@ and fairness drift metrics for monitoring model behavior in production.
 from typing import Dict, List, Tuple, Any
 import numpy as np
 from scipy import stats
-from scipy.spatial.distance import wasserstein_distance
+from scipy.stats import wasserstein_distance
 
 
 def compute_psi(

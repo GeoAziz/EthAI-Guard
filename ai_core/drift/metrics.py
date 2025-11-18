@@ -82,11 +82,15 @@ class DriftMetricsExporter:
             'model_id': model_id
         })
         
-        overall_status_value = {
+        # Map overall status (ensure key is a string for type safety)
+        status_raw = results.get('overall_status', 'unknown')
+        status = status_raw if isinstance(status_raw, str) else str(status_raw)
+        status_map = {
             'stable': 0,
             'warning': 1,
-            'critical': 2
-        }.get(results.get('overall_status'), -1)
+            'critical': 2,
+        }
+        overall_status_value = status_map.get(status, -1)
         
         self._set_metric('drift_overall_status', overall_status_value, {
             'model_id': model_id

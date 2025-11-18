@@ -10,18 +10,9 @@ from datetime import datetime, timedelta
 import argparse
 import time
 
-from .algorithms import (
-    compute_psi,
-    compute_kl_divergence,
-    compute_histogram,
-    classify_psi_severity,
-    classify_kl_severity,
-    compute_fairness_drift,
-    compute_data_quality_drift,
-    aggregate_drift_metrics
-)
-from .baseline import BaselineManager
-from .alerts import AlertManager
+from . import algorithms as drift_algorithms  # type: ignore
+from .baseline import BaselineManager  # type: ignore
+from .alerts import AlertManager  # type: ignore
 
 
 class DriftWorker:
@@ -186,8 +177,8 @@ class DriftWorker:
                 baseline_hist = np.array(baseline_stats['histogram'])
                 
                 # Compute PSI
-                psi = compute_psi(baseline_hist, current_hist)
-                severity = classify_psi_severity(psi)
+                psi = drift_algorithms.compute_psi(baseline_hist, current_hist)
+                severity = drift_algorithms.classify_psi_severity(psi)
                 
                 feature_drifts[feature_name] = {
                     'psi': psi,
@@ -207,10 +198,10 @@ class DriftWorker:
         current_score_hist, _ = np.histogram(scores_array, bins=bin_edges)
         baseline_score_hist = np.array(baseline_score_stats['histogram'])
         
-        score_kl = compute_kl_divergence(baseline_score_hist, current_score_hist)
+        score_kl = drift_algorithms.compute_kl_divergence(baseline_score_hist, current_score_hist)
         score_drift = {
             'kl': score_kl,
-            'kl_severity': classify_kl_severity(score_kl),
+            'kl_severity': drift_algorithms.classify_kl_severity(score_kl),
             'mean_baseline': baseline_score_stats['mean'],
             'mean_current': float(np.mean(scores_array)),
             'p95_baseline': baseline_score_stats['p95'],
@@ -232,10 +223,10 @@ class DriftWorker:
         
         data_quality_current = {'null_rates': null_rates_current}
         data_quality_baseline = baseline['data_quality']
-        data_quality_drift = compute_data_quality_drift(data_quality_baseline, data_quality_current)
+        data_quality_drift = drift_algorithms.compute_data_quality_drift(data_quality_baseline, data_quality_current)
         
         # Aggregate
-        aggregated = aggregate_drift_metrics(
+        aggregated = drift_algorithms.aggregate_drift_metrics(
             feature_drifts,
             score_drift,
             fairness_drift,

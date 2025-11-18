@@ -1,0 +1,15 @@
+{
+  "alert_id": "alert-123",
+  "collected_at": "2025-11-17T21:09:32.744Z",
+  "model": {
+    "id": "demo",
+    "version": "unknown",
+    "sha": null
+  },
+  "drift_snapshot": {},
+  "fairness_metrics": {},
+  "evaluations": [],
+  "logs": [],
+  "ci": {},
+  "validation_comparison": {}
+}

@@ -3,9 +3,27 @@ const router = express.Router();
 const { getEvaluations, getEvaluationById } = require('../storage/evaluations');
 const logger = require('../logger');
 const { firebaseAuth } = require('../middleware/firebaseAuth');
+const jwt = require('jsonwebtoken');
+
+// Conditional auth: use Firebase when configured, else fall back to local JWT
+function maybeAuth(req, res, next) {
+  if (process.env.AUTH_PROVIDER === 'firebase') {
+    return firebaseAuth(req, res, next);
+  }
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
+    req.user = payload;
+    return next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+}
 
 // GET /v1/evaluations - List recent evaluations with filters
-router.get('/v1/evaluations', firebaseAuth, async (req, res) => {
+router.get('/v1/evaluations', maybeAuth, async (req, res) => {
   try {
     const { risk_level, model_id, limit, offset } = req.query;
     const user_id = req.user?.sub || req.userId; // Firebase UID or internal user ID
@@ -28,7 +46,7 @@ router.get('/v1/evaluations', firebaseAuth, async (req, res) => {
 });
 
 // GET /v1/evaluations/:id - Get single evaluation details
-router.get('/v1/evaluations/:id', firebaseAuth, async (req, res) => {
+router.get('/v1/evaluations/:id', maybeAuth, async (req, res) => {
   try {
     const evaluation_id = req.params.id;
     const user_id = req.user?.sub || req.userId;

@@ -10,10 +10,18 @@ import time
 # the package is loaded as `ai_core` or the module is executed directly.
 try:
     # Prefer package-relative import when running as a package
-    from .routers import analyze, reports, validation
+    from .routers import analyze, reports
+    import importlib
+    # Import the validation submodule explicitly in case routers.__init__ does not
+    # expose the validation symbol (avoid relying on package __init__ exports).
+    validation = importlib.import_module(".routers.validation", package=__package__ or "ai_core")
 except Exception:
     # Fallback to top-level import when module is executed directly in Docker
-    from routers import analyze, reports, validation
+    # Import analyze and reports directly, and load validation explicitly to avoid
+    # cases where the package __init__ does not expose the validation symbol.
+    from routers import analyze, reports
+    import importlib
+    validation = importlib.import_module("routers.validation")
 
 app = FastAPI(title="EthixAI AI Core")
 _STARTUP_COMPLETE = False
