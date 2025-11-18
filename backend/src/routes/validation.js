@@ -3,10 +3,23 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const axios = require('axios');
 const logger = require('../logger');
+const admin = require('firebase-admin');
 const { initFirebase } = require('../middleware/firebaseAuth');
 
-// Initialize Firebase Admin SDK
-const { db } = initFirebase();
+// Initialize Firebase Admin SDK (no-op in tests without creds)
+initFirebase();
+
+// Lazy getter to avoid crashing module load when Firebase isn't configured
+function getDb() {
+  // In firebase-admin v11+, apps() or apps.length can be used to check init
+  const apps = admin.apps || [];
+  if (apps.length === 0) {
+    const err = new Error('Firestore not configured');
+    err.code = 'firestore_not_available';
+    throw err;
+  }
+  return admin.firestore();
+}
 
 // AI Core service URL
 const AI_CORE_URL = process.env.AI_CORE_URL || 'http://localhost:8000';
@@ -85,7 +98,7 @@ router.post(
         updated_at: new Date().toISOString(),
       };
 
-      const docRef = await db.collection('validation_reports').add(reportDoc);
+  const docRef = await getDb().collection('validation_reports').add(reportDoc);
 
       logger.info({
         user_id,
@@ -138,7 +151,7 @@ router.get('/v1/validation-reports', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     // Query Firestore for user's validation reports
-    const reportsSnapshot = await db
+    const reportsSnapshot = await getDb()
       .collection('validation_reports')
       .where('user_id', '==', user_id)
       .orderBy('created_at', 'desc')
@@ -191,7 +204,7 @@ router.get('/v1/validation-reports/:id', async (req, res) => {
     const firestore_id = req.params.id;
 
     // Fetch report from Firestore
-    const docRef = db.collection('validation_reports').doc(firestore_id);
+  const docRef = getDb().collection('validation_reports').doc(firestore_id);
     const doc = await docRef.get();
 
     if (!doc.exists) {

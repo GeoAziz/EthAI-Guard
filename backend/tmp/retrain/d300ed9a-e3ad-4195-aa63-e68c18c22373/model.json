@@ -1,0 +1,8 @@
+{
+  "version": "v202511180444",
+  "trained_on": "training_data_v1.jsonl",
+  "created_at": "2025-11-18T04:44:15.996Z",
+  "params": {
+    "type": "demo"
+  }
+}
