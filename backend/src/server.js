@@ -459,6 +459,85 @@ async function revokeRefreshToken(tokenId) {
 	}
 }
 
+// Preprocess dataset helper: accepts either column-oriented mapping {col: [..]}
+// or row-oriented input {rows: [{col:val,...}, ...]}. Converts rows -> cols,
+// encodes simple categorical string columns to integer codes and drops
+// obvious identifier columns (id, *_id). This keeps client payloads simple.
+function preprocessDataset(data) {
+	if (!data) return {};
+
+	// If data comes in as { rows: [ {...}, ... ] }
+	if (Array.isArray(data.rows)) {
+		const cols = {};
+		for (const row of data.rows) {
+			if (!row || typeof row !== 'object') continue;
+			for (const k of Object.keys(row)) {
+				cols[k] = cols[k] || [];
+				cols[k].push(row[k]);
+			}
+		}
+		data = cols;
+	}
+
+	// Drop obvious identifier columns
+	for (const key of Object.keys(data)) {
+		if (key.toLowerCase() === 'id' || key.toLowerCase().endsWith('_id')) {
+			delete data[key];
+		}
+	}
+
+	// For each column, coerce/encode values
+	for (const col of Object.keys(data)) {
+		const vals = data[col];
+		if (!Array.isArray(vals)) continue;
+
+		// If values contain booleans, coerce to 0/1
+		for (let i = 0; i < vals.length; i++) {
+			const v = vals[i];
+			if (typeof v === 'boolean') vals[i] = v ? 1 : 0;
+		}
+
+		// Detect if column contains strings that should be encoded
+		const hasString = vals.some(v => typeof v === 'string');
+		if (hasString) {
+			// simple mapping of unique strings to small integers
+			const mapping = Object.create(null);
+			let next = 0;
+			for (let i = 0; i < vals.length; i++) {
+				const v = vals[i];
+				if (v === null || v === undefined || v === '') {
+					vals[i] = null;
+					continue;
+				}
+				if (typeof v === 'string') {
+					if (!(v in mapping)) mapping[v] = next++;
+					vals[i] = mapping[v];
+				} else if (typeof v === 'number') {
+					// keep numbers
+					vals[i] = v;
+				} else {
+					// fallback: stringify then map
+					const s = String(v);
+					if (!(s in mapping)) mapping[s] = next++;
+					vals[i] = mapping[s];
+				}
+			}
+			data[col] = vals;
+			continue;
+		}
+
+		// Try to coerce string numbers to numbers
+		data[col] = vals.map(v => {
+			if (v === null || v === undefined || v === '') return null;
+			if (typeof v === 'number') return v;
+			const n = Number(v);
+			return Number.isNaN(n) ? v : n;
+		});
+	}
+
+	return data;
+}
+
 async function listUserDevices(userId) {
 	if (USE_IN_MEMORY) {
 		// Return empty for in-memory mode
@@ -741,6 +820,14 @@ app.post(
 			const aiCoreUrl = process.env.AI_CORE_URL || 'http://ai_core:8100/ai_core/analyze';
 			// Forward request body to ai_core
 			const payload = { dataset_name: req.body.dataset_name || 'uploaded', data: req.body.data || {} };
+
+			// Preprocess dataset to accept row-oriented or loosely-typed client payloads
+			try {
+				payload.data = preprocessDataset(payload.data);
+				logger.info({ payload_preview: Object.keys(payload.data).slice(0,5) }, 'preprocessed_dataset');
+			} catch (pe) {
+				logger.warn({ err: pe }, 'preprocess_dataset_failed');
+			}
 			const tStart = Date.now();
 			// forward request-id so ai_core logs/metrics can correlate
 			const headers = { 'X-Request-Id': req.request_id };

@@ -54,8 +54,8 @@ echo ""
 echo -e "${YELLOW}[Step 1]${NC} User Registration"
 echo "  → Registering demo user: $DEMO_EMAIL"
 REGISTER_RESPONSE=$(curl -sf -X POST "$BACKEND_URL/auth/register" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$DEMO_EMAIL\",\"password\":\"$DEMO_PASSWORD\"}" 2>/dev/null || echo '{"error":"User may already exist"}')
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$DEMO_EMAIL\",\"password\":\"$DEMO_PASSWORD\",\"name\":\"Demo User\"}" 2>/dev/null || echo '{"error":"User may already exist"}')
 
 if echo "$REGISTER_RESPONSE" | grep -q "userId\|error"; then
     echo -e "  ${GREEN}✓ Registration completed${NC}"
@@ -126,18 +126,64 @@ echo ""
 echo -e "${YELLOW}[Step 4]${NC} AI Fairness Analysis"
 echo "  → Running bias detection and explainability analysis"
 
-ANALYSIS_RESPONSE=$(curl -sf -X POST "$BACKEND_URL/analyze" \
+# Prepare analysis payload by converting the uploaded CSV into JSON rows
+ANALYZE_JSON=$(python3 - <<PY
+import csv, json
+cols = {}
+with open("$DEMO_CSV", newline='') as f:
+    rdr = csv.DictReader(f)
+    for r in rdr:
+        for k, v in r.items():
+            # try numeric conversion
+            val = v
+            try:
+                if v is not None and v != "":
+                    if '.' in v:
+                        val = float(v)
+                    else:
+                        val = int(v)
+            except Exception:
+                val = v
+            cols.setdefault(k, []).append(val)
+# Convert categorical string columns to integer codes (simple mapping)
+for col, vals in list(cols.items()):
+    if any(isinstance(x, str) for x in vals):
+        # build mapping of unique strings to small integers
+        uniq = []
+        mapping = {}
+        new_vals = []
+        for x in vals:
+            if isinstance(x, str):
+                if x not in mapping:
+                    mapping[x] = len(mapping)
+                new_vals.append(mapping[x])
+            else:
+                new_vals.append(x)
+        cols[col] = new_vals
+
+print(json.dumps({"dataset_name": "demo_loan_dataset", "data": cols}))
+PY
+)
+
+ANALYSIS_RESPONSE=$(curl -s -X POST "$BACKEND_URL/analyze" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"datasetId\":\"$DATASET_ID\"}")
+  -d "$ANALYZE_JSON")
 
-ANALYSIS_ID=$(echo "$ANALYSIS_RESPONSE" | jq -r '.analysisId // .analysis_id // .reportId // empty')
+ANALYSIS_ID=$(echo "$ANALYSIS_RESPONSE" | jq -r '.analysisId // .analysis_id // .reportId // empty' 2>/dev/null || true)
 
 if [ -n "$ANALYSIS_ID" ]; then
     echo -e "  ${GREEN}✓ Analysis completed${NC}"
     echo "  Analysis ID: $ANALYSIS_ID"
 else
-    echo -e "  ${YELLOW}⚠ Analysis returned fallback (AI Core may be in demo mode)${NC}"
+    # If AI Core returned a fairness violation or other informative payload, show it but continue demo
+    if echo "$ANALYSIS_RESPONSE" | jq -e '.detail, .violations, .summary, .error' >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}⚠ Analysis returned a non-success response (see details)${NC}"
+        echo "  Response: $ANALYSIS_RESPONSE"
+    else
+        echo -e "  ${YELLOW}⚠ Analysis returned fallback or empty response${NC}"
+        echo "  Response: $ANALYSIS_RESPONSE"
+    fi
 fi
 echo ""
 

@@ -6,7 +6,7 @@ Features:
 - Automatic rotation and retention
 - Structured logging with context
 - Performance tracking
-- Compliance audit trail
+- Compliance audit trail 
 - Error tracking with full context
 """
 
