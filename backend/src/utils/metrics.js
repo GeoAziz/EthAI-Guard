@@ -93,6 +93,13 @@ const tokenRefreshTotal = new client.Counter({
   labelNames: ['status']
 });
 
+// Refresh token security events
+const refreshTokenReuseTotal = new client.Counter({
+  name: 'ethixai_backend_refresh_token_reuse_total',
+  help: 'Total number of detected refresh token reuse events',
+  labelNames: ['rotation_id']
+});
+
 // ========================================
 // Database Metrics
 // ========================================
@@ -374,3 +381,6 @@ module.exports = {
     reportGenerationDuration
   }
 };
+
+// Export security counters separately (optional granular import)
+module.exports.refreshTokenReuseTotal = refreshTokenReuseTotal;

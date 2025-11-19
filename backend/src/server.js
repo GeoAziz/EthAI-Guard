@@ -1,5 +1,15 @@
 const express = require('express');
 const app = express();
+// Optional security middleware (allow running without install in constrained environments)
+function optRequire(mod) {
+	try { return require(mod); } catch (e) { try { logger.warn({ module: mod }, 'optional_dependency_missing'); } catch (_) {} return null; }
+}
+const helmet = optRequire('helmet');
+const cors = optRequire('cors');
+const mongoSanitize = optRequire('express-mongo-sanitize');
+const hpp = optRequire('hpp');
+const compression = optRequire('compression');
+const xssClean = optRequire('xss-clean');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -53,8 +63,62 @@ class SimpleCache {
 const crypto = require('crypto');
 let User, Dataset, Report, RefreshToken;
 
-// Accept reasonably-sized JSON bodies; keep it conservative for production
+// Security middleware: disable x-powered-by, set trust proxy if behind proxy
+app.disable('x-powered-by');
+if (process.env.TRUST_PROXY === '1') {
+	app.set('trust proxy', 1);
+}
+
+// Helmet with a conservative CSP for APIs (tune ALLOWED_ORIGINS if needed)
+if (helmet) {
+	app.use(
+	helmet({
+		contentSecurityPolicy: process.env.DISABLE_CSP === '1' ? false : {
+			useDefaults: true,
+			directives: {
+				defaultSrc: ["'none'"],
+				baseUri: ["'none'"],
+				formAction: ["'none'"],
+				frameAncestors: ["'none'"],
+				connectSrc: ["'self'"],
+				imgSrc: ["'self'", 'data:'],
+				scriptSrc: ["'self'"],
+				styleSrc: ["'self'", "'unsafe-inline'"],
+			}
+		},
+		crossOriginEmbedderPolicy: false,
+		crossOriginResourcePolicy: { policy: 'same-site' }
+	})
+	);
+}
+
+// CORS: allow only explicit origins if provided
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+	.split(',')
+	.map(s => s.trim())
+	.filter(Boolean);
+if (cors) {
+	app.use(
+		cors({
+			origin: (origin, callback) => {
+				if (!origin) return callback(null, true); // allow non-browser tools
+				if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return callback(null, true);
+				return callback(new Error('Not allowed by CORS'));
+			},
+			credentials: true,
+			methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+			allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id']
+		})
+	);
+}
+
+// Body parsing and protections
 app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.JSON_LIMIT || '1mb' }));
+if (hpp) app.use(hpp());
+if (mongoSanitize) app.use(mongoSanitize());
+if (xssClean) app.use(xssClean());
+if (compression) app.use(compression());
 
 // Global rate limiter recommended for demo/prod: 60 requests per minute per IP by default
 app.use(
@@ -288,17 +352,16 @@ async function verifyTokenHash(token, hash) {
 	}
 }
 
-async function storeRefreshToken(userId, rawToken, req, deviceName = null) {
+async function storeRefreshToken(userId, rawToken, req, deviceName = null, rotationId = null, parentTokenHash = null) {
 	// In-memory mode: store in map
 	if (USE_IN_MEMORY) {
 		_refreshTokens.set(rawToken, String(userId));
-		return { token: rawToken };
+		return { token: rawToken, rotationId: rotationId || uuidv4(), parentTokenHash: parentTokenHash || null };
 	}
 	
 	try {
 		const tokenHash = await hashToken(rawToken);
-		const rotationId = uuidv4();
-		
+		const rotId = rotationId || uuidv4();
 		const rtDoc = await RefreshToken.create({
 			userId,
 			tokenHash,
@@ -309,10 +372,11 @@ async function storeRefreshToken(userId, rawToken, req, deviceName = null) {
 				ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
 				deviceId: null
 			},
-			name: deviceName || `Device ${new Date().toLocaleDateString()}`
+			name: deviceName || `Device ${new Date().toLocaleDateString()}`,
+			rotationId: rotId,
+			parentTokenHash: parentTokenHash || null
 		});
-		
-		return { _id: rtDoc._id, token: rawToken };
+		return { _id: rtDoc._id, token: rawToken, rotationId: rotId };
 	} catch (e) {
 		logger.error({ err: e }, 'Error storing refresh token');
 		throw e;
@@ -346,6 +410,37 @@ async function findValidRefreshToken(userId, rawToken) {
 	} catch (e) {
 		logger.error({ err: e }, 'Error finding refresh token');
 		return null;
+	}
+}
+
+// Find any token (even if revoked) that matches rawToken for a user
+async function findAnyRefreshToken(userId, rawToken) {
+	if (USE_IN_MEMORY) {
+		return _refreshTokens.has(rawToken) && _refreshTokens.get(rawToken) === String(userId) ? { token: rawToken } : null;
+	}
+	try {
+		const tokens = await RefreshToken.find({ userId });
+		for (const tokenDoc of tokens) {
+			const isMatch = await verifyTokenHash(rawToken, tokenDoc.tokenHash);
+			if (isMatch) return tokenDoc;
+		}
+		return null;
+	} catch (e) {
+		logger.error({ err: e }, 'Error finding any refresh token');
+		return null;
+	}
+}
+
+async function revokeFamily(rotationId) {
+	if (!rotationId) return;
+	if (USE_IN_MEMORY) {
+		// Not tracked in memory; best-effort no-op
+		return;
+	}
+	try {
+		await RefreshToken.updateMany({ rotationId, revokedAt: null }, { $set: { revokedAt: new Date() } });
+	} catch (e) {
+		logger.error({ err: e }, 'Error revoking token family');
 	}
 }
 
@@ -466,7 +561,23 @@ app.post('/auth/refresh', async (req, res) => {
 		
 		// Find and validate the refresh token
 		const tokenDoc = await findValidRefreshToken(userId, refreshToken);
-		if (!tokenDoc) return res.status(401).json({ error: 'Invalid or revoked refresh token' });
+		if (!tokenDoc) {
+			// Check if this token existed but was revoked (reuse detection)
+			const anyDoc = await findAnyRefreshToken(userId, refreshToken);
+			if (anyDoc && anyDoc.revokedAt) {
+				// Security event: refresh token reuse attempt
+				try {
+					const { refreshTokenReuseTotal } = require('./utils/metrics');
+					refreshTokenReuseTotal.inc({ rotation_id: anyDoc.rotationId || 'unknown' });
+				} catch (metricErr) {
+					logger.warn({ err: metricErr }, 'Failed to record refresh token reuse metric');
+				}
+				logger.warn({ userId, rotationId: anyDoc.rotationId, tokenId: anyDoc._id }, 'Refresh token reuse detected; revoking token family');
+				await revokeFamily(anyDoc.rotationId);
+				return res.status(401).json({ error: 'token_reuse_detected' });
+			}
+			return res.status(401).json({ error: 'Invalid or revoked refresh token' });
+		}
 		
 		// Issue new access token
 		const user = await findUserByEmail !== 'function' ? null : null;
@@ -479,14 +590,14 @@ app.post('/auth/refresh', async (req, res) => {
 			{ expiresIn: '15m' }
 		);
 		
-		// Rotate refresh token: revoke old, issue new (use unique jti)
+		// Rotate refresh token: revoke old, issue new (keep rotationId, link parent)
 		const newRefreshPayload = { sub: userId, jti: uuidv4() };
 		const newRefreshJwt = jwt.sign(newRefreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
 		
 		if (!USE_IN_MEMORY) {
-			// Revoke old token and store new one
+			// Revoke old token and store new one, preserving rotation chain
 			await revokeRefreshToken(tokenDoc._id);
-			await storeRefreshToken(userId, newRefreshJwt, req);
+			await storeRefreshToken(userId, newRefreshJwt, req, null, tokenDoc.tokenHash);
 		} else {
 			_refreshTokens.delete(refreshToken);
 			_refreshTokens.set(newRefreshJwt, String(userId));
@@ -581,11 +692,20 @@ function authMiddleware(req, res, next) {
 	}
 }
 
+// Role-based access control helper
+function requireRole(role) {
+	return (req, res, next) => {
+		const userRole = (req.user && req.user.role) || req.role || 'user';
+		if (userRole !== role) return res.status(403).json({ error: 'forbidden' });
+		return next();
+	};
+}
+
 // Protected dataset upload
 app.post('/datasets/upload', authMiddleware, async (req, res) => {
 	const { name, type } = req.body;
 	const ds = await createDataset(name, type, req.user.sub);
-	res.json({ status: 'uploaded', id: ds._id });
+	res.json({ datasetId: ds._id.toString(), status: 'uploaded', name: ds.name });
 });
 
 // Evaluation pipeline routes (E2E-DEEP Day17 + Storage Day18)
@@ -683,6 +803,12 @@ app.get('/report/:id', authMiddleware, async (req, res) => {
 // Reports for a user
 app.get('/reports/:userId', authMiddleware, async (req, res, next) => {
 	try {
+		// Authorization: allow owner or admin only
+		const requesterId = (req.user && req.user.sub) || req.userId;
+		const requesterRole = (req.user && req.user.role) || req.role || 'user';
+		if (String(requesterId) !== String(req.params.userId) && requesterRole !== 'admin') {
+			return res.status(403).json({ error: 'forbidden' });
+		}
 		logger.info({ userId: req.params.userId }, 'reports_list_start');
 		const reports = await findReportsByUser(req.params.userId);
 		logger.info({ userId: req.params.userId, count: reports?.length || 0 }, 'reports_list_success');

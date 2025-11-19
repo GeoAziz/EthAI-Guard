@@ -1,0 +1,5 @@
+# Bandit configuration (minimal). Adjust to ignore specific tests or paths.
+# Run manually: bandit -r ai_core -c .bandit.yaml
+
+exclude_dirs: ["tests", "__pycache__"]
+skips: ["B101"]  # assert_used (allowed in test code)

@@ -1,0 +1,75 @@
+name: Dependency Security Audits
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 4 * * *'
+
+jobs:
+  npm-audit-backend:
+    name: NPM Audit (backend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  npm-audit-frontend:
+    name: NPM Audit (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  pip-audit-ai-core:
+    name: pip-audit (ai_core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pip-audit
+        run: pipx install pip-audit
+      - name: Install ai_core deps
+        working-directory: ai_core
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install -U pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Run pip-audit
+        working-directory: ai_core
+        run: |
+          source .venv/bin/activate
+          pip-audit -r requirements.txt || (echo "pip-audit found issues" && exit 1)
+
+  pip-audit-backend:
+    name: pip-audit (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pip-audit
+        run: pipx install pip-audit
+      - name: Run pip-audit if requirements.txt present
+        run: |
+          if [ -f backend/requirements.txt ]; then pip-audit -r backend/requirements.txt || (echo "pip-audit found issues" && exit 1); else echo "No backend/requirements.txt"; fi
