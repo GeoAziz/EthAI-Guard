@@ -6,7 +6,7 @@ Tracks model performance, inference latency, and bias detection metrics
 from prometheus_client import Counter, Histogram, Gauge, Summary, Info
 import time
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 import os
 
 # ========================================
@@ -324,7 +324,7 @@ def record_model_load(model_type: str, duration_seconds: float):
     model_load_duration.labels(model_type=model_type).observe(duration_seconds)
 
 
-def record_data_validation(duration_seconds: float, errors: int = 0, error_type: str = None):
+def record_data_validation(duration_seconds: float, errors: int = 0, error_type: Optional[str] = None):
     """Record data validation metrics"""
     data_validation_duration.observe(duration_seconds)
     

@@ -1,5 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from prometheus_client import make_asgi_app
 from prometheus_client import Histogram, Counter, Gauge
 import logging
@@ -27,13 +30,32 @@ app = FastAPI(title="EthixAI AI Core")
 _STARTUP_COMPLETE = False
 _STARTUP_AT = time.perf_counter()
 
+# CORS configuration: restrict in production using AI_CORE_ALLOWED_ORIGINS (CSV)
+allowed = os.environ.get("AI_CORE_ALLOWED_ORIGINS", "*")
+if allowed.strip() == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
+
+# Trusted hosts (production)
+trusted_hosts = [h.strip() for h in os.environ.get("AI_CORE_TRUSTED_HOSTS", "").split(",") if h.strip()]
+if trusted_hosts:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
+
+# Enforce HTTPS in production if requested
+if os.environ.get("AI_CORE_REQUIRE_HTTPS") == "1":
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+# Enable gzip compression
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.include_router(analyze.router)
 app.include_router(reports.router)
@@ -79,6 +101,14 @@ async def metrics_middleware(request: Request, call_next):
         duration = time.perf_counter() - start
         AI_CORE_HTTP_DURATION.labels(method=method, route=route_label, status=status).observe(duration)
         AI_CORE_HTTP_REQUESTS.labels(method=method, route=route_label, status=status).inc()
+        # Add security headers
+        try:
+            response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+            response.headers.setdefault('X-Frame-Options', 'DENY')
+            response.headers.setdefault('Referrer-Policy', 'no-referrer')
+            response.headers.setdefault('Permissions-Policy', 'geolocation=()')
+        except Exception:
+            pass
         return response
     finally:
         AI_CORE_INPROGRESS.dec()
