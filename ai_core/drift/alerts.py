@@ -209,7 +209,8 @@ class AlertManager:
         if not self.db:
             return []
         
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat() + 'Z'
+        cutoff_dt = datetime.utcnow() - timedelta(days=days)
+        cutoff = cutoff_dt.isoformat() + 'Z'
         
         alerts = list(self.db['drift_alerts'].find({
             'model_id': model_id,
