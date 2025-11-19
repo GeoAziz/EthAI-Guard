@@ -1,0 +1,13 @@
+{
+  "root": true,
+  "plugins": ["security"],
+  "env": { "browser": true, "es2022": true, "jest": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
+  "rules": {
+    "security/detect-object-injection": "warn",
+    "security/detect-unsafe-regex": "warn",
+    "security/detect-non-literal-fs-filename": "off",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-new-buffer": "warn"
+  }
+}

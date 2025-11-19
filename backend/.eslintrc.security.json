@@ -1,0 +1,18 @@
+{
+  "root": true,
+  "plugins": ["security"],
+  "env": { "node": true, "es2022": true, "jest": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" },
+  "rules": {
+    "security/detect-object-injection": "warn",
+    "security/detect-unsafe-regex": "warn",
+    "security/detect-non-literal-fs-filename": "warn",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-child-process": "error",
+    "no-console": "off",
+    "no-magic-numbers": "off",
+    "indent": "off",
+    "comma-dangle": "off",
+    "curly": "off"
+  }
+}

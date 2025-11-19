@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -18,3 +18,29 @@ repos:
     hooks:
       - id: black
         language_version: python3
+
+  - repo: local
+    hooks:
+      - id: security-gate
+        name: security gate (gitleaks + audits)
+        entry: tools/precommit-security.sh
+        language: system
+        pass_filenames: false
+
+      - id: bandit-ai-core
+        name: bandit scan (ai_core)
+        entry: bash -c "bandit -r ai_core -q || exit 1"
+        language: system
+        pass_filenames: false
+
+      - id: eslint-security-backend
+        name: eslint security (backend)
+        entry: bash -c "cd backend && npm run lint:security"
+        language: system
+        pass_filenames: false
+
+      - id: eslint-security-frontend
+        name: eslint security (frontend)
+        entry: bash -c "cd frontend && npm run lint:security"
+        language: system
+        pass_filenames: false

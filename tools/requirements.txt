@@ -1,0 +1,4 @@
+# Tools and dev/test dependencies for EthixAI
+aiohttp
+locust
+cryptography

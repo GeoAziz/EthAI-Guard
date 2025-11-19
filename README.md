@@ -4,10 +4,13 @@
 
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-passing-brightgreen)](https://github.com/yourusername/ethixai)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Performance](https://img.shields.io/badge/P95%20Latency-12ms-success)](PERFORMANCE_REPORT.md)
+[![Performance](https://img.shields.io/badge/Response%20Time-17ms-success)](DAY30_COMPLETION.md)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-green)](https://codecov.io)
+[![Production Ready](https://img.shields.io/badge/Production%20Ready-90%25-blue)](DAY30_COMPLETION.md)
+[![Demo Ready](https://img.shields.io/badge/Demo%20Ready-100%25-brightgreen)](tools/demo/full_demo_sequence.sh)
 
-> **Production-ready ethical AI governance engine with real-time bias detection, SHAP explanations, and comprehensive monitoring.**
+> **Production-ready ethical AI governance engine with real-time bias detection, SHAP explanations, and comprehensive monitoring.**  
+> 🚀 **Day 30 Polish Complete**: Professional UI, unified error handling, automated demos, and performance-tested.
 
 ---
 
@@ -150,8 +153,40 @@ cd ai_core && pytest tests/ -v
 cd frontend && npm test
 
 # Integration tests
+Day 29 full integration & smoke:
+
+```bash
+# 1) Build & start full stack
+docker-compose build
 docker-compose up -d
-npm run test:integration
+
+# 2) Run automated smoke tests (register → login → upload → analyze → reports → refresh → RBAC → metrics)
+./tools/smoke_tests/full_integration.sh
+
+# 3) Validate metrics endpoints quickly
+./tools/smoke_tests/validate_metrics.sh
+
+# (Optional) Legacy smoke harness
+./tools/smoke_tests/run_smoke_tests.sh http://localhost:5000
+```
+
+Local (without Docker):
+
+```bash
+# Start AI Core (port 8100)
+cd ai_core
+AI_CORE_TRUSTED_HOSTS=localhost AI_CORE_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5000" \
+  uvicorn main:app --host 0.0.0.0 --port 8100
+
+# In a new terminal: start Backend (port 5000)
+cd backend
+USE_IN_MEMORY_DB=1 DISABLE_RATE_LIMIT=1 AI_CORE_URL=http://localhost:8100/ai_core/analyze PORT=5000 \
+  npm start
+
+# Then run the smoke scripts (use defaults pointing at localhost)
+./tools/smoke_tests/full_integration.sh
+./tools/smoke_tests/validate_metrics.sh
+```
 ```
 
 ### Performance Testing
@@ -343,9 +378,95 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 ---
 
-## 📞 Support
+## 🎬 Day 30: Demo & Performance (NEW!)
+
+### Quick Demo
+
+Run the complete 5-minute demo sequence:
+
+```bash
+./tools/demo/full_demo_sequence.sh
+```
+
+**Demo includes:**
+- ✅ User registration and authentication
+- ✅ Dataset upload (demo loan data)
+- ✅ AI fairness analysis
+- ✅ Risk score and metrics
+- ✅ Compliance report generation
+- ✅ Token refresh testing
+- ✅ Audit logs validation
+- ✅ Prometheus metrics
+
+**Demo credentials:**
+- Email: `demo@ethixai.com`
+- Password: `SecureDemo2024!`
+
+### Performance Testing
+
+Run comprehensive performance tests:
+
+```bash
+./tools/demo/performance_test.sh
+```
+
+**Tested areas:**
+- Health endpoint performance (17ms avg)
+- Authentication performance (23ms avg)
+- Metrics endpoint (22ms avg)
+- Large payload handling (1000 rows)
+- Concurrent request handling (5 parallel)
+
+**Current Performance:** �
+- Response Time: **17ms average**
+- Throughput: **58 req/sec** (health endpoint)
+- Performance Score: **80/100** ✅
+
+### Demo Data
+
+Pre-configured loan dataset for demonstrations:
+```bash
+docs/example_data/demo_loan_dataset.csv
+```
+
+**Dataset includes:**
+- 25 realistic loan applications
+- Protected attributes: gender, race
+- Demonstrates fairness metrics
+- Perfect for investor demos
+
+### Day 30 Improvements
+
+**Frontend:**
+- ✅ Professional animations and transitions
+- ✅ Enhanced error messages (Firebase-aware)
+- ✅ Smooth loading states
+- ✅ Focus rings for accessibility
+- ✅ Card hover effects
+
+**Backend:**
+- ✅ Unified error handler system
+- ✅ Structured error responses
+- ✅ Request ID tracking
+- ✅ Semantic error codes (401/403/422/429/500)
+- ✅ Async error wrapper
+
+**Testing & Demo:**
+- ✅ Automated demo script (10 steps)
+- ✅ Performance test suite
+- ✅ Realistic demo data
+- ✅ Color-coded terminal output
+- ✅ 5-minute presentation flow
+
+See [DAY30_COMPLETION.md](DAY30_COMPLETION.md) for full details.
+
+---
+
+## �📞 Support
 
 - **Documentation:** [Full docs](docs/)
+- **Day 30 Report:** [DAY30_COMPLETION.md](DAY30_COMPLETION.md)
+- **Demo Scripts:** [tools/demo/](tools/demo/)
 - **Issues:** [GitHub Issues](https://github.com/yourusername/ethixai/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/yourusername/ethixai/discussions)
 - **Email:** support@ethixai.com

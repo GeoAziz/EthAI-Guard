@@ -41,31 +41,43 @@ export default function RegisterPage() {
       await registerUser(values.email, values.password);
       
       toast({
-        title: "Registration Successful",
-        description: "Your account has been created. Redirecting to your dashboard...",
+        title: "Account Created Successfully! 🎉",
+        description: "Welcome to EthixAI! Setting up your dashboard...",
+        duration: 2500,
       });
       
-      router.push("/dashboard");
+      // Small delay for better UX
+      setTimeout(() => router.push("/dashboard"), 600);
     } catch (error: any) {
       console.error("Registration error:", error);
       
-      let errorMessage = "Failed to create account. Please try again.";
+      // Improved error handling with specific messages
+      let errorTitle = "Registration Failed";
+      let errorMessage = "Unable to create your account. Please try again.";
       
-      // Firebase error codes
+      // Firebase error codes with enhanced messaging
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "An account with this email already exists.";
+        errorTitle = "Email Already Registered";
+        errorMessage = "An account with this email already exists. Please log in instead.";
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address.";
+        errorTitle = "Invalid Email";
+        errorMessage = "Please enter a valid email address.";
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = "Password is too weak. Please use a stronger password.";
+        errorTitle = "Weak Password";
+        errorMessage = "Please choose a stronger password with at least 8 characters, including numbers and symbols.";
       } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = "Email/password accounts are not enabled. Please contact support.";
+        errorTitle = "Service Unavailable";
+        errorMessage = "Account creation is temporarily disabled. Please contact support.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorTitle = "Connection Error";
+        errorMessage = "Unable to connect. Please check your internet connection.";
       }
       
       toast({
-        title: "Registration Failed",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       });
     } finally {
       setIsSubmitting(false);
