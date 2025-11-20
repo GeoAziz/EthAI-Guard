@@ -1,0 +1,29 @@
+groups:
+  - name: service.rules
+    rules:
+      - alert: ServiceDown
+        expr: up{job="backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance down (job=backend)"
+          description: "The backend job has no healthy targets for more than 2 minutes."
+
+      - alert: AiCoreDown
+        expr: up{job="ai_core"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ai_core down"
+          description: "The ai_core service is unreachable for more than 2 minutes."
+
+      - alert: HighBackendLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High backend request latency (P95)"
+          description: "Backend P95 request latency is > 1s over the last 5m."

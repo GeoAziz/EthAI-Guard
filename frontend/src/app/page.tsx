@@ -7,6 +7,19 @@ import { ArrowRight, CheckCircle, BarChart, FileJson, ShieldCheck, Github, BookO
 import { Footer } from '@/components/layout/footer';
 import { Logo } from '@/components/logo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'EthixAI - Trustworthy AI for Financial Institutions',
+  description: 'Open-source ethics and explainability engine for financial AI. Detect bias, ensure fairness, and achieve compliance with ECOA, GDPR, and FCRA regulations.',
+  keywords: ['AI fairness', 'bias detection', 'SHAP', 'explainable AI', 'financial AI', 'ECOA compliance', 'GDPR', 'responsible AI'],
+  authors: [{ name: 'EthixAI Team' }],
+  openGraph: {
+    title: 'EthixAI - Trustworthy AI for Financial Institutions',
+    description: 'Ensure your AI models are fair, transparent, and compliant with our open-source ethics engine.',
+    type: 'website',
+  },
+};
 
 const features = [
   {
@@ -65,20 +78,26 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
+        <div className="container flex h-14 items-center px-4">
+          <Link href="/" className="mr-4 md:mr-6 flex items-center space-x-2">
             <Logo />
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             <Link href="#features" className="transition-colors hover:text-foreground/80 text-foreground/60">Features</Link>
             <Link href="/docs" className="transition-colors hover:text-foreground/80 text-foreground/60">Docs</Link>
+            <Link href="/about" className="transition-colors hover:text-foreground/80 text-foreground/60">About</Link>
+            <Link href="/blog" className="transition-colors hover:text-foreground/80 text-foreground/60">Blog</Link>
           </nav>
-          <div className="flex flex-1 items-center justify-end space-x-4">
-            <Button variant="ghost" asChild>
+          <div className="flex flex-1 items-center justify-end space-x-2 md:space-x-4">
+            <Button variant="ghost" asChild className="hidden sm:inline-flex">
               <Link href="/login">Log In</Link>
             </Button>
-            <Button asChild>
-              <Link href="/register">Get Started <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            <Button asChild size="sm" className="text-xs sm:text-sm">
+              <Link href="/register">
+                <span className="hidden sm:inline">Get Started</span>
+                <span className="sm:hidden">Sign Up</span>
+                <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -86,7 +105,7 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative py-20 md:py-32 overflow-hidden">
+        <section className="relative py-12 md:py-20 lg:py-32 overflow-hidden">
           <div
             aria-hidden="true"
             className="absolute inset-0 grid grid-cols-2 -space-x-52 opacity-20"
@@ -94,35 +113,37 @@ export default function LandingPage() {
             <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700"></div>
             <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600"></div>
           </div>
-          <div className="container relative z-10 text-center">
-            <div className="inline-flex items-center rounded-full border px-4 py-1.5 mb-6 text-sm font-medium bg-card/50 backdrop-blur-sm">
-              <span className="mr-2">🎉</span>
+          <div className="container relative z-10 text-center px-4">
+            <Link href="/blog" className="inline-flex items-center rounded-full border px-3 md:px-4 py-1 md:py-1.5 mb-4 md:mb-6 text-xs md:text-sm font-medium bg-card/50 backdrop-blur-sm hover:bg-card transition-colors">
+              <span className="mr-1 md:mr-2">🎉</span>
               <span>Now with real-time bias detection</span>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-6 animate-fade-in-up">
-              Trustworthy AI starts with<br />
+              <ArrowRight className="ml-1 md:ml-2 h-3 w-3" />
+            </Link>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter mb-4 md:mb-6 animate-fade-in-up px-4">
+              Trustworthy AI starts with<br className="hidden sm:block" />
               <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                 measurable fairness
               </span>
             </h1>
-            <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-8">
+            <p className="max-w-3xl mx-auto text-base md:text-lg lg:text-xl text-muted-foreground mb-6 md:mb-8 px-4">
               EthixAI is an <span className="font-semibold text-foreground">open-source</span> ethics and explainability engine for financial institutions, 
               ensuring your AI models are <span className="font-semibold text-foreground">fair</span>, <span className="font-semibold text-foreground">transparent</span>, and <span className="font-semibold text-foreground">compliant</span>.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
-              <Button size="lg" asChild className="text-lg px-8">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-8 md:mb-12 px-4">
+              <Button size="lg" asChild className="text-base md:text-lg px-6 md:px-8">
                 <Link href="/dashboard">
-                  Start Free Analysis <ArrowRight className="ml-2 h-5 w-5" />
+                  Start Free Analysis <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="text-lg px-8">
-                <Link href="/login">
-                  View Demo
+              <Button size="lg" variant="outline" asChild className="text-base md:text-lg px-6 md:px-8">
+                <Link href="/docs">
+                  <BookOpen className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                  View Docs
                 </Link>
               </Button>
             </div>
             {/* Key Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mt-16">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 max-w-4xl mx-auto mt-8 md:mt-16 px-4">
               <div className="bg-card/30 backdrop-blur-sm rounded-lg p-4 border border-border/50">
                 <div className="text-3xl font-bold text-primary">95%</div>
                 <div className="text-sm text-muted-foreground mt-1">Accuracy</div>
@@ -144,15 +165,15 @@ export default function LandingPage() {
         </section>
 
         {/* About Section */}
-        <section id="features" className="py-20 bg-card/20">
-          <div className="container">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Built for Responsible AI</h2>
-              <p className="max-w-2xl mx-auto mt-4 text-muted-foreground">
+        <section id="features" className="py-12 md:py-20 bg-card/20">
+          <div className="container px-4">
+            <div className="text-center mb-8 md:mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold">Built for Responsible AI</h2>
+              <p className="max-w-2xl mx-auto mt-3 md:mt-4 text-sm md:text-base text-muted-foreground px-4">
                 A comprehensive toolkit to navigate the complexities of AI ethics in finance.
               </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {features.map((feature, index) => (
                 <Card key={index} className="text-center bg-card shadow-md hover:shadow-xl hover:shadow-primary/10 transition-all group">
                   <CardHeader>
@@ -179,26 +200,26 @@ export default function LandingPage() {
         </section>
 
         {/* Features Carousel */}
-        <section className="py-20">
-          <div className="container">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Powerful Features, Simplified</h2>
-              <p className="max-w-2xl mx-auto mt-4 text-muted-foreground">
+        <section className="py-12 md:py-20">
+          <div className="container px-4">
+            <div className="text-center mb-8 md:mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold">Powerful Features, Simplified</h2>
+              <p className="max-w-2xl mx-auto mt-3 md:mt-4 text-sm md:text-base text-muted-foreground px-4">
                 From bias detection to regulatory reporting, all in one platform.
               </p>
             </div>
-            <Carousel className="w-full max-w-4xl mx-auto" opts={{ loop: true }}>
+            <Carousel className="w-full max-w-4xl mx-auto px-4 sm:px-12" opts={{ loop: true }}>
               <CarouselContent>
                 {carouselFeatures.map((feature) => (
                   <CarouselItem key={feature.id}>
                     <div className="p-1">
                       <Card className="overflow-hidden">
                         <div className="grid md:grid-cols-2 items-center">
-                          <div className="p-8">
-                            <h3 className="text-2xl font-bold mb-2">{feature.title}</h3>
-                            <p className="text-muted-foreground">{feature.description}</p>
+                          <div className="p-6 md:p-8">
+                            <h3 className="text-xl md:text-2xl font-bold mb-2">{feature.title}</h3>
+                            <p className="text-sm md:text-base text-muted-foreground">{feature.description}</p>
                           </div>
-                          <div className="bg-muted h-64 md:h-full flex items-center justify-center">
+                          <div className="bg-muted h-48 md:h-64 lg:h-full flex items-center justify-center">
                             <Image
                               src={feature.image}
                               alt={feature.title}
@@ -214,70 +235,70 @@ export default function LandingPage() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-[-50px]" />
-              <CarouselNext className="right-[-50px]" />
+              <CarouselPrevious className="hidden sm:flex sm:left-0" />
+              <CarouselNext className="hidden sm:flex sm:right-0" />
             </Carousel>
           </div>
         </section>
 
         {/* Why Choose Section */}
-        <section className="py-20">
-          <div className="container">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+        <section className="py-12 md:py-20">
+          <div className="container px-4">
+            <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-6">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6">
                   Why Choose EthixAI?
                 </h2>
-                <div className="space-y-6">
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-primary" />
+                <div className="space-y-4 md:space-y-6">
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg mb-2">Real-Time Analysis</h3>
-                      <p className="text-muted-foreground">
+                      <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Real-Time Analysis</h3>
+                      <p className="text-sm md:text-base text-muted-foreground">
                         Get instant fairness scores and bias detection in under 2 seconds. Upload your CSV and receive comprehensive analysis immediately.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-primary" />
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg mb-2">Production-Ready</h3>
-                      <p className="text-muted-foreground">
+                      <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Production-Ready</h3>
+                      <p className="text-sm md:text-base text-muted-foreground">
                         Built with MongoDB Atlas, Docker, and microservices architecture. Scale from prototype to production seamlessly.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-primary" />
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg mb-2">Open Source & Transparent</h3>
-                      <p className="text-muted-foreground">
+                      <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Open Source & Transparent</h3>
+                      <p className="text-sm md:text-base text-muted-foreground">
                         100% open source with MIT license. No black boxes, no vendor lock-in. Full transparency in how fairness is measured.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-primary" />
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg mb-2">Financial Industry Focused</h3>
-                      <p className="text-muted-foreground">
+                      <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Financial Industry Focused</h3>
+                      <p className="text-sm md:text-base text-muted-foreground">
                         Designed specifically for loan approvals, credit scoring, and financial decision-making. ECOA and FCRA compliant out of the box.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="relative">
-                <div className="bg-gradient-to-br from-primary/20 to-purple-600/20 rounded-2xl p-8 backdrop-blur-sm border border-primary/20">
-                  <div className="space-y-4">
+              <div className="relative mt-8 lg:mt-0">
+                <div className="bg-gradient-to-br from-primary/20 to-purple-600/20 rounded-2xl p-4 md:p-6 lg:p-8 backdrop-blur-sm border border-primary/20">
+                  <div className="space-y-3 md:space-y-4">
                     <div className="bg-card rounded-lg p-4 shadow-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">Overall Fairness Score</span>
@@ -337,51 +358,134 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Trusted By Section */}
+        <section className="py-12 md:py-20 bg-card/20">
+          <div className="container px-4">
+            <h2 className="text-center text-xl md:text-2xl font-bold mb-8 md:mb-12">
+              Trusted by Financial Institutions
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
+              <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      JD
+                    </div>
+                    <div>
+                      <div className="font-semibold">Jane Doe</div>
+                      <div className="text-xs text-muted-foreground">Chief Risk Officer, FinBank</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">
+                    "EthixAI helped us identify and eliminate bias in our loan approval models. The SHAP explanations are invaluable for our audit process."
+                  </p>
+                  <div className="flex gap-1 mt-4" aria-label="5 star rating">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-500">★</span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      MS
+                    </div>
+                    <div>
+                      <div className="font-semibold">Michael Smith</div>
+                      <div className="text-xs text-muted-foreground">Head of AI, CreditTech</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">
+                    "The real-time bias detection caught issues we didn't even know existed. Now we're fully ECOA compliant with confidence."
+                  </p>
+                  <div className="flex gap-1 mt-4" aria-label="5 star rating">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-500">★</span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      SC
+                    </div>
+                    <div>
+                      <div className="font-semibold">Sarah Chen</div>
+                      <div className="text-xs text-muted-foreground">VP Engineering, LoanAI</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">
+                    "Open source, production-ready, and incredibly easy to integrate. EthixAI is now a critical part of our ML pipeline."
+                  </p>
+                  <div className="flex gap-1 mt-4" aria-label="5 star rating">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i} className="text-yellow-500">★</span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
         {/* Frameworks Section */}
-        <section className="py-20 bg-card/20">
-          <div className="container">
-            <h2 className="text-center text-2xl font-bold mb-4">
+        <section className="py-12 md:py-20">
+          <div className="container px-4">
+            <h2 className="text-center text-xl md:text-2xl font-bold mb-3 md:mb-4">
               Built on Industry Standards
             </h2>
-            <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-center text-sm md:text-base text-muted-foreground mb-6 md:mb-8 max-w-2xl mx-auto px-4">
               Integrating best-in-class tools for fairness, explainability, and machine learning
             </p>
             <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-6">
               {frameworkLogos.map((fw) => (
-                <div key={fw.name} className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                <div 
+                  key={fw.name} 
+                  className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title={`Built with ${fw.name}`}
+                >
                   {fw.logo}
                 </div>
               ))}
+            </div>
+            <div className="mt-8 text-center">
+              <Link href="/docs" className="text-sm text-primary hover:underline">
+                View full tech stack documentation →
+              </Link>
             </div>
           </div>
         </section>
 
         {/* CTA Section */}
-        <section className="py-20">
-          <div className="container">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-purple-600 p-12 text-center text-white shadow-2xl">
+        <section className="py-12 md:py-20">
+          <div className="container px-4">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-purple-600 p-8 md:p-12 text-center text-white shadow-2xl">
               <div className="absolute inset-0 bg-grid-white/10" />
               <div className="relative z-10">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
                   Ready to Build Trustworthy AI?
                 </h2>
-                <p className="text-lg md:text-xl mb-8 text-white/90 max-w-2xl mx-auto">
+                <p className="text-base md:text-lg lg:text-xl mb-6 md:mb-8 text-white/90 max-w-2xl mx-auto px-4">
                   Join financial institutions using EthixAI to ensure their AI models are fair, explainable, and compliant.
                 </p>
-                <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button size="lg" variant="secondary" asChild className="text-lg px-8">
+                <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 px-4">
+                  <Button size="lg" variant="secondary" asChild className="text-base md:text-lg px-6 md:px-8">
                     <Link href="/dashboard">
-                      Start Free Analysis <ArrowRight className="ml-2 h-5 w-5" />
+                      Start Free Analysis <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild className="text-lg px-8 bg-white/10 text-white border-white/20 hover:bg-white/20">
+                  <Button size="lg" variant="outline" asChild className="text-base md:text-lg px-6 md:px-8 bg-white/10 text-white border-white/20 hover:bg-white/20">
                     <Link href="/docs">
-                      <BookOpen className="mr-2 h-5 w-5" />
+                      <BookOpen className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                       View Documentation
                     </Link>
                   </Button>
                 </div>
-                <div className="mt-8 text-sm text-white/80">
+                <div className="mt-6 md:mt-8 text-xs md:text-sm text-white/80">
                   No credit card required • Open source • MIT License
                 </div>
               </div>

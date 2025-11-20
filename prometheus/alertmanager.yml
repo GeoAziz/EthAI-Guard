@@ -1,0 +1,15 @@
+global: {}
+
+route:
+  receiver: 'backend-webhook'
+
+receivers:
+  - name: 'backend-webhook'
+    webhook_configs:
+      - url: 'https://your-backend.example.com/alerts/webhook'
+        send_resolved: true
+        http_config:
+          # Add a secret header to authenticate with backend
+          # Replace REPLACE_WITH_SECRET with the value of ALERT_WEBHOOK_SECRET set in the backend
+          headers:
+            X-Alert-Secret: 'REPLACE_WITH_SECRET'

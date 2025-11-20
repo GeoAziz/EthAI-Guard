@@ -266,6 +266,66 @@ app.get('/health/readiness', async (req, res) => {
 	return res.status(503).json({ status: 'not_ready', db: dbReady, ai_core: aiCoreReady, startup_complete: STARTUP_COMPLETE });
 });
 
+// Alertmanager webhook receiver - create incidents when alerts fire
+app.post('/alerts/webhook', async (req, res) => {
+	try {
+		// Optional secret header to restrict callers
+		const secret = process.env.ALERT_WEBHOOK_SECRET;
+		if (secret) {
+			const header = req.headers['x-alert-secret'] || req.headers['x-alertmanager-secret'];
+			if (!header || header !== secret) return res.status(401).json({ error: 'unauthorized' });
+		}
+
+		const payload = req.body;
+		if (!payload || !Array.isArray(payload.alerts)) return res.status(400).json({ error: 'invalid payload' });
+
+		// For each alert, if firing -> create or update an incident
+		const now = new Date().toISOString();
+		const created = [];
+		for (const a of payload.alerts) {
+			try {
+				const status = a.status; // 'firing' or 'resolved'
+				const labels = a.labels || {};
+				const annotations = a.annotations || {};
+				const alertName = labels.alertname || labels.job || 'unknown_alert';
+				const instance = labels.instance || labels.job || 'unknown_instance';
+				const title = `${alertName} (${instance})`;
+				const description = annotations.description || annotations.summary || JSON.stringify(a, null, 2);
+				if (status === 'firing') {
+					if (USE_IN_MEMORY) {
+						// emulate simple in-memory incident store
+						const inc = { id: `inc-${Date.now()}`, date: now, createdAt: now, updatedAt: now, title, description, resolved: false, severity: labels.severity || 'major', services: [instance], occurrences: 1 };
+						_reports.push(inc);
+						created.push(inc);
+					} else {
+						const db = mongoose.connection.db;
+						const existing = await db.collection('incidents').findOne({ title, resolved: false });
+						if (existing) {
+							await db.collection('incidents').updateOne({ _id: existing._id }, { $set: { updatedAt: now }, $inc: { occurrences: 1 } });
+						} else {
+							const inc = { id: `inc-${Date.now()}`, date: now, createdAt: now, updatedAt: now, title, description, resolved: false, severity: labels.severity || 'major', services: [instance], occurrences: 1 };
+							await db.collection('incidents').insertOne(inc);
+							created.push(inc);
+						}
+					}
+				} else if (status === 'resolved') {
+					if (!USE_IN_MEMORY) {
+						const db = mongoose.connection.db;
+						await db.collection('incidents').updateMany({ title, resolved: false }, { $set: { resolved: true, updatedAt: now, resolvedAt: now } });
+					}
+				}
+			} catch (e) {
+				logger.error({ err: e }, 'alert_processing_failed');
+			}
+		}
+
+		return res.json({ status: 'ok', created: created.length });
+	} catch (e) {
+		logger.error({ err: e }, 'alerts_webhook_error');
+		return res.status(500).json({ error: 'server_error' });
+	}
+});
+
 // Startup: indicates whether initial bootstrap completed (DB connection / model warmup etc.)
 app.get('/health/startup', (req, res) => {
 	const since = Date.now() - STARTUP_AT;
@@ -922,6 +982,14 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
 	const port = process.env.PORT || 5000;
+	// Optionally start the status worker as a child process on the backend instance
+	try {
+		const { startWorkerIfEnabled } = require('./worker-starter');
+		startWorkerIfEnabled();
+	} catch (e) {
+		logger.warn({ err: e }, 'worker_starter_failed');
+	}
+
 	app.listen(port, () => logger.info({ port }, 'Backend system API listening'));
 }
 

@@ -1,0 +1,50 @@
+{
+  "lastChecked": "2025-11-20T23:27:11.560Z",
+  "overall": {
+    "status": "degraded",
+    "uptime30d": "99.9%"
+  },
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "status": "down",
+      "uptime": "0%",
+      "latency": "n/a",
+      "lastChecked": "2025-11-20T23:27:11.088Z"
+    },
+    {
+      "id": "analysis-engine",
+      "name": "Analysis Engine",
+      "status": "down",
+      "uptime": "0%",
+      "latency": "n/a",
+      "lastChecked": "2025-11-20T23:27:11.095Z"
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB Atlas",
+      "status": "down",
+      "uptime": "0%",
+      "latency": "n/a",
+      "lastChecked": "2025-11-20T23:27:11.108Z"
+    },
+    {
+      "id": "firebase",
+      "name": "Firebase Auth",
+      "status": "down",
+      "uptime": "0%",
+      "latency": "443ms",
+      "lastChecked": "2025-11-20T23:27:11.551Z"
+    },
+    {
+      "id": "shap",
+      "name": "SHAP Processing",
+      "status": "down",
+      "uptime": "0%",
+      "latency": "n/a",
+      "lastChecked": "2025-11-20T23:27:11.560Z"
+    }
+  ],
+  "incidents": []
+}

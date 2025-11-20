@@ -21,6 +21,7 @@ export function UploadForm() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [previewData, setPreviewData] = useState<any[] | null>(null);
+  const [targetColumn, setTargetColumn] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 

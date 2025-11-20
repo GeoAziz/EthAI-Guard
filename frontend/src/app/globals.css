@@ -87,6 +87,19 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Prevent horizontal scroll */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  /* Responsive images */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 /* Day 30 Polish: Smooth transitions and animations */

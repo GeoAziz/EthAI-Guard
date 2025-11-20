@@ -1,0 +1,42 @@
+name: Status Worker (scheduled)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  run-worker:
+    name: Run status worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: .
+        run: |
+          if [ -f package-lock.json ] || [ -f yarn.lock ] || [ -f pnpm-lock.yaml ]; then
+            npm ci
+          else
+            echo "No lockfile found, skipping install"
+          fi
+
+      - name: Run status worker once
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          MONGO_DB: ${{ secrets.MONGO_DB }}
+          API_GATEWAY_URL: ${{ secrets.API_GATEWAY_URL }}
+          ANALYSIS_ENGINE_URL: ${{ secrets.ANALYSIS_ENGINE_URL }}
+          FIREBASE_HEALTH_URL: ${{ secrets.FIREBASE_HEALTH_URL }}
+          SHAP_URL: ${{ secrets.SHAP_URL }}
+          INTERVAL_MS: ${{ secrets.INTERVAL_MS }}
+          INC_SECRET: ${{ secrets.INC_SECRET }}
+        run: |
+          echo "Running health-check worker..."
+          node tools/status/worker.js
