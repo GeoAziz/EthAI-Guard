@@ -19,6 +19,7 @@
 const admin = require('firebase-admin');
 const { MongoClient } = require('mongodb');
 
+const crypto = require('crypto');
 // Configuration
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27018/ethixai';
 const DEMO_USER = {
@@ -274,7 +275,7 @@ async function seedDemoData() {
         theme: 'dark',
         notifications: true,
       },
-      apiKey: 'demo_api_key_' + Math.random().toString(36).substr(2, 24),
+      apiKey: 'demo_api_key_' + crypto.randomBytes(18).toString('hex'),
     };
     await usersCollection.updateOne(
       { firebaseUid },
