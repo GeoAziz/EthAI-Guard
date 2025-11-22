@@ -1,5 +1,11 @@
 {
   "dependencies": {
-    "prom-client": "^15.1.3"
+    "prom-client": "^15.1.3",
+    "mongodb": "^5.7.0"
+  }
+  ,"scripts": {
+    "check-db": "node check-db.js",
+    "release-lock": "node release-lock.js",
+    "seed": "node ../demo/seed-status-data.js"
   }
 }

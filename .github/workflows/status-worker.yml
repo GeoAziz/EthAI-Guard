@@ -21,10 +21,17 @@ jobs:
       - name: Install dependencies
         working-directory: .
         run: |
+          # Install root deps (if present) and ensure tools/status deps are installed
           if [ -f package-lock.json ] || [ -f yarn.lock ] || [ -f pnpm-lock.yaml ]; then
             npm ci
           else
-            echo "No lockfile found, skipping install"
+            echo "No root lockfile found, skipping root install"
+          fi
+          # Install worker-specific deps so prom-client and mongodb are available
+          if [ -f tools/status/package-lock.json ]; then
+            npm ci --prefix tools/status
+          else
+            (cd tools/status && npm install --no-audit --no-fund)
           fi
 
       - name: Run status worker once
@@ -37,6 +44,12 @@ jobs:
           SHAP_URL: ${{ secrets.SHAP_URL }}
           INTERVAL_MS: ${{ secrets.INTERVAL_MS }}
           INC_SECRET: ${{ secrets.INC_SECRET }}
+          # Pushgateway configuration (optional)
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          PUSHGATEWAY_USER: ${{ secrets.PUSHGATEWAY_USER }}
+          PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
+          # Set a stable owner label for grouping pushes from this workflow run
+          WORKER_OWNER: github-actions-${{ github.run_id }}
         run: |
           echo "Running health-check worker..."
           node tools/status/worker.js

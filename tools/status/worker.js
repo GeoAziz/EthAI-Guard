@@ -92,7 +92,19 @@ function startMetricsServer() {
   // Configure Pushgateway if requested
   if (PUSHGATEWAY_URL) {
     try {
-      pushgateway = new promClient.Pushgateway(PUSHGATEWAY_URL);
+      // Support basic auth via PUSHGATEWAY_USER and PUSHGATEWAY_PASSWORD or prebuilt PUSHGATEWAY_AUTH
+      const headers = {};
+      const user = process.env.PUSHGATEWAY_USER;
+      const pass = process.env.PUSHGATEWAY_PASSWORD;
+      const preAuth = process.env.PUSHGATEWAY_AUTH; // base64 or 'Basic ...'
+      if (preAuth) {
+        headers.Authorization = preAuth.startsWith('Basic ') ? preAuth : `Basic ${preAuth}`;
+      } else if (user && pass) {
+        const b64 = Buffer.from(`${user}:${pass}`).toString('base64');
+        headers.Authorization = `Basic ${b64}`;
+      }
+      const opts = Object.keys(headers).length ? { headers } : undefined;
+      pushgateway = new promClient.Pushgateway(PUSHGATEWAY_URL, opts);
       console.log('Configured Pushgateway at', PUSHGATEWAY_URL);
     } catch (e) {
       console.warn('Failed to configure Pushgateway', e && e.message);
@@ -140,7 +152,8 @@ async function runChecksAndPersist(dbClient) {
 
   if (MONGO_URI && dbClient) {
     try {
-      const db = dbClient.db(DB_NAME);
+      // dbClient may be either a MongoClient or already a Db instance depending on caller.
+      const db = (typeof dbClient.db === 'function') ? dbClient.db(DB_NAME) : dbClient;
 
       await db.collection('status_meta').updateOne({ _id: 'singleton' }, { $set: statusObj }, { upsert: true });
 
@@ -266,6 +279,8 @@ async function main() {
   let client = null;
   let db = null;
   let owner = makeOwnerId();
+  // Allow overriding the owner id (useful for CI/GitHub Actions runs)
+  owner = process.env.WORKER_OWNER || owner;
   WORKER_OWNER = owner;
   let lockHeld = false;
   let renewTimer = null;

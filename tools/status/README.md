@@ -78,3 +78,55 @@ setsid node tools/status/worker.js > tools/status/worker.log 2>&1 < /dev/null &
 Notes:
 - The worker still exposes `/metrics` when `prom-client` is installed; Pushgateway is optional and intended for environments where scraping is not feasible (GitHub Actions, ephemeral CI jobs).
 - When using Pushgateway, the worker groups metrics by an `owner` label so you can distinguish pushes from multiple runners.
+
+Utility scripts
+----------------
+
+Two helper scripts are included to make common admin tasks easier. They use either `MONGO_URI` or `MONGO_URL` from the environment (or accept the URI as the first CLI argument):
+
+1. `check-db.js` — prints counts and sample documents for `status_meta`, `incidents`, and `worker_locks`.
+	- Usage:
+
+```bash
+MONGO_URI='mongodb+srv://user:pass@cluster/ethixai' node tools/status/check-db.js
+```
+
+2. `release-lock.js` — safely deletes the `_id: 'status_worker'` lock document so another worker can acquire it.
+	- By default the script prompts for confirmation; to force non-interactive deletion set `YES=1` or `FORCE=1`.
+
+```bash
+# interactive (recommended)
+MONGO_URI='mongodb+srv://user:pass@cluster/ethixai' node tools/status/release-lock.js
+
+# non-interactive force
+MONGO_URI='mongodb+srv://user:pass@cluster/ethixai' YES=1 node tools/status/release-lock.js
+```
+
+Convenience npm scripts
+-----------------------
+
+If you prefer npm scripts, from the `tools/status` folder run:
+
+```bash
+npm run check-db
+npm run release-lock
+npm run seed    # This runs the demo seeder in tools/demo
+```
+
+The `seed` command will write demo documents to Mongo if `MONGO_URI` is set, otherwise it writes `public/demo-status.json` in the repo root.
+
+GitHub Actions and Pushgateway
+------------------------------
+
+If you want to run the worker via GitHub Actions (scheduled) and push metrics to a Pushgateway (recommended for ephemeral runners), add these repository Secrets:
+
+- `MONGO_URI` (required)
+- `MONGO_DB` (optional; default `ethai`)
+- `PUSHGATEWAY_URL` (optional; e.g. `https://pushgateway.example.com:9091`)
+- `PUSHGATEWAY_USER` and `PUSHGATEWAY_PASSWORD` (optional; for Basic auth)
+
+The included workflow `.github/workflows/status-worker.yml` will install `tools/status` dependencies and run the worker once. The worker will push metrics to the Pushgateway when `PUSHGATEWAY_URL` is set. The workflow also sets `WORKER_OWNER` to `github-actions-<run_id>` so pushes are grouped by run.
+
+Notes:
+- If your Pushgateway requires TLS client certs or advanced auth, you can set `PUSHGATEWAY_AUTH` to a precomputed `Basic <base64>` string instead of `PUSHGATEWAY_USER/PUSHGATEWAY_PASSWORD`.
+- The worker will call `pushgateway.pushAdd(...)` so metrics are additive; the Pushgateway retention policy should be configured as desired.

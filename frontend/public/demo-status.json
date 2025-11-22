@@ -1,5 +1,5 @@
 {
-  "lastChecked": "2025-11-22T09:59:41.030Z",
+  "lastChecked": "2025-11-21T06:05:16.652Z",
   "overall": {
     "status": "degraded",
     "uptime30d": "99.9%"
@@ -11,7 +11,7 @@
       "status": "down",
       "uptime": "0%",
       "latency": "n/a",
-      "lastChecked": "2025-11-22T09:59:40.382Z"
+      "lastChecked": "2025-11-21T06:05:16.124Z"
     },
     {
       "id": "analysis-engine",
@@ -19,7 +19,7 @@
       "status": "down",
       "uptime": "0%",
       "latency": "n/a",
-      "lastChecked": "2025-11-22T09:59:40.387Z"
+      "lastChecked": "2025-11-21T06:05:16.127Z"
     },
     {
       "id": "mongodb",
@@ -27,15 +27,15 @@
       "status": "down",
       "uptime": "0%",
       "latency": "n/a",
-      "lastChecked": "2025-11-22T09:59:40.390Z"
+      "lastChecked": "2025-11-21T06:05:16.131Z"
     },
     {
       "id": "firebase",
       "name": "Firebase Auth",
       "status": "down",
       "uptime": "0%",
-      "latency": "638ms",
-      "lastChecked": "2025-11-22T09:59:41.028Z"
+      "latency": "517ms",
+      "lastChecked": "2025-11-21T06:05:16.648Z"
     },
     {
       "id": "shap",
@@ -43,7 +43,7 @@
       "status": "down",
       "uptime": "0%",
       "latency": "n/a",
-      "lastChecked": "2025-11-22T09:59:41.030Z"
+      "lastChecked": "2025-11-21T06:05:16.652Z"
     }
   ],
   "incidents": []
