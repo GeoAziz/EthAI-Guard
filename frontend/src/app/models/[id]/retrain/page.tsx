@@ -1,11 +1,13 @@
 "use client";
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
+import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RetrainPage() {
   const params = useParams();
   const modelId = params?.id as string;
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+  const { user, loading, hasRole } = useAuth();
   const [reason, setReason] = useState('drift');
   const [notes, setNotes] = useState('');
   const [baseline, setBaseline] = useState('');
@@ -16,18 +18,23 @@ export default function RetrainPage() {
     setWorking(true);
     setResult(null);
     try {
-      const res = await fetch(`${backend}/v1/models/${modelId}/trigger-retrain`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason, notes, baseline_snapshot_id: baseline })
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (e) {
-      setResult({ error: 'failed' });
+      const res = await api.post(`/v1/models/${modelId}/trigger-retrain`, { reason, notes, baseline_snapshot_id: baseline });
+      setResult(res.data || { success: true });
+    } catch (e: any) {
+      console.error('Retrain error', e);
+      setResult({ error: e?.response?.data || 'failed' });
     } finally {
       setWorking(false);
     }
+  }
+
+  if (!loading && !hasRole('admin')) {
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-semibold mb-4">Start Retrain Job</h1>
+        <p className="text-sm text-muted-foreground mb-4">You are not authorized to start retrain jobs. Contact your administrator to request access.</p>
+      </div>
+    );
   }
 
   return (

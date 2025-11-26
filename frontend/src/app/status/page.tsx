@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import api from '@/lib/api';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,16 +39,14 @@ export default function StatusPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/status');
-      if (!res.ok) throw new Error('Failed to fetch /api/status');
-      const data = await res.json();
+      const res = await api.get('/api/status');
+      const data = res.data;
       setStatus(data);
       lastCheckedRef.current = data.lastChecked || new Date().toISOString();
 
-      const r2 = await fetch('/api/incidents?limit=10');
-      if (r2.ok) {
-        const inc = await r2.json();
-        setIncidents(inc.incidents || []);
+      const r2 = await api.get('/api/incidents', { params: { limit: 10 } });
+      if (r2?.data) {
+        setIncidents(r2.data.incidents || []);
       }
     } catch (err: any) {
       console.error(err);

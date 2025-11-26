@@ -210,4 +210,4 @@ auditLogSchema.statics.getComplianceRate = async function(days = 30) {
   return passed / checks.length;
 };
 
-module.exports = mongoose.model('AuditLog', auditLogSchema);
+module.exports = mongoose.models?.AuditLog || mongoose.model('AuditLog', auditLogSchema);

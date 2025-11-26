@@ -1,0 +1,198 @@
+"use client";
+import React, { useEffect, useState } from 'react';
+import api from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+
+export default function AdminAccessRequests() {
+  const [requests, setRequests] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [announcement, setAnnouncement] = useState<string | null>(null);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/v1/access-requests');
+      // backend returns { items, count }
+      const items = res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
+      setRequests(items);
+    } catch (err: any) {
+      // If backend not implemented yet, show helpful message
+      console.warn('Failed to load access requests', err?.response?.status);
+      setRequests([]);
+      toast({ title: 'Access requests unavailable', description: 'Backend endpoint not implemented', variant: 'default' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const beginAction = (action: 'approve' | 'reject' | 'promote', req: any) => {
+    setSelected(req);
+    if (action === 'promote') {
+      // For promote, show a simpler confirm flow
+      const ok = window.confirm(`Promote ${req.email || req.name} to admin? This will set role=admin.`);
+      if (ok) {
+        promoteUser(req.email || req.name);
+      }
+      return;
+    }
+    setConfirmAction(action === 'approve' ? 'approve' : 'reject');
+    setConfirmOpen(true);
+  };
+
+  const performAction = async () => {
+    if (!selected || !confirmAction) return;
+    setActionLoading(true);
+    try {
+      const id = selected._id || selected.id;
+      const path = `/v1/access-requests/${id}/${confirmAction}`;
+      const res = await api.post(path);
+      const claimsSync = res?.data?.claimsSync;
+      toast({ title: confirmAction === 'approve' ? 'Approved' : 'Rejected' });
+      if (confirmAction === 'approve') {
+        if (claimsSync) {
+          if (claimsSync.status === 'success') {
+            toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
+            setAnnouncement('Claims synced: Firebase custom claims updated.');
+          } else if (claimsSync.status === 'skipped') {
+            toast({ title: 'Claims not attempted', description: claimsSync.message });
+            setAnnouncement(`Claims not attempted: ${claimsSync.message}`);
+          } else {
+            toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
+            setAnnouncement(`Claims sync failed: ${claimsSync.message}`);
+          }
+        }
+      }
+      setConfirmOpen(false);
+      setSelected(null);
+      setConfirmAction(null);
+      fetchRequests();
+    } catch (e) {
+      toast({ title: `${confirmAction} failed`, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const promoteUser = async (email: string) => {
+    setActionLoading(true);
+    try {
+      const res = await api.post('/v1/users/promote', { email, role: 'admin' });
+      const claimsSync = res?.data?.claimsSync;
+      toast({ title: 'User promoted', description: `${email} set to admin` });
+      setAnnouncement(`${email} promoted to admin.`);
+      if (claimsSync) {
+        if (claimsSync.status === 'success') {
+          toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
+          setAnnouncement('Claims synced: Firebase custom claims updated.');
+        } else if (claimsSync.status === 'skipped') {
+          toast({ title: 'Claims not attempted', description: claimsSync.message });
+          setAnnouncement(`Claims not attempted: ${claimsSync.message}`);
+        } else {
+          toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
+          setAnnouncement(`Claims sync failed: ${claimsSync.message}`);
+        }
+      }
+      fetchRequests();
+    } catch (err) {
+      toast({ title: 'Promote failed', variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-semibold mb-4">Access Requests</h1>
+      <p className="text-sm text-muted-foreground mb-6">List of users requesting admin access. This page requires backend endpoints to be implemented.</p>
+
+      {loading && <div>Loading…</div>}
+
+      {!loading && requests && requests.length === 0 && (
+        <Card>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">No pending requests or backend endpoint missing.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-4">
+        {requests && requests.map((r: any) => {
+          const isPending = String(r.status).toLowerCase() === 'pending';
+          let badgeClass = 'bg-yellow-100 text-yellow-800';
+          if (String(r.status).toLowerCase() === 'approved') badgeClass = 'bg-green-100 text-green-800';
+          if (String(r.status).toLowerCase() === 'rejected') badgeClass = 'bg-red-100 text-red-800';
+
+          return (
+            <Card key={r.id || r._id}>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle className="truncate">{r.email || r.name || r.requester || 'Unknown'}</CardTitle>
+                <div className="ml-3">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${badgeClass}`} aria-hidden>
+                    {String(r.status).toUpperCase()}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Reason: {r.reason}</p>
+                {r.handledBy && <p className="text-sm text-muted-foreground">Handled By: {r.handledBy}</p>}
+                <p className="text-xs text-muted-foreground">Created: {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button aria-label={`Approve request for ${r.email || r.name}`} onClick={() => beginAction('approve', r)} disabled={!isPending || actionLoading}>
+                    Approve
+                  </Button>
+                  <Button aria-label={`Reject request for ${r.email || r.name}`} variant="ghost" onClick={() => beginAction('reject', r)} disabled={!isPending || actionLoading}>
+                    Reject
+                  </Button>
+                  <Button aria-label={`Promote ${r.email || r.name} to admin`} variant="secondary" onClick={() => beginAction('promote' as any, r)} disabled={actionLoading}>
+                    Promote
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Confirmation dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmAction === 'approve' ? 'Approve request' : 'Reject request'}</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to {confirmAction} the access request for <strong>{selected?.email || selected?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={actionLoading}>Cancel</Button>
+            <Button onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>
+          </DialogFooter>
+          <DialogClose />
+        </DialogContent>
+      </Dialog>
+      {/* Screen-reader announcement region */}
+      <div aria-live="polite" className="sr-only" role="status">{announcement}</div>
+    </div>
+  );
+}

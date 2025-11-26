@@ -44,7 +44,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user, loading, hasRole } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -77,6 +77,19 @@ export default function DashboardLayout({
                 </Link>
               </SidebarMenuItem>
             ))}
+            {hasRole && hasRole('admin') && (
+              <SidebarMenuItem>
+                <Link href="/dashboard/admin/access-requests">
+                  <SidebarMenuButton
+                    isActive={pathname === '/dashboard/admin/access-requests'}
+                    icon={<LifeBuoy />}
+                    tooltip="Access Requests"
+                  >
+                    Admin
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>

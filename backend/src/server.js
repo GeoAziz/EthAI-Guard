@@ -348,6 +348,13 @@ try {
 	logger.error({ err: e }, 'routes_evidence_register_failed');
 }
 
+// Access request & admin user management routes
+try {
+    app.use(require('./routes/accessRequests'));
+} catch (e) {
+    logger.error({ err: e }, 'routes_access_requests_register_failed');
+}
+
 // Helper functions (abstract persistence)
 async function findUserByEmail(email) {
 	if (USE_IN_MEMORY) return _users.find(u => u.email === email) || null;
