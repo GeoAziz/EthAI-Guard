@@ -695,6 +695,64 @@ app.post(
 	}
 );
 
+// Exchange Firebase ID token (client-side sign-in) for backend access/refresh tokens
+// Allows frontend to use Firebase Auth (client SDK) and then obtain backend JWTs
+app.post('/auth/firebase/exchange', async (req, res) => {
+	const idToken = req.body.idToken || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+	if (!idToken) return res.status(400).json({ error: 'id_token_required' });
+	try {
+		// Ensure firebase is initialized via middleware helper
+		const { initFirebase } = require('./middleware/firebaseAuth');
+		initFirebase();
+		const admin = require('firebase-admin');
+
+		const decoded = await admin.auth().verifyIdToken(idToken);
+
+		// Find or provision a local user record (so backend can store role, devices, refresh tokens)
+		let userDoc;
+		// Provision or find local user; prefer copying role from Firebase custom claims when present
+		const firebaseRole = decoded.role || (decoded.claims && decoded.claims.role) || null;
+		if (USE_IN_MEMORY) {
+			userDoc = _users.find(u => u.firebase_uid === decoded.uid) || _users.find(u => u.email === decoded.email);
+			if (!userDoc) {
+				const id = String(_users.length + 1);
+				userDoc = { _id: id, name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' };
+				_users.push(userDoc);
+			} else if (firebaseRole && userDoc.role !== firebaseRole) {
+				userDoc.role = firebaseRole; // keep in-memory role in sync with Firebase claim
+			}
+		} else {
+			const User = require('./models/User');
+			userDoc = await User.findOne({ firebase_uid: decoded.uid }) || await User.findOne({ email: decoded.email });
+			if (!userDoc) {
+				userDoc = await User.create({ name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' });
+			} else {
+				let changed = false;
+				if (!userDoc.firebase_uid) {
+					userDoc.firebase_uid = decoded.uid;
+					changed = true;
+				}
+				if (firebaseRole && userDoc.role !== firebaseRole) {
+					userDoc.role = firebaseRole;
+					changed = true;
+				}
+				if (changed) await userDoc.save();
+			}
+		}
+
+		// Issue backend tokens (access + refresh)
+		const accessToken = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+		const refreshPayload = { sub: userDoc._id, jti: uuidv4() };
+		const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+		await storeRefreshToken(userDoc._id, refreshTokenJwt, req);
+
+		return res.json({ accessToken, refreshToken: refreshTokenJwt });
+	} catch (e) {
+		logger.error({ err: e }, 'firebase_exchange_failed');
+		return res.status(401).json({ error: 'invalid_id_token' });
+	}
+});
+
 // Refresh token endpoint
 app.post('/auth/refresh', async (req, res) => {
 	// accept refresh token in cookie or body

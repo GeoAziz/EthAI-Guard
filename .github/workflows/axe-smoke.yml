@@ -1,0 +1,48 @@
+name: Axe smoke-check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  axe-smoke:
+    name: Axe smoke-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium (system) - best-effort
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser || true
+
+      - name: Run axe smoke-check
+        env:
+          # Provide a deployed site URL for PR checks via the TARGET_URL secret.
+          # Example: set TARGET_URL to https://staging.example.com
+          CHROMIUM_PATH: /usr/bin/chromium-browser
+          OUTPUT_PATH: ./frontend/reports/axe-results-pr.json
+          FAIL_ON_SEVERITY: serious
+        run: |
+          if [ -z "${{ secrets.TARGET_URL }}" ]; then
+            echo "TARGET_URL secret not set. To run axe in CI, set TARGET_URL to your deployed preview or staging URL."
+            exit 10
+          fi
+          node frontend/tools/axe-check.cjs "${{ secrets.TARGET_URL }}"
+
+      - name: Upload axe results (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-results
+          path: ./frontend/reports/

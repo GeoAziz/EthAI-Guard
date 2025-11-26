@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useAnnounce } from '@/contexts/AnnounceContext';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,8 @@ export default function AdminAccessRequests() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [announcement, setAnnouncement] = useState<string | null>(null);
+  const announce = useAnnounce()
+  const confirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -46,6 +48,14 @@ export default function AdminAccessRequests() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  // When the confirm dialog opens, focus the confirm button for keyboard users
+  useEffect(() => {
+    if (confirmOpen) {
+      // small delay to allow dialog to mount
+      setTimeout(() => confirmButtonRef.current?.focus(), 50);
+    }
+  }, [confirmOpen]);
 
   const beginAction = (action: 'approve' | 'reject' | 'promote', req: any) => {
     setSelected(req);
@@ -74,13 +84,13 @@ export default function AdminAccessRequests() {
         if (claimsSync) {
           if (claimsSync.status === 'success') {
             toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
-            setAnnouncement('Claims synced: Firebase custom claims updated.');
+            announce('Claims synced: Firebase custom claims updated.');
           } else if (claimsSync.status === 'skipped') {
             toast({ title: 'Claims not attempted', description: claimsSync.message });
-            setAnnouncement(`Claims not attempted: ${claimsSync.message}`);
+            announce(`Claims not attempted: ${claimsSync.message}`);
           } else {
             toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
-            setAnnouncement(`Claims sync failed: ${claimsSync.message}`);
+            announce(`Claims sync failed: ${claimsSync.message}`);
           }
         }
       }
@@ -98,25 +108,48 @@ export default function AdminAccessRequests() {
   const promoteUser = async (email: string) => {
     setActionLoading(true);
     try {
-      const res = await api.post('/v1/users/promote', { email, role: 'admin' });
-      const claimsSync = res?.data?.claimsSync;
-      toast({ title: 'User promoted', description: `${email} set to admin` });
-      setAnnouncement(`${email} promoted to admin.`);
+  const res = await api.post('/v1/users/promote', { email, role: 'admin' });
+  const claimsSync = res?.data?.claimsSync;
+  toast({ title: 'User promoted', description: `${email} set to admin` });
+  announce(`${email} promoted to admin.`);
       if (claimsSync) {
         if (claimsSync.status === 'success') {
           toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
-          setAnnouncement('Claims synced: Firebase custom claims updated.');
+          announce('Claims synced: Firebase custom claims updated.');
         } else if (claimsSync.status === 'skipped') {
           toast({ title: 'Claims not attempted', description: claimsSync.message });
-          setAnnouncement(`Claims not attempted: ${claimsSync.message}`);
+          announce(`Claims not attempted: ${claimsSync.message}`);
         } else {
           toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
-          setAnnouncement(`Claims sync failed: ${claimsSync.message}`);
+          announce(`Claims sync failed: ${claimsSync.message}`);
         }
       }
       fetchRequests();
     } catch (err) {
       toast({ title: 'Promote failed', variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const retryClaimsSync = async (email: string) => {
+    if (!email) return;
+    setActionLoading(true);
+    try {
+      const res = await api.post('/v1/users/sync-claims', { email });
+      const body = res?.data;
+      if (body?.status === 'success') {
+        toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
+        announce('Claims synced: Firebase custom claims updated.');
+      } else if (body?.status === 'skipped') {
+        toast({ title: 'Claims not attempted', description: body.message });
+        announce(`Claims not attempted: ${body.message}`);
+      } else {
+        toast({ title: 'Claims sync failed', description: body?.message || 'Unknown error', variant: 'destructive' });
+        announce(`Claims sync failed: ${body?.message || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      toast({ title: 'Claims sync failed', variant: 'destructive' });
     } finally {
       setActionLoading(false);
     }
@@ -168,6 +201,11 @@ export default function AdminAccessRequests() {
                   <Button aria-label={`Promote ${r.email || r.name} to admin`} variant="secondary" onClick={() => beginAction('promote' as any, r)} disabled={actionLoading}>
                     Promote
                   </Button>
+                  {r.email && (
+                    <Button aria-label={`Retry claims sync for ${r.email}`} variant="outline" onClick={() => retryClaimsSync(r.email)} disabled={actionLoading}>
+                      Retry claims-sync
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -186,13 +224,12 @@ export default function AdminAccessRequests() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={actionLoading}>Cancel</Button>
-            <Button onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>
+            <Button ref={confirmButtonRef} onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>
           </DialogFooter>
           <DialogClose />
         </DialogContent>
       </Dialog>
-      {/* Screen-reader announcement region */}
-      <div aria-live="polite" className="sr-only" role="status">{announcement}</div>
+  {/* Screen-reader announcement region is provided globally by AnnounceProvider */}
     </div>
   );
 }

@@ -402,6 +402,28 @@ Run the complete 5-minute demo sequence:
 - Email: `demo@ethixai.com`
 - Password: `SecureDemo2024!`
 
+**Create an admin user (local)**
+
+If you want a real admin user in Firebase Auth and the local Users collection, run the provided script. It will create the user in Firebase Auth (using your `serviceAccountKey.json`) and upsert a document in the `users` collection.
+
+1. Ensure you have a service account JSON at the project root or set:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
+```
+
+2. Ensure MongoDB is reachable (set `MONGO_URL` if different). Example default: `mongodb://localhost:27017/ethixai`.
+
+3. Run the script (from project root):
+
+```bash
+node scripts/create_admin_user.js --email=admin@example.com --password=AdminPass123! --name="Admin User" --role=admin
+```
+
+The script prints the created credentials and updates the `users` collection with the Firebase UID and role.
+
+Note: Do not commit `serviceAccountKey.json` to Git. Use CI secret managers for production.
+
 ### Performance Testing
 
 Run comprehensive performance tests:

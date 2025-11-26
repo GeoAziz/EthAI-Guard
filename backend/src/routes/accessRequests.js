@@ -311,6 +311,48 @@ router.get('/v1/users/me', maybeAuth, async (req, res) => {
   }
 });
 
+/**
+ * List users (admin only)
+ * GET /v1/users
+ */
+router.get('/v1/users', maybeAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { page = 1, limit = 100 } = req.query;
+    if (USE_IN_MEMORY) {
+      return res.json({ items: [], count: 0 });
+    }
+    const skip = (Number(page) - 1) * Number(limit);
+    const users = await User.find({}).select('name email role firebase_uid createdAt').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean();
+    const count = await User.countDocuments();
+    return res.json({ items: users, count });
+  } catch (e) {
+    logger.error({ err: e }, 'users_list_failed');
+    return res.status(500).json({ error: 'list_failed' });
+  }
+});
+
+/**
+ * Get audit history for a user (admin only)
+ * GET /v1/users/:id/history
+ */
+router.get('/v1/users/:id/history', maybeAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) return res.status(400).json({ error: 'user_id_required' });
+    if (USE_IN_MEMORY) return res.json({ logs: [] });
+    const u = await User.findById(userId).lean();
+    if (!u) return res.status(404).json({ error: 'user_not_found' });
+
+    const AuditLog = require('../models/AuditLog');
+    // Look for audit logs where details.target_user equals the user id or actor equals the user's email
+    const logs = await AuditLog.find({ $or: [ { 'details.target_user': String(u._id) }, { actor: u.email } ] }).sort({ timestamp: -1 }).limit(200).lean();
+    return res.json({ logs });
+  } catch (e) {
+    logger.error({ err: e }, 'user_history_failed');
+    return res.status(500).json({ error: 'history_failed' });
+  }
+});
+
 module.exports = router;
 
 /**
@@ -381,6 +423,127 @@ router.post('/v1/users/promote', maybeAuth, requireRole('admin'), async (req, re
   } catch (e) {
     logger.error({ err: e }, 'promote_user_failed');
     return res.status(500).json({ error: 'promote_failed' });
+  }
+});
+
+
+/**
+ * Re-sync custom claims for a user by id
+ * POST /v1/users/:id/sync-claims
+ */
+router.post('/v1/users/:id/sync-claims', maybeAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) return res.status(400).json({ error: 'user_id_required' });
+    if (USE_IN_MEMORY) {
+      // in-memory demo mode — can't contact Firebase
+      logger.info({ userId }, 'claims_sync_skipped_in_memory');
+      return res.json({ status: 'skipped', message: 'in_memory_mode' });
+    }
+    const u = await User.findById(userId);
+    if (!u) return res.status(404).json({ error: 'user_not_found' });
+
+    const fs = require('fs');
+    const path = require('path');
+    const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
+    if (!admin) {
+      logger.warn({ userId, email: u.email }, 'claims_sync_skipped_missing_firebase_admin');
+      return res.json({ status: 'skipped', message: 'firebase_admin_missing' });
+    }
+
+    if (!admin.apps || admin.apps.length === 0) {
+      const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve(__dirname, '../../serviceAccountKey.json');
+      if (fs.existsSync(saPath)) {
+        try {
+          admin.initializeApp({ credential: admin.credential.cert(require(saPath)) });
+        } catch (initErr) {
+          logger.warn({ err: initErr }, 'firebase_admin_init_failed');
+        }
+      }
+    }
+
+    // Determine uid
+    let uid = u.firebase_uid;
+    try {
+      if (!uid) {
+        const fbUser = await admin.auth().getUserByEmail(u.email).catch(() => null);
+        uid = fbUser && fbUser.uid;
+      }
+      if (!uid) {
+        logger.info({ userId, email: u.email }, 'claims_sync_user_not_found_in_firebase');
+        return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
+      }
+
+      await admin.auth().setCustomUserClaims(uid, { role: u.role });
+      logger.info({ userId, uid, email: u.email, role: u.role }, 'claims_sync_success');
+      await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email: u.email, role: u.role } });
+      return res.json({ status: 'success', message: 'custom_claims_set' });
+    } catch (fbErr) {
+      logger.warn({ err: fbErr, userId, email: u.email }, 'claims_sync_failed');
+      return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
+    }
+  } catch (e) {
+    logger.error({ err: e }, 'claims_sync_endpoint_failed');
+    return res.status(500).json({ error: 'sync_failed' });
+  }
+});
+
+/**
+ * Re-sync custom claims for a user by email (convenience)
+ * POST /v1/users/sync-claims
+ * body: { email }
+ */
+router.post('/v1/users/sync-claims', maybeAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'email_required' });
+    if (USE_IN_MEMORY) {
+      logger.info({ email }, 'claims_sync_skipped_in_memory');
+      return res.json({ status: 'skipped', message: 'in_memory_mode' });
+    }
+    const u = await User.findOne({ email });
+    if (!u) return res.status(404).json({ error: 'user_not_found' });
+
+    // delegate to id endpoint logic by calling auth functions inline
+    const fs = require('fs');
+    const path = require('path');
+    const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
+    if (!admin) {
+      logger.warn({ email }, 'claims_sync_skipped_missing_firebase_admin');
+      return res.json({ status: 'skipped', message: 'firebase_admin_missing' });
+    }
+    if (!admin.apps || admin.apps.length === 0) {
+      const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve(__dirname, '../../serviceAccountKey.json');
+      if (fs.existsSync(saPath)) {
+        try {
+          admin.initializeApp({ credential: admin.credential.cert(require(saPath)) });
+        } catch (initErr) {
+          logger.warn({ err: initErr }, 'firebase_admin_init_failed');
+        }
+      }
+    }
+
+    let uid = u.firebase_uid;
+    try {
+      if (!uid) {
+        const fbUser = await admin.auth().getUserByEmail(email).catch(() => null);
+        uid = fbUser && fbUser.uid;
+      }
+      if (!uid) {
+        logger.info({ email }, 'claims_sync_user_not_found_in_firebase');
+        return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
+      }
+      await admin.auth().setCustomUserClaims(uid, { role: u.role });
+      logger.info({ uid, email, role: u.role }, 'claims_sync_success');
+      await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email, role: u.role } });
+      return res.json({ status: 'success', message: 'custom_claims_set' });
+    } catch (fbErr) {
+      logger.warn({ err: fbErr, email }, 'claims_sync_failed');
+      return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
+    }
+  } catch (e) {
+    logger.error({ err: e }, 'claims_sync_by_email_failed');
+    return res.status(500).json({ error: 'sync_failed' });
   }
 });
 
