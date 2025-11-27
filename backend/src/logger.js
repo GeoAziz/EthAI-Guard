@@ -2,14 +2,19 @@ const pino = require('pino');
 
 // Use a simple environment-driven level and pretty print in non-production
 const isProd = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
+
+// Avoid creating the pino-pretty worker in test mode (Jest open handle).
+// Only enable the pretty transport in non-production, non-test environments.
 const baseLogger = pino({
   level: process.env.LOG_LEVEL || (isProd ? 'info' : 'debug'),
-  transport: isProd
-    ? undefined
-    : {
-        target: 'pino-pretty',
-        options: { colorize: true, translateTime: 'SYS:standard' }
-      }
+  transport:
+    isProd || isTest
+      ? undefined
+      : {
+          target: 'pino-pretty',
+          options: { colorize: true, translateTime: 'SYS:standard' }
+        }
 });
 
 // helper to create child loggers with request context

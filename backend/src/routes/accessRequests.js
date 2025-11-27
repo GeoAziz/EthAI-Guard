@@ -37,6 +37,8 @@ async function listAccessRequestsInMemory(q = {}, skip = 0, limit = 100) {
 }
 const { authGuard } = require('../middleware/authGuard');
 const { requireRole } = require('../middleware/rbac');
+const notifications = require('../notifications');
+const { claimsSyncFailureTotal, claimsSyncSuccessTotal } = require('../utils/metrics');
 
 /**
  * Create an access request
@@ -151,12 +153,15 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
                 await firebaseAdmin.setCustomUserClaims(uid, { role: 'admin' });
                 logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set');
                 claimsSync = { status: 'success', message: 'custom_claims_set' };
+                try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { /* ignore */ }
               } else {
                 claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
+                try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
               }
             } catch (fbErr) {
               logger.warn({ err: fbErr, email: ar.email }, 'firebase_set_custom_claims_failed');
               claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
+              try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
             }
           } catch (e) {
             logger.warn({ err: e }, 'firebase_custom_claims_best_effort_failed');
@@ -170,9 +175,71 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
       } catch (e) {
         logger.warn({ err: e }, 'assign_role_best_effort_failed');
         claimsSync = { status: 'failed', message: e.message || String(e) };
+        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'assign_role_failed' }); } catch (mErr) { }
       }
     } else {
       await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, details: { requestId: ar._id } });
+    }
+
+    // best-effort notification (non-blocking)
+    (async () => {
+      try {
+        if (notifications && notifications.sendAlert) {
+          const alert = {
+            _id: ar._id,
+            type: 'access_request_approved',
+            severity: 'stable',
+            email: ar.email,
+            details: { requestId: ar._id, claimsSync },
+            created_at: new Date().toISOString()
+          };
+          await notifications.sendAlert(alert);
+        }
+      } catch (nerr) {
+        logger.warn({ err: nerr }, 'notify_access_request_approved_failed');
+      }
+    })();
+
+    // Optional: if approver requested to email the user, send a direct email (best-effort).
+    // Caller may provide `emailUser: true` in the request body to trigger this.
+    (async () => {
+      try {
+        if (req.body && req.body.emailUser && ar.email && notifications && notifications.sendAlertEmail) {
+          const emailAlert = {
+            _id: ar._id,
+            type: 'access_request_approved_email',
+            severity: 'stable',
+            email: ar.email,
+            details: { requestId: ar._id, claimsSync },
+            created_at: new Date().toISOString()
+          };
+          await notifications.sendAlertEmail(emailAlert, ar.email);
+        }
+      } catch (emailErr) {
+        logger.warn({ err: emailErr }, 'send_approve_email_failed');
+      }
+    })();
+
+    // If the claims-sync failed, send a dedicated best-effort alert so on-call
+    // or monitoring can be notified separately from the approve notification.
+    if (claimsSync && claimsSync.status === 'failed') {
+      (async () => {
+        try {
+          if (notifications && notifications.sendAlert) {
+            const alert = {
+              _id: ar._id,
+              type: 'claims_sync_failed',
+              severity: 'critical',
+              email: ar.email,
+              details: { requestId: ar._id, claimsSync },
+              created_at: new Date().toISOString()
+            };
+            await notifications.sendAlert(alert);
+          }
+        } catch (nerr) {
+          logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed');
+        }
+      })();
     }
 
     return res.json({ status: 'approved', id: ar._id, claimsSync });
@@ -208,6 +275,43 @@ router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), a
       await ar.save();
     }
     await auditLogger.log({ event_type: 'ACCESS_REQUEST_REJECTED', actor: req.user.sub, details: { requestId: ar._id } });
+    // best-effort notify about rejection
+    (async () => {
+      try {
+        if (notifications && notifications.sendAlert) {
+          const alert = {
+            _id: ar._id,
+            type: 'access_request_rejected',
+            severity: 'warning',
+            email: ar.email,
+            details: { requestId: ar._id },
+            created_at: new Date().toISOString()
+          };
+          await notifications.sendAlert(alert);
+        }
+      } catch (nerr) {
+        logger.warn({ err: nerr }, 'notify_access_request_rejected_failed');
+      }
+    })();
+
+    // Optional: if approver requested to email the user on rejection
+    (async () => {
+      try {
+        if (req.body && req.body.emailUser && ar.email && notifications && notifications.sendAlertEmail) {
+          const emailAlert = {
+            _id: ar._id,
+            type: 'access_request_rejected_email',
+            severity: 'warning',
+            email: ar.email,
+            details: { requestId: ar._id },
+            created_at: new Date().toISOString()
+          };
+          await notifications.sendAlertEmail(emailAlert, ar.email);
+        }
+      } catch (emailErr) {
+        logger.warn({ err: emailErr }, 'send_reject_email_failed');
+      }
+    })();
     return res.json({ status: 'rejected', id: ar._id });
   } catch (e) {
     logger.error({ err: e }, 'access_request_reject_failed');
@@ -353,14 +457,70 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
           if (uid) {
             await admin.auth().setCustomUserClaims(uid, { role });
             claimsSync = { status: 'success', message: 'custom_claims_set' };
+            try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { /* ignore */ }
           } else {
             claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
+            try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { /* ignore */ }
+            // best-effort notify about claims-sync failure for promotes
+            (async () => {
+              try {
+                if (notifications && notifications.sendAlert) {
+                  const alert = {
+                    _id: u._id || u.id,
+                    type: 'claims_sync_failed',
+                    severity: 'critical',
+                    email,
+                    details: { reason: 'user_not_found_in_firebase', email, role },
+                    created_at: new Date().toISOString()
+                  };
+                  await notifications.sendAlert(alert);
+                }
+              } catch (nerr) {
+                logger.warn({ err: nerr }, 'notify_promote_claims_sync_failed_failed');
+              }
+            })();
           }
         } catch (fbErr) {
           claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
+          try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { /* ignore */ }
+          (async () => {
+            try {
+              if (notifications && notifications.sendAlert) {
+                const alert = {
+                  _id: u._id || u.id,
+                  type: 'claims_sync_failed',
+                  severity: 'critical',
+                  email,
+                  details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), email, role },
+                  created_at: new Date().toISOString()
+                };
+                await notifications.sendAlert(alert);
+              }
+            } catch (nerr) {
+              logger.warn({ err: nerr }, 'notify_promote_claims_sync_failed_failed');
+            }
+          })();
         }
       } else {
         claimsSync = { status: 'skipped', message: 'firebase_admin_missing' };
+        // optional: increment a failure counter for missing firebase admin? prefer skip for now
+        (async () => {
+          try {
+            if (notifications && notifications.sendAlert) {
+              const alert = {
+                _id: u._id || u.id,
+                type: 'claims_sync_skipped',
+                severity: 'warning',
+                email,
+                details: { reason: 'firebase_admin_missing', email, role },
+                created_at: new Date().toISOString()
+              };
+              await notifications.sendAlert(alert);
+            }
+          } catch (nerr) {
+            logger.warn({ err: nerr }, 'notify_promote_claims_sync_skipped_failed');
+          }
+        })();
       }
     } catch (e) {
       claimsSync = { status: 'failed', message: e.message || String(e) };
@@ -395,6 +555,24 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
     const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
     if (!admin) {
       logger.warn({ userId, email: u.email }, 'claims_sync_skipped_missing_firebase_admin');
+      // notify that claims-sync could not run due to missing firebase admin
+      (async () => {
+        try {
+          if (notifications && notifications.sendAlert) {
+            const alert = {
+              _id: userId,
+              type: 'claims_sync_skipped',
+              severity: 'warning',
+              email: u.email,
+              details: { reason: 'firebase_admin_missing', userId, email: u.email },
+              created_at: new Date().toISOString()
+            };
+            await notifications.sendAlert(alert);
+          }
+        } catch (nerr) {
+          logger.warn({ err: nerr }, 'notify_claims_sync_skipped_failed');
+        }
+      })();
       return res.json({ status: 'skipped', message: 'firebase_admin_missing' });
     }
 
@@ -418,15 +596,48 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
       }
       if (!uid) {
         logger.info({ userId, email: u.email }, 'claims_sync_user_not_found_in_firebase');
+        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
+        (async () => {
+          try {
+            if (notifications && notifications.sendAlert) {
+              const alert = {
+                _id: userId,
+                type: 'claims_sync_failed',
+                severity: 'critical',
+                email: u.email,
+                details: { reason: 'user_not_found_in_firebase', userId, email: u.email },
+                created_at: new Date().toISOString()
+              };
+              await notifications.sendAlert(alert);
+            }
+          } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+        })();
         return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
       }
 
       await admin.auth().setCustomUserClaims(uid, { role: u.role });
       logger.info({ userId, uid, email: u.email, role: u.role }, 'claims_sync_success');
       await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email: u.email, role: u.role } });
+      try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { }
       return res.json({ status: 'success', message: 'custom_claims_set' });
     } catch (fbErr) {
       logger.warn({ err: fbErr, userId, email: u.email }, 'claims_sync_failed');
+      try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
+      (async () => {
+        try {
+          if (notifications && notifications.sendAlert) {
+            const alert = {
+              _id: userId,
+              type: 'claims_sync_failed',
+              severity: 'critical',
+              email: u.email,
+              details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), userId, email: u.email },
+              created_at: new Date().toISOString()
+            };
+            await notifications.sendAlert(alert);
+          }
+        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+      })();
       return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
     }
   } catch (e) {
@@ -457,6 +668,21 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
     const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
     if (!admin) {
       logger.warn({ email }, 'claims_sync_skipped_missing_firebase_admin');
+      (async () => {
+        try {
+          if (notifications && notifications.sendAlert) {
+            const alert = {
+              _id: email,
+              type: 'claims_sync_skipped',
+              severity: 'warning',
+              email,
+              details: { reason: 'firebase_admin_missing', email },
+              created_at: new Date().toISOString()
+            };
+            await notifications.sendAlert(alert);
+          }
+        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_skipped_failed'); }
+      })();
       return res.json({ status: 'skipped', message: 'firebase_admin_missing' });
     }
     if (!admin.apps || admin.apps.length === 0) {
@@ -478,14 +704,47 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
       }
       if (!uid) {
         logger.info({ email }, 'claims_sync_user_not_found_in_firebase');
+        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
+        (async () => {
+          try {
+            if (notifications && notifications.sendAlert) {
+              const alert = {
+                _id: email,
+                type: 'claims_sync_failed',
+                severity: 'critical',
+                email,
+                details: { reason: 'user_not_found_in_firebase', email },
+                created_at: new Date().toISOString()
+              };
+              await notifications.sendAlert(alert);
+            }
+          } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+        })();
         return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
       }
       await admin.auth().setCustomUserClaims(uid, { role: u.role });
       logger.info({ uid, email, role: u.role }, 'claims_sync_success');
       await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email, role: u.role } });
+      try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { }
       return res.json({ status: 'success', message: 'custom_claims_set' });
     } catch (fbErr) {
       logger.warn({ err: fbErr, email }, 'claims_sync_failed');
+      try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
+      (async () => {
+        try {
+          if (notifications && notifications.sendAlert) {
+            const alert = {
+              _id: email,
+              type: 'claims_sync_failed',
+              severity: 'critical',
+              email,
+              details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), email },
+              created_at: new Date().toISOString()
+            };
+            await notifications.sendAlert(alert);
+          }
+        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+      })();
       return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
     }
   } catch (e) {

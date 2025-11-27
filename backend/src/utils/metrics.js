@@ -172,6 +172,22 @@ const reportGenerationsTotal = new client.Counter({
   labelNames: ['format', 'status']
 });
 
+// ========================================
+// Claims-sync Metrics
+// ========================================
+
+const claimsSyncFailureTotal = new client.Counter({
+  name: 'ethixai_backend_claims_sync_failure_total',
+  help: 'Total number of user claims sync failures',
+  labelNames: ['reason']
+});
+
+const claimsSyncSuccessTotal = new client.Counter({
+  name: 'ethixai_backend_claims_sync_success_total',
+  help: 'Total number of successful claims sync operations',
+  labelNames: []
+});
+
 const reportGenerationDuration = new client.Histogram({
   name: 'ethixai_backend_report_generation_duration_ms',
   help: 'Duration of report generation in milliseconds',
@@ -379,8 +395,14 @@ module.exports = {
     externalApiErrorsTotal,
     reportGenerationsTotal,
     reportGenerationDuration
+    ,
+    claimsSyncFailureTotal,
+    claimsSyncSuccessTotal
   }
 };
 
 // Export security counters separately (optional granular import)
 module.exports.refreshTokenReuseTotal = refreshTokenReuseTotal;
+// Export claims-sync counters
+module.exports.claimsSyncFailureTotal = claimsSyncFailureTotal;
+module.exports.claimsSyncSuccessTotal = claimsSyncSuccessTotal;
