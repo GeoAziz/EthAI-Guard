@@ -4,10 +4,10 @@ const { body, validationResult } = require('express-validator');
 const axios = require('axios');
 const logger = require('../logger');
 const admin = require('firebase-admin');
-const { initFirebase } = require('../middleware/firebaseAuth');
+const firebaseAdmin = require('../services/firebaseAdmin');
 
 // Initialize Firebase Admin SDK (no-op in tests without creds)
-initFirebase();
+firebaseAdmin.initFirebase();
 
 // Lazy getter to avoid crashing module load when Firebase isn't configured
 function getDb() {

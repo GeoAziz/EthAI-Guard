@@ -3,6 +3,11 @@ const auditLogger = require('../services/auditLogger');
 const AuditLog = require('../models/AuditLog');
 
 const router = express.Router();
+const { authGuard } = require('../middleware/authGuard');
+const { requireRole } = require('../middleware/rbac');
+
+// protect all audit routes by default (admin only)
+router.use(authGuard, requireRole('admin'));
 
 /**
  * @route   GET /api/audit/logs

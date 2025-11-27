@@ -111,7 +111,11 @@ function tryCreateTarGz(dir) {
   }
 }
 
-router.post('/v1/alerts/:id/export', async (req, res) => {
+const { authGuard } = require('../middleware/authGuard');
+const { requireRole } = require('../middleware/rbac');
+
+// Only admins may export evidence bundles
+router.post('/v1/alerts/:id/export', authGuard, requireRole('admin'), async (req, res) => {
   const alertId = req.params.id;
   try {
     ensureDir(BASE_DIR);

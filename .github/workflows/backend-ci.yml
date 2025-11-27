@@ -1,12 +1,38 @@
-name: Backend CI
+name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  python-tests:
+  backend-tests:
+    name: Backend tests (Node.js)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+  ai-core-tests:
+    name: AI Core tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -19,19 +45,28 @@ jobs:
         run: |
           pytest -q ai_core/tests
 
-  node-tests:
+  frontend-axe-smoke-check:
+    name: Frontend axe smoke check
+    if: ${{ secrets.FRONTEND_SMOKE_URL != '' }}
     runs-on: ubuntu-latest
+    needs: backend-tests
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Install backend deps
+          node-version: 18
+
+      - name: Install axe smoke checker deps
+        working-directory: frontend
         run: |
-          cd backend
           npm ci
-      - name: Run backend tests
+
+      - name: Run axe smoke check
+        working-directory: frontend
+        env:
+          TARGET_URL: ${{ secrets.FRONTEND_SMOKE_URL }}
         run: |
-          cd backend
-          npm test
+          node ./tools/axe-check.cjs

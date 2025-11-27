@@ -90,6 +90,34 @@ export default function DashboardLayout({
                 </Link>
               </SidebarMenuItem>
             )}
+            {/* Analyst-only link */}
+            {hasRole && hasRole('analyst') && (
+              <SidebarMenuItem>
+                <Link href="/decision-analysis">
+                  <SidebarMenuButton
+                    isActive={pathname === '/decision-analysis'}
+                    icon={<BarChart2 />}
+                    tooltip="Decision Analysis"
+                  >
+                    Analysis
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            )}
+            {/* Reviewer link */}
+            {hasRole && hasRole('reviewer') && (
+              <SidebarMenuItem>
+                <Link href="/report">
+                  <SidebarMenuButton
+                    isActive={pathname === '/report'}
+                    icon={<LayoutGrid />}
+                    tooltip="Reports"
+                  >
+                    Reports
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>

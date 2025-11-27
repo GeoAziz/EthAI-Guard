@@ -11,6 +11,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import api from '@/lib/api';
+import { setBackendAccessToken } from '@/lib/api';
+
+const COOKIE_MODE = process.env.NEXT_PUBLIC_USE_COOKIE_REFRESH === '1';
 
 interface AuthContextType {
   user: User | null;
@@ -39,6 +42,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (async () => {
         if (user) {
           try {
+            // Try to exchange Firebase ID token for backend tokens so api calls use backend JWTs
+            const idToken = await user.getIdToken();
+            if (idToken) {
+              try {
+                const resp = await api.post('/auth/firebase/exchange', { idToken });
+                // If backend is in cookie mode it will set HttpOnly cookies and
+                // respond with a minimal { status: 'ok' } payload. Only persist
+                // tokens client-side for the legacy JSON response path.
+                if (COOKIE_MODE) {
+                  // no-op: cookies were set by server; refreshRoles can read role
+                  // from backend when needed.
+                } else {
+                  const access = resp.data?.accessToken || resp.data?.access_token;
+                  const refresh = resp.data?.refreshToken || resp.data?.refresh_token;
+                  if (access) {
+                    try { localStorage.setItem('backend_access_token', access); } catch (e) {}
+                    setBackendAccessToken(access);
+                  }
+                  if (refresh) {
+                    try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
+                  }
+                }
+              } catch (e) {
+                // Exchange may fail in dev/test; that's OK — fallback to token claims
+                console.debug('Backend token exchange failed (ok in dev):', (e as any)?.response?.data || (e as any)?.message || e);
+              }
+
+            }
+
             const idTokenResult = await user.getIdTokenResult();
             const claims = idTokenResult?.claims || {};
             // support either `role` (string) or `roles` (array) claims
@@ -56,6 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRoles([]);
           }
         } else {
+          // clear any stored backend tokens when signed out
+          if (!COOKIE_MODE) {
+            try { localStorage.removeItem('backend_access_token'); } catch (e) {}
+            try { localStorage.removeItem('backend_refresh_token'); } catch (e) {}
+            setBackendAccessToken(null);
+          }
           setRoles([]);
         }
       })();
@@ -71,10 +109,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string): Promise<UserCredential> => {
-    return signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    // After sign-in, exchange ID token for backend access/refresh tokens (best-effort)
+    try {
+      const idToken = await cred.user.getIdToken();
+      const resp = await api.post('/auth/firebase/exchange', { idToken });
+      const access = resp.data?.accessToken || resp.data?.access_token;
+      const refresh = resp.data?.refreshToken || resp.data?.refresh_token;
+      if (access) {
+        try { localStorage.setItem('backend_access_token', access); } catch (e) {}
+        setBackendAccessToken(access);
+      }
+      if (refresh) {
+        try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
+      }
+    } catch (e) {
+      // don't block login on exchange failure
+      console.debug('Token exchange failed after login (ok in dev/test):', (e as any)?.response?.data || (e as any)?.message || e);
+    }
+    return cred;
   };
 
   const logout = async (): Promise<void> => {
+    if (!COOKIE_MODE) {
+      try { localStorage.removeItem('backend_access_token'); } catch (e) {}
+      try { localStorage.removeItem('backend_refresh_token'); } catch (e) {}
+      setBackendAccessToken(null);
+    } else {
+      // In cookie mode we rely on server cookies; attempt to clear server-side
+      // refresh cookie by calling logout-cookie endpoint where possible (best-effort).
+      try { await api.post('/auth/logout-cookie'); } catch (_) { /* ignore */ }
+    }
     return signOut(auth);
   };
 

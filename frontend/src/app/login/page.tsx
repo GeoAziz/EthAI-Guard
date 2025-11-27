@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { defaultRouteForRoles } from '@/lib/rbac';
+import { auth } from '@/lib/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -23,7 +25,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, refreshRoles, hasRole } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -46,8 +48,39 @@ export default function LoginPage() {
         duration: 2000,
       });
       
-      // Small delay for better UX
-      setTimeout(() => router.push("/dashboard"), 500);
+      // Refresh roles from the backend and redirect based on role
+      try {
+        await refreshRoles();
+      } catch (e) {
+        // ignore refresh failures
+      }
+
+      // Try to determine roles from the backend-token-refresh flow we ran above.
+      // Prefer authoritative backend roles (via refreshRoles). If not available yet,
+      // fall back to ID token claims.
+      try {
+        // await refreshRoles() already attempted above. Try to read token claims directly.
+        const current = auth.currentUser;
+        if (current) {
+          const idTokenResult = await current.getIdTokenResult(true);
+          const claims = idTokenResult?.claims || {};
+          let effectiveRoles: string[] | undefined;
+          if (Array.isArray(claims.roles)) effectiveRoles = claims.roles as string[];
+          else if (typeof claims.role === 'string') effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
+          const dest = defaultRouteForRoles(effectiveRoles ?? undefined);
+          router.push(dest);
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback
+      }
+
+      // Fallback: keep previous behavior
+      if (hasRole && hasRole('admin')) {
+        router.push('/dashboard/admin/access-requests');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error("Login error:", error);
       

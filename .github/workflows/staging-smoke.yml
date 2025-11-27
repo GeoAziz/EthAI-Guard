@@ -1,0 +1,34 @@
+name: Staging Smoke
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  staging-smoke:
+    name: Run staging smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up curl/jq
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+      - name: Make staging smoke script executable
+        run: |
+          chmod +x tools/ci/staging-smoke.sh
+
+      - name: Run staging smoke
+        env:
+          BACKEND_URL: ${{ secrets.STAGING_BACKEND_URL }}
+          ADMIN_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
+          ADMIN_PASS: ${{ secrets.STAGING_ADMIN_PASS }}
+          TEST_USER_EMAIL: ${{ secrets.STAGING_TEST_USER_EMAIL }}
+          TEST_USER_ROLE: ${{ secrets.STAGING_TEST_USER_ROLE }}
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then echo "STAGING_BACKEND_URL secret not set; skipping"; exit 78; fi
+          ./tools/ci/staging-smoke.sh

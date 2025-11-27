@@ -35,41 +35,8 @@ async function listAccessRequestsInMemory(q = {}, skip = 0, limit = 100) {
   if (q.status) items = items.filter(i => i.status === q.status);
   return items.slice(skip, skip + limit);
 }
-const { firebaseAuth } = require('../middleware/firebaseAuth');
-
-// Reuse the same maybeAuth pattern found in other route files
-function maybeAuth(req, res, next) {
-  // Test-mode bypass to keep flows working in CI/demo without a token
-  if (
-    process.env.NODE_ENV === 'test' &&
-    req.headers['x-enforce-auth'] !== '1' &&
-    !(req.headers.authorization || '').startsWith('Bearer ')
-  ) {
-    req.user = { sub: 'test', role: 'admin', email: 'test@local' };
-    return next();
-  }
-  if (process.env.AUTH_PROVIDER === 'firebase') {
-    return firebaseAuth(req, res, next);
-  }
-  const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'No token' });
-  try {
-    const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
-    req.user = payload;
-    return next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
-
-function requireRole(role) {
-  return (req, res, next) => {
-    const userRole = (req.user && req.user.role) || req.role || 'user';
-    if (userRole !== role) return res.status(403).json({ error: 'forbidden' });
-    return next();
-  };
-}
+const { authGuard } = require('../middleware/authGuard');
+const { requireRole } = require('../middleware/rbac');
 
 /**
  * Create an access request
@@ -77,7 +44,7 @@ function requireRole(role) {
  */
 router.post(
   '/v1/access-requests',
-  maybeAuth,
+  authGuard,
   body('reason').isString().isLength({ min: 5 }),
   async (req, res) => {
     const errors = validationResult(req);
@@ -107,7 +74,7 @@ router.post(
  * List access requests (admin only)
  * GET /v1/access-requests
  */
-router.get('/v1/access-requests', maybeAuth, requireRole('admin'), async (req, res) => {
+router.get('/v1/access-requests', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { status, limit = 100, page = 1 } = req.query;
     const q = {};
@@ -130,7 +97,7 @@ router.get('/v1/access-requests', maybeAuth, requireRole('admin'), async (req, r
  * Approve an access request (admin only)
  * POST /v1/access-requests/:id/approve
  */
-router.post('/v1/access-requests/:id/approve', maybeAuth, requireRole('admin'), async (req, res) => {
+router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const id = req.params.id;
     let ar;
@@ -169,47 +136,27 @@ router.post('/v1/access-requests/:id/approve', maybeAuth, requireRole('admin'), 
 
           // Try to sync role to Firebase custom claims (best-effort).
           try {
-            const fs = require('fs');
-            const path = require('path');
-            let admin;
+            // Use centralized firebaseAdmin wrapper (best-effort). This avoids
+            // duplicating initialization logic in many routes and centralizes
+            // error handling for missing credentials.
+            const firebaseAdmin = require('../services/firebaseAdmin');
+            // Determine uid: prefer stored firebase_uid, else lookup by email
+            let uid = u.firebase_uid;
             try {
-              admin = require('firebase-admin');
-            } catch (e) {
-              admin = null;
-            }
-            if (admin) {
-              // Initialize admin SDK if not already initialized and creds are available
-              if (!admin.apps || admin.apps.length === 0) {
-                const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve(__dirname, '../../serviceAccountKey.json');
-                if (fs.existsSync(saPath)) {
-                  try {
-                    admin.initializeApp({ credential: admin.credential.cert(require(saPath)) });
-                  } catch (initErr) {
-                    logger.warn({ err: initErr }, 'firebase_admin_init_failed');
-                  }
-                }
+              if (!uid) {
+                const fbUser = await firebaseAdmin.getUserByEmail(ar.email).catch(() => null);
+                uid = fbUser && fbUser.uid;
               }
-
-              // Determine uid: prefer stored firebase_uid, else lookup by email
-              let uid = u.firebase_uid;
-              try {
-                if (!uid) {
-                  const fbUser = await admin.auth().getUserByEmail(ar.email);
-                  uid = fbUser && fbUser.uid;
-                }
-                if (uid) {
-                  await admin.auth().setCustomUserClaims(uid, { role: 'admin' });
-                  logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set');
-                  claimsSync = { status: 'success', message: 'custom_claims_set' };
-                } else {
-                  claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
-                }
-              } catch (fbErr) {
-                logger.warn({ err: fbErr, email: ar.email }, 'firebase_set_custom_claims_failed');
-                claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
+              if (uid) {
+                await firebaseAdmin.setCustomUserClaims(uid, { role: 'admin' });
+                logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set');
+                claimsSync = { status: 'success', message: 'custom_claims_set' };
+              } else {
+                claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
               }
-            } else {
-              claimsSync = { status: 'skipped', message: 'firebase_admin_missing' };
+            } catch (fbErr) {
+              logger.warn({ err: fbErr, email: ar.email }, 'firebase_set_custom_claims_failed');
+              claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
             }
           } catch (e) {
             logger.warn({ err: e }, 'firebase_custom_claims_best_effort_failed');
@@ -239,7 +186,7 @@ router.post('/v1/access-requests/:id/approve', maybeAuth, requireRole('admin'), 
  * Reject an access request (admin only)
  * POST /v1/access-requests/:id/reject
  */
-router.post('/v1/access-requests/:id/reject', maybeAuth, requireRole('admin'), async (req, res) => {
+router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const id = req.params.id;
     let ar;
@@ -272,7 +219,7 @@ router.post('/v1/access-requests/:id/reject', maybeAuth, requireRole('admin'), a
  * Admin endpoint to set a user's role
  * PATCH /v1/users/:id/role
  */
-router.patch('/v1/users/:id/role', maybeAuth, requireRole('admin'), body('role').isString().isLength({ min: 1 }), async (req, res) => {
+router.patch('/v1/users/:id/role', authGuard, requireRole('admin'), body('role').isString().isLength({ min: 1 }), async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ error: 'validation_failed', details: errors.array() });
   try {
@@ -291,7 +238,7 @@ router.patch('/v1/users/:id/role', maybeAuth, requireRole('admin'), body('role')
 });
 
 // Get current authenticated user (authoritative role from DB)
-router.get('/v1/users/me', maybeAuth, async (req, res) => {
+router.get('/v1/users/me', authGuard, async (req, res) => {
   try {
     const mongoose = require('mongoose');
     if (process.env.USE_IN_MEMORY === '1' || process.env.NODE_ENV === 'test') {
@@ -315,7 +262,7 @@ router.get('/v1/users/me', maybeAuth, async (req, res) => {
  * List users (admin only)
  * GET /v1/users
  */
-router.get('/v1/users', maybeAuth, requireRole('admin'), async (req, res) => {
+router.get('/v1/users', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;
     if (USE_IN_MEMORY) {
@@ -335,7 +282,7 @@ router.get('/v1/users', maybeAuth, requireRole('admin'), async (req, res) => {
  * Get audit history for a user (admin only)
  * GET /v1/users/:id/history
  */
-router.get('/v1/users/:id/history', maybeAuth, requireRole('admin'), async (req, res) => {
+router.get('/v1/users/:id/history', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: 'user_id_required' });
@@ -360,7 +307,7 @@ module.exports = router;
  * POST /v1/users/promote
  * body: { email: string, role: string }
  */
-router.post('/v1/users/promote', maybeAuth, requireRole('admin'), async (req, res) => {
+router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { email, role } = req.body || {};
     if (!email || !role) return res.status(400).json({ error: 'email_and_role_required' });
@@ -431,7 +378,7 @@ router.post('/v1/users/promote', maybeAuth, requireRole('admin'), async (req, re
  * Re-sync custom claims for a user by id
  * POST /v1/users/:id/sync-claims
  */
-router.post('/v1/users/:id/sync-claims', maybeAuth, requireRole('admin'), async (req, res) => {
+router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: 'user_id_required' });
@@ -493,7 +440,7 @@ router.post('/v1/users/:id/sync-claims', maybeAuth, requireRole('admin'), async 
  * POST /v1/users/sync-claims
  * body: { email }
  */
-router.post('/v1/users/sync-claims', maybeAuth, requireRole('admin'), async (req, res) => {
+router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ error: 'email_required' });

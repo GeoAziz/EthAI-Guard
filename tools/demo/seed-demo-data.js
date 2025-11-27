@@ -29,6 +29,13 @@ const DEMO_USER = {
   role: 'demo',
 };
 
+// Small helper to generate cryptographically secure API keys.
+// Uses crypto.randomBytes and returns a hex string suffix.
+// Adjust bytes (default 18) if you need a different length.
+function generateApiKey(prefix = 'demo_api_key_', bytes = 18) {
+  return prefix + crypto.randomBytes(bytes).toString('hex');
+}
+
 // Initialize Firebase Admin (if using Firebase Auth)
 let firebaseApp;
 try {
@@ -275,7 +282,7 @@ async function seedDemoData() {
         theme: 'dark',
         notifications: true,
       },
-      apiKey: 'demo_api_key_' + crypto.randomBytes(18).toString('hex'),
+      apiKey: generateApiKey(),
     };
     await usersCollection.updateOne(
       { firebaseUid },

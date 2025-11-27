@@ -2,34 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { getEvaluations, getEvaluationById } = require('../storage/evaluations');
 const logger = require('../logger');
-const { firebaseAuth } = require('../middleware/firebaseAuth');
-const jwt = require('jsonwebtoken');
+const { authGuard } = require('../middleware/authGuard');
 
 // Conditional auth: use Firebase when configured, else fall back to local JWT
-function maybeAuth(req, res, next) {
-  // Test-mode bypass to keep historical tests compatible without auth setup
-  if (process.env.NODE_ENV === 'test') {
-    const testUser = req.headers['x-test-user-id'] || 'user123';
-    req.user = { sub: String(testUser), role: 'user' };
-    return next();
-  }
-  if (process.env.AUTH_PROVIDER === 'firebase') {
-    return firebaseAuth(req, res, next);
-  }
-  const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'No token' });
-  try {
-    const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
-    req.user = payload;
-    return next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
+// Use centralized auth guard which supports Firebase or JWT fallback and test-mode bypass
+
 
 // GET /v1/evaluations - List recent evaluations with filters
-router.get('/v1/evaluations', maybeAuth, async (req, res) => {
+router.get('/v1/evaluations', authGuard, async (req, res) => {
   try {
     const { risk_level, model_id, limit, offset } = req.query;
     const user_id = req.user?.sub || req.userId; // Firebase UID or internal user ID
@@ -52,7 +32,7 @@ router.get('/v1/evaluations', maybeAuth, async (req, res) => {
 });
 
 // GET /v1/evaluations/:id - Get single evaluation details
-router.get('/v1/evaluations/:id', maybeAuth, async (req, res) => {
+router.get('/v1/evaluations/:id', authGuard, async (req, res) => {
   try {
     const evaluation_id = req.params.id;
     const user_id = req.user?.sub || req.userId;

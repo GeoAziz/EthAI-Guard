@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
+import AdminDashboardShell from '@/components/layout/AdminDashboardShell';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -156,8 +158,10 @@ export default function AdminAccessRequests() {
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold mb-4">Access Requests</h1>
+    <RoleProtected required="admin">
+      <AdminDashboardShell>
+      <div className="p-8">
+        <h1 className="text-2xl font-semibold mb-4">Access Requests</h1>
       <p className="text-sm text-muted-foreground mb-6">List of users requesting admin access. This page requires backend endpoints to be implemented.</p>
 
       {loading && <div>Loading…</div>}
@@ -229,7 +233,9 @@ export default function AdminAccessRequests() {
           <DialogClose />
         </DialogContent>
       </Dialog>
-  {/* Screen-reader announcement region is provided globally by AnnounceProvider */}
-    </div>
+      {/* Screen-reader announcement region is provided globally by AnnounceProvider */}
+      </div>
+      </AdminDashboardShell>
+    </RoleProtected>
   );
 }

@@ -29,7 +29,9 @@ const validationChain = [
   body('decision_timestamp').optional().isISO8601()
 ];
 
-router.post('/v1/evaluate', validationChain, async (req, res) => {
+const { authGuard } = require('../middleware/authGuard');
+
+router.post('/v1/evaluate', authGuard, validationChain, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ error: 'validation_failed', details: errors.array() });
 

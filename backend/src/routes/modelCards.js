@@ -3,6 +3,9 @@ const ModelCard = require('../models/ModelCard');
 const auditLogger = require('../services/auditLogger');
 
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const { authGuard } = require('../middleware/authGuard');
+const { requireRole } = require('../middleware/rbac');
 
 /**
  * @route   GET /api/model-cards
@@ -198,7 +201,7 @@ router.get('/:model_id/versions', async (req, res) => {
  * @desc    Create or update a Model Card
  * @access  Protected (should require authentication in production)
  */
-router.post('/', async (req, res) => {
+router.post('/', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const modelCardData = req.body;
     
@@ -279,7 +282,7 @@ router.post('/', async (req, res) => {
  * @desc    Update Model Card status (DRAFT → REVIEW → APPROVED → PRODUCTION)
  * @access  Protected
  */
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { status } = req.body;
     
@@ -345,7 +348,7 @@ router.patch('/:id/status', async (req, res) => {
  * @desc    Soft delete a Model Card (set status to DEPRECATED)
  * @access  Protected
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const modelCard = await ModelCard.findById(req.params.id);
     

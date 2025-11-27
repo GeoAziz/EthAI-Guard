@@ -20,7 +20,12 @@ const logger = require('./logger');
 const { withRequest } = require('./logger');
 const promClient = require('prom-client');
 const { v4: uuidv4 } = require('uuid');
-const { firebaseAuth, initFirebase } = require('./middleware/firebaseAuth');
+const { firebaseAuth } = require('./middleware/firebaseAuth');
+const firebaseAdmin = require('./services/firebaseAdmin');
+// Centralized auth guard (delegates to Firebase when configured, otherwise JWT)
+const { authGuard, requireRole } = require('./middleware/authGuard');
+// Backwards-compatible alias used elsewhere in this file
+const authMiddleware = authGuard;
 // Lightweight in-process cache (simple LRU by insertion order) to avoid external deps
 class SimpleCache {
 	constructor(options = {}) {
@@ -231,7 +236,7 @@ if (!USE_IN_MEMORY) {
 
 // Initialize Firebase Admin SDK at startup (only if AUTH_PROVIDER is firebase)
 if (process.env.AUTH_PROVIDER === 'firebase') {
-	initFirebase();
+	firebaseAdmin.initFirebase();
 }
 
 // Existing simple health (legacy) retained for backward compatibility
@@ -701,12 +706,10 @@ app.post('/auth/firebase/exchange', async (req, res) => {
 	const idToken = req.body.idToken || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
 	if (!idToken) return res.status(400).json({ error: 'id_token_required' });
 	try {
-		// Ensure firebase is initialized via middleware helper
-		const { initFirebase } = require('./middleware/firebaseAuth');
-		initFirebase();
-		const admin = require('firebase-admin');
-
-		const decoded = await admin.auth().verifyIdToken(idToken);
+		// Ensure firebase is initialized via centralized helper
+			const firebaseAdmin = require('./services/firebaseAdmin');
+			firebaseAdmin.initFirebase();
+			const decoded = await firebaseAdmin.verifyIdToken(idToken);
 
 		// Find or provision a local user record (so backend can store role, devices, refresh tokens)
 		let userDoc;
@@ -746,10 +749,65 @@ app.post('/auth/firebase/exchange', async (req, res) => {
 		const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
 		await storeRefreshToken(userDoc._id, refreshTokenJwt, req);
 
+		// If cookie-based sessions are enabled, set HttpOnly cookies for refresh and access tokens
+		if (process.env.USE_COOKIE_REFRESH === '1') {
+			const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' };
+			// access token life matches jwt expiration (15 minutes)
+			cookieOpts.maxAge = 15 * 60 * 1000;
+			res.cookie('accessToken', accessToken, cookieOpts);
+			// refresh token longer-lived
+			const refreshCookieOpts = { ...cookieOpts, maxAge: 7 * 24 * 3600 * 1000 };
+			res.cookie('refreshToken', refreshTokenJwt, refreshCookieOpts);
+			// Return minimal payload to client; client will not need the raw tokens when cookies are used
+			return res.json({ status: 'ok' });
+		}
+
 		return res.json({ accessToken, refreshToken: refreshTokenJwt });
 	} catch (e) {
 		logger.error({ err: e }, 'firebase_exchange_failed');
 		return res.status(401).json({ error: 'invalid_id_token' });
+	}
+});
+
+// Lightweight verify endpoint used by frontend middleware to obtain minimal auth info (uid + role)
+// Reads HttpOnly cookies (accessToken or refreshToken) and returns { userId, role }
+app.get('/auth/verify', async (req, res) => {
+	try {
+		const accessToken = req.cookies && req.cookies.accessToken;
+		const refreshToken = req.cookies && req.cookies.refreshToken;
+
+		if (!accessToken && !refreshToken) return res.status(401).json({ error: 'no_session' });
+
+		// Try to verify access token first
+		if (accessToken) {
+			try {
+				const payload = jwt.verify(accessToken, process.env.SECRET_KEY || 'secret');
+				// Return minimal public info
+				return res.json({ userId: payload.sub, role: payload.role || 'user' });
+			} catch (e) {
+				// expired/invalid -> fallthrough to refresh if present
+			}
+		}
+
+		// If we have a refresh token, validate and issue a new access token (rotate) for UX
+		if (refreshToken) {
+			const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
+			const userId = payload.sub;
+			// load user to return role and ensure exists
+			const userDoc = USE_IN_MEMORY ? _users.find(u => String(u._id) === String(userId)) : await User.findById(userId);
+			if (!userDoc) return res.status(401).json({ error: 'invalid_session' });
+
+			// Issue fresh access token and set cookie
+			const newAccess = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+			const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 };
+			res.cookie('accessToken', newAccess, cookieOpts);
+			return res.json({ userId: String(userDoc._id), role: userDoc.role || 'user' });
+		}
+
+		return res.status(401).json({ error: 'invalid_session' });
+	} catch (e) {
+		logger.error({ err: e }, 'auth_verify_failed');
+		return res.status(401).json({ error: 'invalid_session' });
 	}
 });
 
@@ -844,6 +902,40 @@ app.post('/auth/logout', authMiddleware, async (req, res) => {
 	}
 });
 
+// Logout and clear cookie endpoint - clears HttpOnly cookies set for session
+// and attempts to revoke the refresh token server-side when present in cookie.
+app.post('/auth/logout-cookie', async (req, res) => {
+	try {
+		const cookieRefresh = req.cookies && req.cookies.refreshToken;
+		if (cookieRefresh) {
+			try {
+				const payload = jwt.verify(cookieRefresh, process.env.REFRESH_SECRET || 'refresh_secret');
+				const userId = payload.sub;
+				// Attempt to find any matching refresh token for this user and revoke it
+				const anyDoc = await findAnyRefreshToken(userId, cookieRefresh);
+				if (anyDoc) {
+					if (USE_IN_MEMORY) {
+						await revokeRefreshToken(cookieRefresh);
+					} else {
+						await revokeRefreshToken(anyDoc._id);
+					}
+				}
+			} catch (e) {
+				// ignore token verification errors — still clear cookies
+			}
+		}
+
+		// Clear cookies (match same options used when setting)
+		const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' };
+		res.clearCookie('accessToken', cookieOpts);
+		res.clearCookie('refreshToken', cookieOpts);
+		return res.json({ status: 'ok' });
+	} catch (e) {
+		logger.error({ err: e }, 'logout_cookie_failed');
+		return res.status(500).json({ error: 'logout_failed' });
+	}
+});
+
 // List user devices
 app.get('/auth/devices', authMiddleware, async (req, res) => {
 	try {
@@ -876,34 +968,7 @@ app.delete('/auth/devices/:deviceId', authMiddleware, async (req, res) => {
 	}
 });
 
-// Auth middleware - use Firebase or JWT based on AUTH_PROVIDER
-function authMiddleware(req, res, next) {
-	// If Firebase is configured, use Firebase auth
-	if (process.env.AUTH_PROVIDER === 'firebase') {
-		return firebaseAuth(req, res, next);
-	}
-	
-	// Otherwise fallback to JWT auth
-	const auth = req.headers.authorization;
-	if (!auth) return res.status(401).json({ error: 'No token' });
-	const token = auth.split(' ')[1];
-	try {
-		const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
-		req.user = payload;
-		next();
-	} catch (e) {
-		return res.status(401).json({ error: 'Invalid token' });
-	}
-}
-
-// Role-based access control helper
-function requireRole(role) {
-	return (req, res, next) => {
-		const userRole = (req.user && req.user.role) || req.role || 'user';
-		if (userRole !== role) return res.status(403).json({ error: 'forbidden' });
-		return next();
-	};
-}
+// authGuard is imported at the top of this file
 
 // Protected dataset upload
 app.post('/datasets/upload', authMiddleware, async (req, res) => {
