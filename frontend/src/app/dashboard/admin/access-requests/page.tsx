@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAnnounce } from '@/contexts/AnnounceContext';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -24,9 +26,10 @@ export default function AdminAccessRequests() {
   const { toast } = useToast();
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | 'promote' | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [emailUser, setEmailUser] = useState(true);
   const announce = useAnnounce()
   const confirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
@@ -61,15 +64,10 @@ export default function AdminAccessRequests() {
 
   const beginAction = (action: 'approve' | 'reject' | 'promote', req: any) => {
     setSelected(req);
-    if (action === 'promote') {
-      // For promote, show a simpler confirm flow
-      const ok = window.confirm(`Promote ${req.email || req.name} to admin? This will set role=admin.`);
-      if (ok) {
-        promoteUser(req.email || req.name);
-      }
-      return;
-    }
-    setConfirmAction(action === 'approve' ? 'approve' : 'reject');
+    // Use the same confirmation dialog for approve, reject, and promote so admins
+    // can choose whether to notify the user via email. Default emailUser to true.
+    setConfirmAction(action === 'promote' ? 'promote' : action === 'approve' ? 'approve' : 'reject');
+    setEmailUser(true);
     setConfirmOpen(true);
   };
 
@@ -77,26 +75,35 @@ export default function AdminAccessRequests() {
     if (!selected || !confirmAction) return;
     setActionLoading(true);
     try {
-      const id = selected._id || selected.id;
-      const path = `/v1/access-requests/${id}/${confirmAction}`;
-      const res = await api.post(path);
+      let res: any = null;
+      if (confirmAction === 'promote') {
+        // promote endpoint accepts email and role; include emailUser flag
+        const email = selected.email || selected.name;
+        res = await api.post('/v1/users/promote', { email, role: 'admin', emailUser });
+        toast({ title: 'User promoted', description: `${email} set to admin` });
+        announce(`${email} promoted to admin.`);
+      } else {
+        const id = selected._id || selected.id;
+        const path = `/v1/access-requests/${id}/${confirmAction}`;
+        res = await api.post(path, { emailUser });
+        toast({ title: confirmAction === 'approve' ? 'Approved' : 'Rejected' });
+      }
+
       const claimsSync = res?.data?.claimsSync;
-      toast({ title: confirmAction === 'approve' ? 'Approved' : 'Rejected' });
-      if (confirmAction === 'approve') {
-        if (claimsSync) {
-          if (claimsSync.status === 'success') {
-            toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
-            announce('Claims synced: Firebase custom claims updated.');
-          } else if (claimsSync.status === 'skipped') {
-            toast({ title: 'Claims not attempted', description: claimsSync.message });
-            announce(`Claims not attempted: ${claimsSync.message}`);
-          } else {
-            toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
-            announce(`Claims sync failed: ${claimsSync.message}`);
-          }
+      if (claimsSync) {
+        if (claimsSync.status === 'success') {
+          toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
+          announce('Claims synced: Firebase custom claims updated.');
+        } else if (claimsSync.status === 'skipped') {
+          toast({ title: 'Claims not attempted', description: claimsSync.message });
+          announce(`Claims not attempted: ${claimsSync.message}`);
+        } else {
+          toast({ title: 'Claims sync failed', description: claimsSync.message, variant: 'destructive' });
+          announce(`Claims sync failed: ${claimsSync.message}`);
         }
       }
       setConfirmOpen(false);
+      setEmailUser(true);
       setSelected(null);
       setConfirmAction(null);
       fetchRequests();
@@ -107,13 +114,15 @@ export default function AdminAccessRequests() {
     }
   };
 
+  // Keep promoteUser for backward compatibility where direct promotion is used
+  // elsewhere; it delegates to the same API and behavior.
   const promoteUser = async (email: string) => {
     setActionLoading(true);
     try {
-  const res = await api.post('/v1/users/promote', { email, role: 'admin' });
-  const claimsSync = res?.data?.claimsSync;
-  toast({ title: 'User promoted', description: `${email} set to admin` });
-  announce(`${email} promoted to admin.`);
+      const res = await api.post('/v1/users/promote', { email, role: 'admin' });
+      const claimsSync = res?.data?.claimsSync;
+      toast({ title: 'User promoted', description: `${email} set to admin` });
+      announce(`${email} promoted to admin.`);
       if (claimsSync) {
         if (claimsSync.status === 'success') {
           toast({ title: 'Claims synced', description: 'Firebase custom claims updated.' });
@@ -226,6 +235,13 @@ export default function AdminAccessRequests() {
               Are you sure you want to {confirmAction} the access request for <strong>{selected?.email || selected?.name}</strong>?
             </DialogDescription>
           </DialogHeader>
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={emailUser} onCheckedChange={(v:any) => setEmailUser(Boolean(v))} id="emailUserToggle" />
+              <Label htmlFor="emailUserToggle" className="text-sm">Send email notification to user</Label>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">When enabled, the user will receive an approve/reject email. This action is non-blocking — failures are reported but won't prevent the request from being processed.</p>
+          </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={actionLoading}>Cancel</Button>
             <Button ref={confirmButtonRef} onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>

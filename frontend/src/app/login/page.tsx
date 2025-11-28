@@ -16,6 +16,7 @@ import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { defaultRouteForRoles } from '@/lib/rbac';
 import { auth } from '@/lib/firebase';
+import api from '@/lib/api';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -48,18 +49,36 @@ export default function LoginPage() {
         duration: 2000,
       });
       
-      // Refresh roles from the backend and redirect based on role
+      // Refresh roles from the backend and redirect based on role.
+      // Prefer authoritative backend role from /v1/users/me; if unavailable,
+      // fall back to token claims. This avoids routing races where token claims
+      // are stale after a role change.
       try {
         await refreshRoles();
       } catch (e) {
         // ignore refresh failures
       }
 
-      // Try to determine roles from the backend-token-refresh flow we ran above.
-      // Prefer authoritative backend roles (via refreshRoles). If not available yet,
-      // fall back to ID token claims.
       try {
-        // await refreshRoles() already attempted above. Try to read token claims directly.
+        // Try to read authoritative role from backend API directly.
+        const me = await api.get('/v1/users/me');
+        const roleFromBackend = me?.data?.role;
+        let backendRoles: string[] | undefined;
+        if (Array.isArray(roleFromBackend)) backendRoles = roleFromBackend;
+        else if (typeof roleFromBackend === 'string') backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);
+
+        if (backendRoles && backendRoles.length > 0) {
+          console.debug('Login routing: using backend roles', backendRoles);
+          router.push(defaultRouteForRoles(backendRoles));
+          return;
+        }
+      } catch (e) {
+        // ignore backend lookup failures and fall back to token claims below
+        console.debug('Login routing: /v1/users/me lookup failed, falling back to token claims', e);
+      }
+
+      // Fallback: prefer token claims (if available) and then AuthContext.hasRole
+      try {
         const current = auth.currentUser;
         if (current) {
           const idTokenResult = await current.getIdTokenResult(true);
@@ -67,6 +86,7 @@ export default function LoginPage() {
           let effectiveRoles: string[] | undefined;
           if (Array.isArray(claims.roles)) effectiveRoles = claims.roles as string[];
           else if (typeof claims.role === 'string') effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
+          console.debug('Login routing: using token claims', effectiveRoles);
           const dest = defaultRouteForRoles(effectiveRoles ?? undefined);
           router.push(dest);
           return;
@@ -75,7 +95,7 @@ export default function LoginPage() {
         // ignore and fallback
       }
 
-      // Fallback: keep previous behavior
+      // Last-resort fallback: use hasRole from AuthContext (may be populated by refreshRoles)
       if (hasRole && hasRole('admin')) {
         router.push('/dashboard/admin/access-requests');
       } else {
