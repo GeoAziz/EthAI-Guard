@@ -10,6 +10,11 @@ jobs:
   backend-tests:
     name: Backend tests (Node.js)
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +26,10 @@ jobs:
 
       - name: Install backend deps
         working-directory: backend
-        run: npm ci
+        env:
+          REDIS_URL: redis://redis:6379
+        run: |
+          npm ci
 
       - name: Run backend tests
         working-directory: backend

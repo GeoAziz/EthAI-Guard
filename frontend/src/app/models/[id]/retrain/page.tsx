@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import { useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,7 +39,8 @@ export default function RetrainPage() {
   }
 
   return (
-    <div className="p-8">
+    <RoleProtected required="admin">
+      <div className="p-8">
       <h1 className="text-2xl font-semibold mb-4">Start Retrain Job</h1>
       <p className="text-sm text-gray-600 mb-4">Model: {modelId}</p>
       <div className="space-y-3 max-w-xl">
@@ -66,5 +68,6 @@ export default function RetrainPage() {
         )}
       </div>
     </div>
+    </RoleProtected>
   );
 }

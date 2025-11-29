@@ -209,6 +209,10 @@ const STARTUP_AT = Date.now();
 // Note: axios is required lazily where needed to allow jest mocks to take effect in tests
 const cookieParser = require('cookie-parser');
 
+// Cache helper (Redis optional)
+const cache = require('./utils/cache');
+cache.init(process.env.REDIS_URL);
+
 // Simple in-memory stores used for tests or when USE_IN_MEMORY is set
 const _users = [];
 const _datasets = [];
@@ -398,7 +402,20 @@ async function createReport(analysisId, summary, userId, extras = {}) {
 		_reports.push(r);
 		return r;
 	}
-	return Report.create({ analysisId, summary, userId, ...extras });
+	const doc = await Report.create({ analysisId, summary, userId, ...extras });
+
+	// Invalidate cache for this user's report list and set report cache
+	try {
+		const reportId = doc._id || doc.id;
+		// store report cache
+		await cache.set(`report:${reportId}`, { report: doc }, Number(process.env.REPORT_CACHE_TTL_MS || 30_000)).catch(()=>{});
+		// remove reports list cache so next list fetch is fresh
+		if (cache.del) await cache.del(`reports:${userId}`).catch(()=>{});
+	} catch (e) {
+		logger.warn({ err: e }, 'report_cache_invalidate_failed');
+	}
+
+	return doc;
 }
 
 // Token management helpers
@@ -1063,17 +1080,87 @@ app.post(
 // Get an analysis/report by id (simple proxy to DB)
 app.get('/report/:id', authMiddleware, async (req, res) => {
 	try {
+		// Try cache first
+		const cacheKey = `report:${req.params.id}`;
+		try {
+			const cached = await cache.get(cacheKey);
+			if (cached) return res.json(cached);
+		} catch (ce) {
+			// ignore cache errors
+		}
 		if (USE_IN_MEMORY) {
 			const r = _reports.find(rr => String(rr._id) === String(req.params.id));
 			if (!r) return res.status(404).json({ error: 'Not found' });
-			return res.json({ report: r });
+			const payload = { report: r };
+			await cache.set(cacheKey, payload, Number(process.env.REPORT_CACHE_TTL_MS || 30_000)).catch(()=>{});
+			return res.json(payload);
 		}
 		const rpt = await Report.findById(req.params.id);
 		if (!rpt) return res.status(404).json({ error: 'Not found' });
-		return res.json({ report: rpt });
+		const payload = { report: rpt };
+		await cache.set(cacheKey, payload, Number(process.env.REPORT_CACHE_TTL_MS || 30_000)).catch(()=>{});
+		return res.json(payload);
 	} catch (e) {
 		logger.error({ err: e }, 'Error fetching report');
 		return res.status(500).json({ error: 'Server error' });
+	}
+});
+
+// Export report (PDF or HTML fallback)
+app.get('/report/:id/export', authMiddleware, async (req, res) => {
+	try {
+		const rpt = USE_IN_MEMORY ? _reports.find(rr => String(rr._id) === String(req.params.id)) : await Report.findById(req.params.id);
+		if (!rpt) return res.status(404).send('Not found');
+
+		// If puppeteer is enabled via env and available, render PDF server-side
+		if (process.env.ENABLE_PDF === '1') {
+			try {
+				const puppeteer = require('puppeteer');
+				const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+				const page = await browser.newPage();
+				const html = `<html><head><meta charset="utf-8"><title>Report ${req.params.id}</title></head><body><pre>${JSON.stringify(rpt, null, 2)}</pre></body></html>`;
+				await page.setContent(html, { waitUntil: 'networkidle0' });
+				const pdf = await page.pdf({ format: 'A4' });
+				await browser.close();
+				res.set('Content-Type', 'application/pdf');
+				return res.send(pdf);
+			} catch (pdfErr) {
+				logger.warn({ err: pdfErr }, 'pdf_generation_failed');
+				// fallback to HTML
+			}
+		}
+
+		// Fallback: serve printable HTML
+		const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report ${req.params.id}</title><style>body{font-family:system-ui,Arial,Helvetica,sans-serif;padding:20px}</style></head><body><h1>Report ${req.params.id}</h1><pre>${JSON.stringify(rpt, null, 2)}</pre></body></html>`;
+		res.set('Content-Type', 'text/html');
+		return res.send(html);
+	} catch (e) {
+		logger.error({ err: e }, 'export_failed');
+		return res.status(500).send('Export failed');
+	}
+});
+
+// Reports for the authenticated user
+app.get('/reports', authMiddleware, async (req, res, next) => {
+	try {
+		const requesterId = (req.user && req.user.sub) || req.userId;
+		if (!requesterId) return res.status(401).json({ error: 'unauthenticated' });
+		const cacheKey = `reports:${requesterId}`;
+		try {
+			const cached = await cache.get(cacheKey);
+			if (cached) return res.json(cached);
+		} catch (ce) {}
+
+		logger.info({ userId: requesterId }, 'reports_list_start');
+		const reports = await findReportsByUser(requesterId);
+		const payload = { userId: requesterId, reports };
+		await cache.set(cacheKey, payload, Number(process.env.REPORTS_LIST_CACHE_TTL_MS || 30_000)).catch(()=>{});
+		logger.info({ userId: requesterId, count: reports?.length || 0 }, 'reports_list_success');
+		return res.json(payload);
+	} catch (e) {
+		logger.error({ err: e }, 'reports_list_failed');
+		if (process.env.NODE_ENV !== 'production') return res.json({ userId: req.user && req.user.sub, reports: [] });
+		return next(e);
 	}
 });
 

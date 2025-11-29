@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import { useParams, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,7 +40,8 @@ export default function PromotePage() {
   }
 
   return (
-    <div className="p-8">
+    <RoleProtected required="admin">
+      <div className="p-8">
       <h1 className="text-2xl font-semibold mb-1">Promote Model</h1>
       <p className="text-sm text-gray-600 mb-4">Model: {modelId}</p>
       <div className="space-y-3 max-w-xl">
@@ -59,6 +61,7 @@ export default function PromotePage() {
         <button onClick={promote} className="bg-green-600 text-white px-4 py-2 rounded">Promote</button>
         {result && (<pre className="bg-gray-100 p-3 rounded text-sm mt-4">{JSON.stringify(result, null, 2)}</pre>)}
       </div>
-    </div>
+      </div>
+    </RoleProtected>
   );
 }

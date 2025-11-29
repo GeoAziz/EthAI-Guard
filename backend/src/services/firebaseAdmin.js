@@ -92,4 +92,11 @@ async function setCustomUserClaims(uid, claims) {
   return admin.auth().setCustomUserClaims(uid, claims);
 }
 
-module.exports = { initFirebase, verifyIdToken, getUser, getUserByEmail, setCustomUserClaims };
+async function createUser({ email, password, uid, displayName }) {
+  if (!initialized) initFirebase();
+  if (!initialized) throw new Error('Firebase admin not initialized');
+  // createUser accepts {email, password, uid, displayName}
+  return admin.auth().createUser({ email, password, uid, displayName });
+}
+
+module.exports = { initFirebase, verifyIdToken, getUser, getUserByEmail, setCustomUserClaims, createUser };

@@ -1,5 +1,8 @@
 "use client";
 import React, { useState } from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
+import Breadcrumbs from '@/components/layout/breadcrumbs';
+import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,8 +96,10 @@ export default function UsersAdminPage() {
   React.useEffect(() => { loadUsers(); }, []);
 
   return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-4">Users Admin</h1>
+    <RoleProtected required={["admin"]}>
+      <div className="p-8 max-w-2xl">
+        <Breadcrumbs />
+        <PageHeader title="Users administration" subtitle="Manage users, promote roles, and sync claims" />
       <Card>
         <CardHeader>
           <CardTitle>Search / Promote / Retry claims</CardTitle>
@@ -158,6 +163,7 @@ export default function UsersAdminPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </RoleProtected>
   );
 }

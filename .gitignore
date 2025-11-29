@@ -33,3 +33,4 @@ __pycache__/
 # Temporary
 *.tmp
 serviceAccountKey.json
+creds.md

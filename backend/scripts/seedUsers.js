@@ -117,12 +117,62 @@ async function main() {
         console.log('Created user:', u.email, 'role=', u.role);
       }
 
-      if (firebaseAdmin && u.firebase_uid) {
+      if (firebaseAdmin) {
         try {
-          await firebaseAdmin.setCustomUserClaims(u.firebase_uid, { roles: [u.role] });
-          console.log('Set firebase custom claims for', u.email);
+          // Ensure a Firebase Auth user exists for this email/uid; if not, create one.
+          let fbUid = u.firebase_uid || null;
+          try {
+            if (fbUid) {
+              // Try to lookup by provided uid
+              try {
+                await firebaseAdmin.getUser(fbUid);
+              } catch (notFoundErr) {
+                // create with provided uid
+                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, uid: fbUid, displayName: u.name });
+                fbUid = created.uid;
+                console.log('Created firebase user (by uid) for', u.email, fbUid);
+              }
+            } else {
+              // Try to find by email
+              try {
+                const found = await firebaseAdmin.getUserByEmail(u.email);
+                fbUid = found.uid;
+              } catch (byEmailErr) {
+                // Not found by email — create a Firebase user
+                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, displayName: u.name });
+                fbUid = created.uid;
+                console.log('Created firebase user (by email) for', u.email, fbUid);
+              }
+            }
+
+            // If Mongo user didn't have a firebase_uid, persist it so future runs are deterministic
+            if (fbUid && (!existing || !existing.firebase_uid)) {
+              try {
+                const mongoUser = await User.findOne({ email: u.email });
+                if (mongoUser && !mongoUser.firebase_uid) {
+                  mongoUser.firebase_uid = fbUid;
+                  await mongoUser.save();
+                  console.log('Persisted firebase_uid to mongo for', u.email);
+                }
+              } catch (e) {
+                // non-fatal
+              }
+            }
+
+            // Set custom claims (roles) on the Firebase user
+            if (fbUid) {
+              try {
+                await firebaseAdmin.setCustomUserClaims(fbUid, { roles: [u.role] });
+                console.log('Set firebase custom claims for', u.email, fbUid);
+              } catch (e) {
+                console.warn('Failed to set firebase claims for', u.email, e.message || e);
+              }
+            }
+          } catch (fbErr) {
+            console.warn('Firebase provisioning failed for', u.email, fbErr && fbErr.message ? fbErr.message : fbErr);
+          }
         } catch (e) {
-          console.warn('Failed to set firebase claims for', u.email, e.message || e);
+          console.warn('Failed to provision firebase user/claims for', u.email, e && e.message ? e.message : e);
         }
       }
     } catch (e) {

@@ -10,8 +10,7 @@ import {
   UserCredential,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import api from '@/lib/api';
-import { setBackendAccessToken } from '@/lib/api';
+import api, { setBackendAccessToken, setBackendRefreshToken } from '@/lib/api';
 
 const COOKIE_MODE = process.env.NEXT_PUBLIC_USE_COOKIE_REFRESH === '1';
 
@@ -108,7 +107,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return createUserWithEmailAndPassword(auth, email, password);
   };
 
-  const login = async (email: string, password: string): Promise<UserCredential> => {
+  const login = async (email: string, password: string): Promise<any> => {
+    // Backend-login toggle (explicit opt-in). When NEXT_PUBLIC_USE_BACKEND_LOGIN=1,
+    // allow falling back to POST /auth/login if Firebase isn't initialized.
+    const BACKEND_LOGIN_ENABLED = process.env.NEXT_PUBLIC_USE_BACKEND_LOGIN === '1';
+    // If Firebase auth is not initialized (e.g. local dev without Firebase),
+    // fall back to backend /auth/login only when BACKEND_LOGIN_ENABLED is set.
+    if (typeof window !== 'undefined' && !auth && BACKEND_LOGIN_ENABLED) {
+      // Backend-only mode
+      const resp = await api.post('/auth/login', { email, password, deviceName: 'frontend' });
+      const access = resp.data?.accessToken || resp.data?.access_token;
+      const refresh = resp.data?.refreshToken || resp.data?.refresh_token;
+      if (access) {
+        try { localStorage.setItem('backend_access_token', access); } catch (e) {}
+        setBackendAccessToken(access);
+      }
+      if (refresh) {
+        try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
+        setBackendRefreshToken(refresh);
+      }
+
+      // Populate roles from backend authoritative endpoint
+      try {
+        const me = await api.get('/v1/users/me');
+        const roleFromBackend = me?.data?.role;
+        if (Array.isArray(roleFromBackend)) setRoles(roleFromBackend as string[]);
+        else if (typeof roleFromBackend === 'string') setRoles(roleFromBackend.split(',').map(s => s.trim()).filter(Boolean));
+      } catch (e) {
+        // ignore
+      }
+
+      return { accessToken: access, refreshToken: refresh } as any;
+    }
+
+    // If Firebase is not initialized and backend-login is not enabled, fail early
+    if (typeof window !== 'undefined' && !auth && !BACKEND_LOGIN_ENABLED) {
+      throw new Error('Firebase not configured and backend-login fallback is disabled. Set NEXT_PUBLIC_USE_BACKEND_LOGIN=1 for local dev or configure Firebase.');
+    }
+
+    // Default (Firebase) flow
     const cred = await signInWithEmailAndPassword(auth, email, password);
     // After sign-in, exchange ID token for backend access/refresh tokens (best-effort)
     try {
@@ -122,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (refresh) {
         try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
+        setBackendRefreshToken(refresh);
       }
     } catch (e) {
       // don't block login on exchange failure

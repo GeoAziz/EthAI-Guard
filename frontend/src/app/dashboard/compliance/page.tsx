@@ -1,3 +1,6 @@
+"use client";
+import React from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +42,8 @@ export default function CompliancePage() {
   const complianceScore = 75;
 
   return (
-    <div className="space-y-8">
+    <RoleProtected required={["reviewer","admin"]}>
+      <div className="space-y-8">
        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Compliance Report</h2>
@@ -85,6 +89,7 @@ export default function CompliancePage() {
             </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </RoleProtected>
   );
 }
