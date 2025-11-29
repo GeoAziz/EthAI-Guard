@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2025-11-29T00:00:00Z",
+  "notes": "RBAC checks run against local backend after dropping and recreating seeded users. Passwords set from creds.md.",
+  "matrix": {
+    "promote-test@example.com": {
+      "role": "admin",
+      "auth_login": { "http": 200, "ok": true },
+      "users_me": { "http": 200, "ok": true },
+      "reports": { "http": 200, "ok": true, "reports_count": 0 },
+      "admin_users_list": { "http": 200, "ok": true }
+    },
+    "analyst-test@example.com": {
+      "role": "analyst",
+      "auth_login": { "http": 200, "ok": true },
+      "users_me": { "http": 200, "ok": true },
+      "reports": { "http": 200, "ok": true, "reports_count": 0 },
+      "admin_users_list": { "http": 403, "ok": false, "error": "Insufficient permissions" }
+    },
+    "reviewer-test@example.com": {
+      "role": "reviewer",
+      "auth_login": { "http": 200, "ok": true },
+      "users_me": { "http": 200, "ok": true },
+      "reports": { "http": 200, "ok": true, "reports_count": 0 },
+      "admin_users_list": { "http": 403, "ok": false }
+    },
+    "user-test@example.com": {
+      "role": "user",
+      "auth_login": { "http": 200, "ok": true },
+      "users_me": { "http": 200, "ok": true },
+      "reports": { "http": 200, "ok": true, "reports_count": 0 },
+      "admin_users_list": { "http": 403, "ok": false }
+    },
+    "guest-test@example.com": {
+      "role": "guest",
+      "auth_login": { "http": 200, "ok": true },
+      "users_me": { "http": 200, "ok": true },
+      "reports": { "http": 200, "ok": true, "reports_count": 0 },
+      "admin_users_list": { "http": 403, "ok": false }
+    }
+  }
+}
