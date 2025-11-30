@@ -81,7 +81,7 @@ router.get('/v1/access-requests', authGuard, requireRole('admin'), async (req, r
     // Support pagination for large orgs. Query params: page, limit
     const { status, limit = 50, page = 1 } = req.query;
     const q = {};
-    if (status) q.status = status;
+    if (typeof status === 'string' && status.length > 0) q.status = { $eq: status };
     const pageNum = Math.max(1, Number(page) || 1);
     const perPage = Math.max(1, Math.min(500, Number(limit) || 50));
     const skip = (pageNum - 1) * perPage;
