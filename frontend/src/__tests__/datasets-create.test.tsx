@@ -1,6 +1,7 @@
+/// <reference types="vitest" />
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, test, expect } from 'vitest';
 import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
 
 vi.mock('@/lib/api', () => ({
@@ -12,8 +13,7 @@ vi.mock('@/lib/api', () => ({
 import api from '@/lib/api';
 
 test('creates dataset and calls onCreated', async () => {
-  const mockPost = (api.post as any) as jest.MockedFunction<any>;
-  mockPost.mockResolvedValueOnce({ data: { datasetId: 'ds-123' } });
+  (api.post as any).mockResolvedValueOnce({ data: { datasetId: 'ds-123' } });
 
   const onCreated = vi.fn();
   const onClose = vi.fn();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, test, expect } from 'vitest';
 import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
 
 vi.mock('@/lib/api', () => ({
