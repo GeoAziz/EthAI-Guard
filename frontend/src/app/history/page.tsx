@@ -34,7 +34,7 @@ export default function HistoryPage() {
     risk_level: '',
     model_id: '',
     limit: 20,
-    offset: 0
+    offset: 0,
   });
 
   useEffect(() => {
@@ -45,14 +45,14 @@ export default function HistoryPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (filters.risk_level) params.append('risk_level', filters.risk_level);
-      if (filters.model_id) params.append('model_id', filters.model_id);
+      if (filters.risk_level) {params.append('risk_level', filters.risk_level);}
+      if (filters.model_id) {params.append('model_id', filters.model_id);}
       params.append('limit', filters.limit.toString());
       params.append('offset', filters.offset.toString());
 
       const token = localStorage.getItem('token') || '';
       const res = await axios.get(`${BACKEND_URL}/v1/evaluations?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       setEvaluations(res.data.evaluations);
       setError('');
@@ -65,8 +65,8 @@ export default function HistoryPage() {
   };
 
   const getRiskColor = (level: string) => {
-    if (level === 'high') return 'bg-red-100 text-red-800 border-red-300';
-    if (level === 'medium') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (level === 'high') {return 'bg-red-100 text-red-800 border-red-300';}
+    if (level === 'medium') {return 'bg-yellow-100 text-yellow-800 border-yellow-300';}
     return 'bg-green-100 text-green-800 border-green-300';
   };
 
@@ -147,8 +147,8 @@ export default function HistoryPage() {
                 transition={{ delay: i * 0.1 }}
                 className="bg-white rounded-lg shadow-md p-4 animate-pulse"
               >
-                <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-6 bg-gray-200 rounded w-1/4 mb-2" />
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
               </motion.div>
             ))}
           </div>

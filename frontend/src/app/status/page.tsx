@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import dynamic from 'next/dynamic';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Server, Database, Zap, Cloud, Clock } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, Server, Database, Zap, Cloud, Clock } from 'lucide-react';
 
 function statusToBadge(status: string) {
   switch (status) {
@@ -66,7 +66,7 @@ export default function StatusPage() {
 
   return (
     <div className="container px-4 py-12 md:py-20">
-  <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">System Status</h1>
@@ -128,9 +128,9 @@ export default function StatusPage() {
                       <div className="min-w-0">
                         <h3 className="font-semibold truncate" title={service.name}>{service.name}</h3>
                         <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                          <span>Uptime: {service.uptime}</span>
-                          <span>Latency: {service.latency}</span>
-                        </div>
+                      <span>Uptime: {service.uptime}</span>
+                      <span>Latency: {service.latency}</span>
+                    </div>
                       </div>
                     </div>
                     <Badge className={statusToBadge(service.status).className}>

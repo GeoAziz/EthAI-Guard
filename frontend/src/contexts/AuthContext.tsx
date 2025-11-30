@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import {
@@ -131,8 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const me = await api.get('/v1/users/me');
         const roleFromBackend = me?.data?.role;
-        if (Array.isArray(roleFromBackend)) setRoles(roleFromBackend as string[]);
-        else if (typeof roleFromBackend === 'string') setRoles(roleFromBackend.split(',').map(s => s.trim()).filter(Boolean));
+        if (Array.isArray(roleFromBackend)) {setRoles(roleFromBackend as string[]);}
+        else if (typeof roleFromBackend === 'string') {setRoles(roleFromBackend.split(',').map(s => s.trim()).filter(Boolean));}
       } catch (e) {
         // ignore
       }
@@ -182,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getIdToken = async (): Promise<string | null> => {
-    if (!user) return null;
+    if (!user) {return null;}
     try {
       return await user.getIdToken();
     } catch (error) {
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       try {
         const u = auth.currentUser;
-        if (!u) return false;
+        if (!u) {return false;}
         const idTokenResult = await u.getIdTokenResult(true);
         const claims = idTokenResult?.claims || {};
         if (Array.isArray(claims.roles)) {

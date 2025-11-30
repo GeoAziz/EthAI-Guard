@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import PageHeader from '@/components/layout/page-header';
@@ -7,7 +7,7 @@ import ChartPlaceholder from '@/components/ui/chart-placeholder';
 
 export default function ReviewerDashboard() {
   return (
-    <RoleProtected required={["reviewer"]}>
+    <RoleProtected required={['reviewer']}>
       <div className="p-8 max-w-6xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Reviewer workspace" subtitle="Approval queues, audits, and compliance checks" />

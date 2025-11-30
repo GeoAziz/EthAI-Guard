@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -107,7 +107,7 @@ export default function CompliancePage() {
           <p className="text-muted-foreground mb-4">
             EthixAI automatically generates comprehensive compliance reports for each analysis.
           </p>
-          
+
           <Card className="mb-4">
             <CardHeader>
               <CardTitle className="text-base">Report Contents</CardTitle>
@@ -191,7 +191,7 @@ export default function CompliancePage() {
           <p className="text-muted-foreground mb-4">
             Generate legally compliant adverse action notices with specific reasons for denials.
           </p>
-          
+
           <Card className="bg-muted">
             <CardHeader>
               <CardTitle className="text-base">Example Adverse Action Notice</CardTitle>
@@ -217,7 +217,7 @@ export default function CompliancePage() {
           <p className="text-muted-foreground mb-4">
             Track fairness metrics over time to ensure ongoing compliance.
           </p>
-          
+
           <div className="grid md:grid-cols-3 gap-4">
             <Card>
               <CardHeader>

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,12 +26,12 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   const primaryRole = roles?.includes('admin')
     ? 'admin'
     : roles?.includes('reviewer')
-    ? 'reviewer'
-    : roles?.includes('analyst')
-    ? 'analyst'
-    : roles?.includes('user')
-    ? 'user'
-    : 'guest';
+      ? 'reviewer'
+      : roles?.includes('analyst')
+        ? 'analyst'
+        : roles?.includes('user')
+          ? 'user'
+          : 'guest';
 
   const isActive = (path: string) => pathname?.startsWith(path) ?? false;
 

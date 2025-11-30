@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default function InstallationPage() {
           <p className="text-muted-foreground mb-4">
             The fastest way to get EthixAI running with all services configured.
           </p>
-          
+
           <Card className="mb-4">
             <CardHeader>
               <CardTitle className="text-base">Prerequisites</CardTitle>
@@ -44,8 +44,8 @@ export default function InstallationPage() {
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-git clone https://github.com/ethixai/ethixai.git
-cd ethixai
+                    git clone https://github.com/ethixai/ethixai.git
+                    cd ethixai
                   </pre>
                 </CardContent>
               </Card>
@@ -56,8 +56,8 @@ cd ethixai
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-cp .env.example .env
-# Edit .env with your Firebase credentials
+                    cp .env.example .env
+                    # Edit .env with your Firebase credentials
                   </pre>
                 </CardContent>
               </Card>
@@ -68,7 +68,7 @@ cp .env.example .env
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-docker-compose up -d
+                    docker-compose up -d
                   </pre>
                 </CardContent>
               </Card>
@@ -106,9 +106,9 @@ docker-compose up -d
                 <Card className="bg-muted mb-3">
                   <CardContent className="pt-6">
                     <pre className="text-sm overflow-x-auto">
-cd frontend
-npm install
-npm run dev
+                      cd frontend
+                      npm install
+                      npm run dev
                     </pre>
                   </CardContent>
                 </Card>
@@ -124,11 +124,11 @@ npm run dev
                 <Card className="bg-muted mb-3">
                   <CardContent className="pt-6">
                     <pre className="text-sm overflow-x-auto">
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+                      cd backend
+                      python -m venv venv
+                      source venv/bin/activate  # Windows: venv\Scripts\activate
+                      pip install -r requirements.txt
+                      uvicorn main:app --reload --port 8000
                     </pre>
                   </CardContent>
                 </Card>
@@ -144,11 +144,11 @@ uvicorn main:app --reload --port 8000
                 <Card className="bg-muted mb-3">
                   <CardContent className="pt-6">
                     <pre className="text-sm overflow-x-auto">
-cd ai_core
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001
+                      cd ai_core
+                      python -m venv venv
+                      source venv/bin/activate
+                      pip install -r requirements.txt
+                      uvicorn main:app --reload --port 8001
                     </pre>
                   </CardContent>
                 </Card>
@@ -166,14 +166,14 @@ uvicorn main:app --reload --port 8001
           <Card className="bg-muted">
             <CardContent className="pt-6">
               <pre className="text-sm overflow-x-auto">
-# Backend health check
-curl http://localhost:8000/health
+                # Backend health check
+                curl http://localhost:8000/health
 
-# AI Core health check
-curl http://localhost:8001/health
+                # AI Core health check
+                curl http://localhost:8001/health
 
-# Expected response:
-{"{\"status\": \"healthy\", \"version\": \"1.0.0\"}"}
+                # Expected response:
+                {'{"status": "healthy", "version": "1.0.0"}'}
               </pre>
             </CardContent>
           </Card>

@@ -8,7 +8,7 @@
  * - SuggestDatasetFixesOutput - The return type for the suggestDatasetFixes function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const SuggestDatasetFixesInputSchema = z.object({
@@ -25,21 +25,21 @@ const SuggestDatasetFixesOutputSchema = z.object({
   suggestedFixes: z
     .string()
     .describe(
-      'A list of suggested fixes to the dataset to mitigate the identified biases, including re-weighting or re-sampling strategies.'
+      'A list of suggested fixes to the dataset to mitigate the identified biases, including re-weighting or re-sampling strategies.',
     ),
 });
 export type SuggestDatasetFixesOutput = z.infer<typeof SuggestDatasetFixesOutputSchema>;
 
 export async function suggestDatasetFixes(
-  input: SuggestDatasetFixesInput
+  input: SuggestDatasetFixesInput,
 ): Promise<SuggestDatasetFixesOutput> {
   return suggestDatasetFixesFlow(input);
 }
 
 const prompt = ai.definePrompt({
   name: 'suggestDatasetFixesPrompt',
-  input: {schema: SuggestDatasetFixesInputSchema},
-  output: {schema: SuggestDatasetFixesOutputSchema},
+  input: { schema: SuggestDatasetFixesInputSchema },
+  output: { schema: SuggestDatasetFixesOutputSchema },
   prompt: `You are an expert data scientist specializing in mitigating bias in datasets.
 
 You will analyze the provided dataset description and identified biases, and suggest potential fixes to the dataset to mitigate those biases. These fixes may include re-weighting strategies, re-sampling strategies, or other relevant techniques.
@@ -57,7 +57,7 @@ const suggestDatasetFixesFlow = ai.defineFlow(
     outputSchema: SuggestDatasetFixesOutputSchema,
   },
   async (input: SuggestDatasetFixesInput) => {
-    const {output} = await prompt(input);
+    const { output } = await prompt(input);
     return output!;
-  }
+  },
 );

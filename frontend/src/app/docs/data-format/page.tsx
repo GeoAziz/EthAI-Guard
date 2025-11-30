@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ export default function DataFormatPage() {
             </CardHeader>
             <CardContent>
               <pre className="text-sm overflow-x-auto">
-{`applicant_id,age,gender,race,income,credit_score,decision,prediction
+                {`applicant_id,age,gender,race,income,credit_score,decision,prediction
 1001,32,Female,White,55000,720,Approved,Approved
 1002,45,Male,Black,62000,680,Approved,Rejected
 1003,28,Female,Hispanic,48000,695,Rejected,Rejected
@@ -102,7 +102,7 @@ export default function DataFormatPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Additional columns used by your model for predictions (income, credit_score, etc.). 
+                  Additional columns used by your model for predictions (income, credit_score, etc.).
                   These enable SHAP explainability analysis.
                 </p>
               </CardContent>
@@ -124,7 +124,7 @@ export default function DataFormatPage() {
                 <Card className="bg-muted">
                   <CardContent className="pt-4">
                     <pre className="text-xs">
-{`gender: "Male", "Female", "Other"
+                      {`gender: "Male", "Female", "Other"
 race: "White", "Black", "Asian"
 decision: "Approved", "Rejected"`}
                     </pre>
@@ -144,7 +144,7 @@ decision: "Approved", "Rejected"`}
                 <Card className="bg-muted">
                   <CardContent className="pt-4">
                     <pre className="text-xs">
-{`age: 32, 45, 28
+                      {`age: 32, 45, 28
 income: 55000, 62000, 48000
 credit_score: 720, 680, 695`}
                     </pre>

@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run --reporter verbose",
+  "e2e": "playwright test",
+  "e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
     "lint": "next lint",
     "lint:security": "eslint src --ext .ts,.tsx --no-eslintrc -c .eslintrc.security.json"

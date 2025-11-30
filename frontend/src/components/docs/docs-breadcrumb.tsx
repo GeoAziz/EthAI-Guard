@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-import { docsNav } from "./docs-sidebar";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ChevronRight } from 'lucide-react';
+import { docsNav } from './docs-sidebar';
 
 export function DocsBreadcrumb() {
   const pathname = usePathname();
@@ -14,7 +14,7 @@ export function DocsBreadcrumb() {
       <Link href="/docs" className="hover:text-foreground transition-colors">
         Docs
       </Link>
-      {currentPage && pathname !== "/docs" && (
+      {currentPage && pathname !== '/docs' && (
         <>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground font-medium">{currentPage.label}</span>

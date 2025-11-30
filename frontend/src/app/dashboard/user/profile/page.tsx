@@ -1,12 +1,12 @@
-"use client";
-import React from "react";
-import RoleProtected from "@/components/auth/RoleProtected";
+'use client';
+import React from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 
 export default function UserProfilePage() {
   return (
-    <RoleProtected required={["user","admin"]}>
+    <RoleProtected required={['user','admin']}>
       <div className="p-8 max-w-4xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Profile & settings" subtitle="Manage your account and preferences" />

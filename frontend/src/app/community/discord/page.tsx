@@ -1,8 +1,8 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { ArrowLeft, MessageCircle, Users, Zap, Calendar, Github, Mail } from "lucide-react";
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { ArrowLeft, MessageCircle, Users, Zap, Calendar, Github, Mail } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -123,11 +123,11 @@ export default function DiscordComingSoonPage() {
 
         {/* Footer Note */}
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Have questions? Check out our{" "}
+          Have questions? Check out our{' '}
           <Link href="/docs" className="text-primary hover:underline">
             Documentation
-          </Link>{" "}
-          or visit our{" "}
+          </Link>{' '}
+          or visit our{' '}
           <a
             href="https://github.com/GeoAziz/EthAI-Guard/issues"
             target="_blank"

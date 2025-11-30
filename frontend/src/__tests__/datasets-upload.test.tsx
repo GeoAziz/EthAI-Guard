@@ -5,8 +5,8 @@ import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
 
 vi.mock('@/lib/api', () => ({
   default: {
-    post: vi.fn()
-  }
+    post: vi.fn(),
+  },
 }));
 
 import api from '@/lib/api';
@@ -20,7 +20,7 @@ class FakeReader {
     // small CSV content
     const data = 'a,b\n1,2';
     this.result = `data:text/csv;base64,${btoa(data)}`;
-    if (this.onload) this.onload();
+    if (this.onload) {this.onload();}
   }
 }
 
@@ -44,10 +44,21 @@ test('uploads file and shows preview', async () => {
   // Trigger change
   fireEvent.change(fileInput, { target: { files: [file] } });
 
+  // choose retention (programmatically associated label)
+  const retention = screen.getByLabelText('Retention');
+  fireEvent.change(retention, { target: { value: '30' } });
+
   const uploadBtn = screen.getByText('Upload');
   fireEvent.click(uploadBtn);
 
   await waitFor(() => {
     expect(onIngested).toHaveBeenCalledWith({ header: ['a','b'], rows: [['1','2']] });
+    // second post call should be the ingest and include retention_days
+    expect(postMock).toHaveBeenCalledTimes(2);
+    const ingestCall = postMock.mock.calls[1];
+    expect(ingestCall[0]).toBe('/v1/datasets/ds-1/ingest');
+    expect(ingestCall[1]).toEqual(expect.objectContaining({ filename: 'test.csv', content_base64: expect.any(String), retention_days: 30 }));
+    // preview counts should be visible
+    expect(screen.getByText(/Preview: 2 columns × 1 rows/)).toBeTruthy();
   });
 });

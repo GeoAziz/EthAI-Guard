@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useState } from 'react';
 
 export default function FirebaseExchangeDemo() {
@@ -13,7 +13,7 @@ export default function FirebaseExchangeDemo() {
       const res = await fetch('/auth/firebase/exchange', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
+        body: JSON.stringify({ idToken }),
       });
       const json = await res.json();
       setResult({ status: res.status, body: json });

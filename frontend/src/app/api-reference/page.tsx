@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Code, Database, Shield, Zap } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Code, Database, Shield, Zap } from 'lucide-react';
 
 export default function ApiReferencePage() {
   return (
@@ -31,7 +31,7 @@ export default function ApiReferencePage() {
                 <p className="text-sm text-muted-foreground mb-2">Trigger a comprehensive fairness analysis on your dataset.</p>
                 <div className="bg-muted p-3 rounded-md">
                   <pre className="text-xs overflow-x-auto">
-{`{
+                    {`{
   "dataset_name": "loan_applications",
   "data": {
     "age": [25, 45, 35, ...],

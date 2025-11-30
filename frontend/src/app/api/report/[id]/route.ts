@@ -7,9 +7,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const url = `${backend.replace(/\/$/, '')}/report/${id}`;
     const headers: Record<string,string> = {};
     const cookie = req.headers.get('cookie');
-    if (cookie) headers['cookie'] = cookie;
+    if (cookie) {headers['cookie'] = cookie;}
     const auth = req.headers.get('authorization');
-    if (auth) headers['authorization'] = auth;
+    if (auth) {headers['authorization'] = auth;}
 
     const resp = await fetch(url, { headers, method: 'GET' });
     const contentType = resp.headers.get('content-type') || 'application/json';

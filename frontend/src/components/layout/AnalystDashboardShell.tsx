@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export function AnalystDashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -9,7 +9,7 @@ export function AnalystDashboardShell({ children }: { children: React.ReactNode 
       </header>
       <div>{children}</div>
     </div>
-  )
+  );
 }
 
-export default AnalystDashboardShell
+export default AnalystDashboardShell;

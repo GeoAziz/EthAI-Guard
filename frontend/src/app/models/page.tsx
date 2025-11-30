@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
@@ -37,7 +37,7 @@ export default function ModelsPage() {
   useEffect(() => { fetchVersions(); }, []);
 
   return (
-    <RoleProtected required={["analyst", "admin"]}>
+    <RoleProtected required={['analyst', 'admin']}>
       <div className="p-8">
         <Breadcrumbs />
         <PageHeader title="Models" subtitle="Inspect, retrain, and promote model versions" />

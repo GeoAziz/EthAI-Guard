@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -21,8 +21,8 @@ export default function ExplainabilityPage() {
           <Card>
             <CardContent className="pt-6">
               <p className="text-muted-foreground mb-4">
-                SHAP is a game-theoretic approach to explain machine learning model predictions. 
-                It assigns each feature an importance value for a particular prediction, showing 
+                SHAP is a game-theoretic approach to explain machine learning model predictions.
+                It assigns each feature an importance value for a particular prediction, showing
                 how much each feature contributed to pushing the prediction higher or lower.
               </p>
               <div className="bg-muted p-4 rounded-lg">
@@ -43,7 +43,7 @@ export default function ExplainabilityPage() {
           <p className="text-muted-foreground mb-4">
             The summary plot shows global feature importance ranked by average impact on predictions.
           </p>
-          
+
           <Card className="mb-4">
             <CardHeader>
               <CardTitle className="text-base">Reading the Plot</CardTitle>
@@ -53,17 +53,17 @@ export default function ExplainabilityPage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-4">
                     <Badge className="w-32">credit_score</Badge>
-                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded"></div>
+                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded" />
                     <span className="text-sm font-mono">0.42</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge variant="outline" className="w-32">income</Badge>
-                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded" style={{width: '70%'}}></div>
+                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded" style={{ width: '70%' }} />
                     <span className="text-sm font-mono">0.31</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge variant="outline" className="w-32">age</Badge>
-                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded" style={{width: '40%'}}></div>
+                    <div className="flex-1 h-2 bg-gradient-to-r from-blue-500 to-red-500 rounded" style={{ width: '40%' }} />
                     <span className="text-sm font-mono">0.18</span>
                   </div>
                 </div>
@@ -91,8 +91,8 @@ export default function ExplainabilityPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                If <strong>credit_score</strong> has the highest mean SHAP value (0.42), 
-                it means credit score is the most influential feature in your model's decisions. 
+                If <strong>credit_score</strong> has the highest mean SHAP value (0.42),
+                it means credit score is the most influential feature in your model's decisions.
                 Red dots on the right indicate high credit scores increase approval likelihood.
               </p>
             </CardContent>
@@ -104,7 +104,7 @@ export default function ExplainabilityPage() {
           <p className="text-muted-foreground mb-4">
             Force plots show how features push individual predictions away from the base value.
           </p>
-          
+
           <Card className="mb-4">
             <CardHeader>
               <CardTitle className="text-base">Example Force Plot</CardTitle>
@@ -116,10 +116,10 @@ export default function ExplainabilityPage() {
                   <Badge className="bg-green-500">Prediction: 0.82</Badge>
                 </div>
                 <div className="relative h-16 bg-gray-200 rounded-lg overflow-hidden">
-                  <div className="absolute left-0 top-0 h-full bg-green-500/30 flex items-center justify-center text-xs font-semibold" style={{width: '45%'}}>
+                  <div className="absolute left-0 top-0 h-full bg-green-500/30 flex items-center justify-center text-xs font-semibold" style={{ width: '45%' }}>
                     credit_score=740 (+0.22)
                   </div>
-                  <div className="absolute right-0 top-0 h-full bg-red-500/30 flex items-center justify-center text-xs font-semibold" style={{width: '15%'}}>
+                  <div className="absolute right-0 top-0 h-full bg-red-500/30 flex items-center justify-center text-xs font-semibold" style={{ width: '15%' }}>
                     age=28 (-0.05)
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export default function ExplainabilityPage() {
           <p className="text-muted-foreground mb-4">
             Aggregated SHAP values provide a clear ranking of feature importance.
           </p>
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
@@ -164,7 +164,7 @@ export default function ExplainabilityPage() {
                     { name: 'credit_score', value: 0.42, color: 'bg-blue-500' },
                     { name: 'income', value: 0.31, color: 'bg-blue-400' },
                     { name: 'age', value: 0.18, color: 'bg-blue-300' },
-                    { name: 'employment', value: 0.09, color: 'bg-blue-200' }
+                    { name: 'employment', value: 0.09, color: 'bg-blue-200' },
                   ].map(feature => (
                     <div key={feature.name}>
                       <div className="flex items-center justify-between mb-1">
@@ -172,7 +172,7 @@ export default function ExplainabilityPage() {
                         <span className="text-sm font-semibold">{feature.value}</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
-                        <div className={`${feature.color} h-2 rounded-full`} style={{width: `${feature.value * 100}%`}}></div>
+                        <div className={`${feature.color} h-2 rounded-full`} style={{ width: `${feature.value * 100}%` }} />
                       </div>
                     </div>
                   ))}
@@ -201,7 +201,7 @@ export default function ExplainabilityPage() {
           <p className="text-muted-foreground mb-4">
             Show how SHAP values change as a feature value changes, revealing interaction effects.
           </p>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Example: Credit Score Impact</CardTitle>
@@ -212,14 +212,14 @@ export default function ExplainabilityPage() {
                 <div className="border-l-2 border-b-2 border-gray-400 h-32 relative">
                   <div className="absolute bottom-0 left-0 w-full h-full">
                     <svg viewBox="0 0 100 100" className="w-full h-full">
-                      <path d="M 0,90 Q 25,70 50,40 T 100,10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M 0,90 Q 25,70 50,40 T 100,10" fill="none" stroke="currentColor" strokeWidth="2" />
                     </svg>
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground text-right mt-2">Credit Score →</div>
               </div>
               <p className="text-sm text-muted-foreground">
-                This plot shows that as credit score increases, its positive impact on approval 
+                This plot shows that as credit score increases, its positive impact on approval
                 predictions grows non-linearly, with the strongest effect above 700.
               </p>
             </CardContent>

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import PageHeader from '@/components/layout/page-header';
@@ -7,7 +7,7 @@ import ChartPlaceholder from '@/components/ui/chart-placeholder';
 
 export default function AnalystDashboard() {
   return (
-    <RoleProtected required={["analyst"]}>
+    <RoleProtected required={['analyst']}>
       <div className="p-8 max-w-6xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Analyst workspace" subtitle="Datasets, model evaluations, and explainability tools" />

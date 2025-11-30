@@ -1,8 +1,8 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ArrowRight, CheckCircle, FileCode, Shield, Zap, Terminal, Database, Code, GitBranch } from "lucide-react";
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { ArrowRight, CheckCircle, FileCode, Shield, Zap, Terminal, Database, Code, GitBranch } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -12,60 +12,60 @@ export const metadata: Metadata = {
 
 const docSections = [
   {
-    title: "Quick Start",
-    description: "Get up and running with EthixAI in minutes",
+    title: 'Quick Start',
+    description: 'Get up and running with EthixAI in minutes',
     icon: Zap,
-    href: "/docs/quick-start",
-    color: "text-yellow-500",
+    href: '/docs/quick-start',
+    color: 'text-yellow-500',
   },
   {
-    title: "Installation",
-    description: "Install EthixAI locally or deploy with Docker",
+    title: 'Installation',
+    description: 'Install EthixAI locally or deploy with Docker',
     icon: Terminal,
-    href: "/docs/installation",
-    color: "text-green-500",
+    href: '/docs/installation',
+    color: 'text-green-500',
   },
   {
-    title: "Authentication",
-    description: "Secure your API requests with Firebase Auth",
+    title: 'Authentication',
+    description: 'Secure your API requests with Firebase Auth',
     icon: Shield,
-    href: "/docs/authentication",
-    color: "text-blue-500",
+    href: '/docs/authentication',
+    color: 'text-blue-500',
   },
   {
-    title: "Data Format",
-    description: "Learn about required CSV structure and fields",
+    title: 'Data Format',
+    description: 'Learn about required CSV structure and fields',
     icon: Database,
-    href: "/docs/data-format",
-    color: "text-purple-500",
+    href: '/docs/data-format',
+    color: 'text-purple-500',
   },
   {
-    title: "Fairness Metrics",
-    description: "Understand bias detection with key metrics",
+    title: 'Fairness Metrics',
+    description: 'Understand bias detection with key metrics',
     icon: CheckCircle,
-    href: "/docs/fairness-metrics",
-    color: "text-primary",
+    href: '/docs/fairness-metrics',
+    color: 'text-primary',
   },
   {
-    title: "Explainability",
-    description: "SHAP-based explanations for model transparency",
+    title: 'Explainability',
+    description: 'SHAP-based explanations for model transparency',
     icon: FileCode,
-    href: "/docs/explainability",
-    color: "text-orange-500",
+    href: '/docs/explainability',
+    color: 'text-orange-500',
   },
   {
-    title: "Compliance",
-    description: "Meet regulatory requirements (ECOA, GDPR, FCRA)",
+    title: 'Compliance',
+    description: 'Meet regulatory requirements (ECOA, GDPR, FCRA)',
     icon: Shield,
-    href: "/docs/compliance",
-    color: "text-red-500",
+    href: '/docs/compliance',
+    color: 'text-red-500',
   },
   {
-    title: "Contributing",
-    description: "Contribute to the open-source project",
+    title: 'Contributing',
+    description: 'Contribute to the open-source project',
     icon: GitBranch,
-    href: "/docs/contributing",
-    color: "text-pink-500",
+    href: '/docs/contributing',
+    color: 'text-pink-500',
   },
 ];
 
@@ -100,10 +100,10 @@ export default function DocsPage() {
       <section>
         <h2 className="text-3xl font-bold mb-4">Overview</h2>
         <p className="text-lg text-muted-foreground mb-6">
-          EthixAI is an open-source ethics and explainability engine designed specifically for financial institutions. 
+          EthixAI is an open-source ethics and explainability engine designed specifically for financial institutions.
           It helps you build and deploy AI models that are fair, transparent, and compliant with regulations like ECOA, GDPR, and FCRA.
         </p>
-        
+
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">

@@ -1,10 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Copy, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Copy, RefreshCw } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -40,8 +40,8 @@ export default function SettingsPage() {
           <CardDescription>Customize the appearance of the app.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
-            <p className="text-sm font-medium">Toggle light/dark mode</p>
-            <ThemeToggle />
+          <p className="text-sm font-medium">Toggle light/dark mode</p>
+          <ThemeToggle />
         </CardContent>
       </Card>
 
@@ -51,14 +51,14 @@ export default function SettingsPage() {
           <CardDescription>Use this key to integrate EthixAI with your applications.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
-                <Input readOnly value="****************************************" className="border-0 bg-transparent font-code focus-visible:ring-0" />
-                <Button variant="ghost" size="icon"><Copy className="h-4 w-4" /></Button>
-            </div>
-            <Button variant="outline">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerate Key
-            </Button>
+          <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+            <Input readOnly value="****************************************" className="border-0 bg-transparent font-code focus-visible:ring-0" />
+            <Button variant="ghost" size="icon"><Copy className="h-4 w-4" /></Button>
+          </div>
+          <Button variant="outline">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Regenerate Key
+          </Button>
         </CardContent>
       </Card>
 
@@ -68,7 +68,7 @@ export default function SettingsPage() {
           <CardDescription>Permanently delete your account and all associated data. This action cannot be undone.</CardDescription>
         </CardHeader>
         <CardContent>
-            <Button variant="destructive">Delete My Account</Button>
+          <Button variant="destructive">Delete My Account</Button>
         </CardContent>
       </Card>
 

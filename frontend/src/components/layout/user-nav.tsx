@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +10,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CreditCard, LogOut, Settings, User } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CreditCard, LogOut, Settings, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const { user, logout } = useAuth();
@@ -94,12 +94,13 @@ export function UserNav() {
           <DropdownMenuItem onClick={async () => {
             try {
               const ok = await refreshRoles();
-              if (ok) toast({ title: 'Roles refreshed' });
-              else toast({ title: 'Refresh failed', variant: 'destructive' });
+              if (ok) {toast({ title: 'Roles refreshed' });}
+              else {toast({ title: 'Refresh failed', variant: 'destructive' });}
             } catch (e) {
               toast({ title: 'Refresh failed', variant: 'destructive' });
             }
-          }}>
+          }}
+          >
             <Settings className="mr-2 h-4 w-4" />
             <span>Refresh roles</span>
           </DropdownMenuItem>

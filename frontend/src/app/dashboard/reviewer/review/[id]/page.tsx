@@ -1,12 +1,12 @@
-"use client";
-import React from "react";
-import RoleProtected from "@/components/auth/RoleProtected";
+'use client';
+import React from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 
 export default function ReviewerReviewPage({ params }: { params: { id: string } }) {
   return (
-    <RoleProtected required={["reviewer","admin"]}>
+    <RoleProtected required={['reviewer','admin']}>
       <div className="p-8 max-w-4xl mx-auto">
         <Breadcrumbs />
         <PageHeader title={`Review Report ${params.id}`} subtitle="Inspect findings, add notes, and approve or reject." />

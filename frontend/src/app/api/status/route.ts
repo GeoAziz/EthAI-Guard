@@ -11,7 +11,7 @@ async function readDemo() {
 async function readFromMongo() {
   const { MongoClient } = await import('mongodb');
   const uri = process.env.MONGO_URI;
-  if (!uri) throw new Error('MONGO_URI not configured');
+  if (!uri) {throw new Error('MONGO_URI not configured');}
   const client = new MongoClient(uri as string);
   await client.connect();
   const db = client.db(process.env.MONGO_DB || 'ethai');
@@ -24,7 +24,7 @@ export async function GET() {
   try {
     if (process.env.MONGO_URI) {
       const data = await readFromMongo();
-      if (data) return NextResponse.json({ source: 'mongo', ...data });
+      if (data) {return NextResponse.json({ source: 'mongo', ...data });}
     }
   } catch (err) {
     console.error('Failed to read from Mongo in /api/status', err);

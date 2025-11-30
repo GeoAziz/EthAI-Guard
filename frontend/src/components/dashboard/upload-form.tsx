@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
-import api from "@/lib/api";
-import { UploadCloud, File, X, Loader2 } from "lucide-react";
-import { exampleDataset } from "@/lib/mock-data";
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import api from '@/lib/api';
+import { UploadCloud, File, X, Loader2 } from 'lucide-react';
+import { exampleDataset } from '@/lib/mock-data';
 
 type FilePreview = {
   name: string;
@@ -41,26 +41,26 @@ export function UploadForm() {
   };
 
   const handleFile = async (selectedFile: File) => {
-    if (selectedFile.type !== "text/csv" && !selectedFile.name.endsWith('.csv')) {
-        toast({
-            title: "Invalid File Type",
-            description: "Please upload a CSV file.",
-            variant: "destructive",
-        });
-        return;
+    if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
+      toast({
+        title: 'Invalid File Type',
+        description: 'Please upload a CSV file.',
+        variant: 'destructive',
+      });
+      return;
     }
-    
+
     setFile({ name: selectedFile.name, size: selectedFile.size });
     setPreviewData(null);
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     try {
       // Read file and parse CSV for preview
       const text = await selectedFile.text();
       const lines = text.split('\n').filter(line => line.trim());
       const headers = lines[0].split(',').map(h => h.trim());
-      
+
       // Parse first 10 rows for preview
       const previewRows = lines.slice(1, 11).map(line => {
         const values = line.split(',').map(v => v.trim());
@@ -70,9 +70,9 @@ export function UploadForm() {
         });
         return row;
       });
-      
+
       setPreviewData(previewRows);
-      
+
       // Simulate upload progress
       const interval = setInterval(() => {
         setUploadProgress(prev => {
@@ -80,7 +80,7 @@ export function UploadForm() {
             clearInterval(interval);
             setIsUploading(false);
             toast({
-              title: "File Ready",
+              title: 'File Ready',
               description: `${selectedFile.name} is ready for analysis.`,
             });
             return 100;
@@ -88,14 +88,14 @@ export function UploadForm() {
           return prev + 20;
         });
       }, 200);
-      
+
     } catch (error: any) {
       console.error('Error reading file:', error);
       setIsUploading(false);
       toast({
-        title: "File Error",
-        description: "Unable to read CSV file. Please check the format.",
-        variant: "destructive",
+        title: 'File Error',
+        description: 'Unable to read CSV file. Please check the format.',
+        variant: 'destructive',
       });
     }
   };
@@ -104,18 +104,18 @@ export function UploadForm() {
     setIsUploading(true);
     setUploadProgress(0);
     const interval = setInterval(() => {
-        setUploadProgress(prev => {
-            if (prev >= 100) {
-                clearInterval(interval);
-                setIsUploading(false);
-                 toast({
-                    title: "Upload Complete",
-                    description: `${file?.name} has been uploaded successfully.`,
-                });
-                return 100;
-            }
-            return prev + 20;
-        });
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          toast({
+            title: 'Upload Complete',
+            description: `${file?.name} has been uploaded successfully.`,
+          });
+          return 100;
+        }
+        return prev + 20;
+      });
     }, 300);
   };
 
@@ -129,13 +129,13 @@ export function UploadForm() {
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
     toast({
-      title: "Analysis Started",
-      description: "Your dataset is being analyzed for fairness and bias...",
+      title: 'Analysis Started',
+      description: 'Your dataset is being analyzed for fairness and bias...',
     });
 
     // Convert preview rows [{colA: v, colB: v}, ...] into {colA: [..], colB: [..]}
     const rowsToColumns = (rows: any[]) => {
-      if (!rows || rows.length === 0) return {};
+      if (!rows || rows.length === 0) {return {};}
       const cols: Record<string, any[]> = {};
       Object.keys(rows[0]).forEach((k) => (cols[k] = []));
       rows.forEach((r) => {
@@ -146,25 +146,25 @@ export function UploadForm() {
 
     try {
       const data = previewData ? rowsToColumns(previewData) : {};
-      const payload = { 
+      const payload = {
         dataset_name: file?.name || 'example',
-        data 
+        data,
       };
-      
+
       // Call backend analyze endpoint
       const res = await api.post('/api/analyze', payload);
-      
+
       // Extract analysis/report ID from various possible response structures
-      const reportId = res?.data?.reportId || 
-                      res?.data?.analysisId || 
+      const reportId = res?.data?.reportId ||
+                      res?.data?.analysisId ||
                       res?.data?.analysis_id ||
                       res?.data?.report?.id;
-      
-      toast({ 
-        title: 'Analysis Complete! ✨', 
+
+      toast({
+        title: 'Analysis Complete! ✨',
         description: 'Fairness metrics and explanations are ready.',
       });
-      
+
       // Navigate to results
       if (reportId) {
         router.push(`/report/${reportId}`);
@@ -174,12 +174,12 @@ export function UploadForm() {
       }
     } catch (err: any) {
       console.error('Analysis error:', err);
-      const errorMsg = err?.response?.data?.error || 
-                      err?.response?.data?.message || 
-                      err?.message || 
+      const errorMsg = err?.response?.data?.error ||
+                      err?.response?.data?.message ||
+                      err?.message ||
                       'Unknown error occurred';
-      toast({ 
-        title: 'Analysis Failed', 
+      toast({
+        title: 'Analysis Failed',
         description: errorMsg,
         variant: 'destructive',
         duration: 5000,
@@ -195,20 +195,20 @@ export function UploadForm() {
       const response = await fetch('/demo-loan-data.csv');
       if (!response.ok) {
         // Fallback to mock data if demo file not available
-        setFile({name: 'example_loan_data.csv', size: 12345});
+        setFile({ name: 'example_loan_data.csv', size: 12345 });
         setPreviewData(exampleDataset.slice(0, 10));
         setIsUploading(false);
         setUploadProgress(100);
         toast({
-          title: "Example Dataset Loaded",
-          description: "Using sample dataset. You can now proceed with the analysis.",
+          title: 'Example Dataset Loaded',
+          description: 'Using sample dataset. You can now proceed with the analysis.',
         });
         return;
       }
-      
+
       const csvText = await response.text();
       const lines = csvText.split('\n').filter(line => line.trim());
-      
+
       if (lines.length > 0) {
         const headers = lines[0].split(',').map(h => h.trim());
         const previewRows = lines.slice(1, 11).map(line => {
@@ -219,27 +219,27 @@ export function UploadForm() {
           });
           return row;
         });
-        
-        setFile({name: 'demo-loan-data.csv', size: csvText.length});
+
+        setFile({ name: 'demo-loan-data.csv', size: csvText.length });
         setPreviewData(previewRows);
         setTargetColumn('loan_approved');
         setIsUploading(false);
         setUploadProgress(100);
         toast({
-          title: "Demo Dataset Loaded",
+          title: 'Demo Dataset Loaded',
           description: `Loaded ${lines.length - 1} loan applications. You can now proceed with the analysis.`,
         });
       }
     } catch (error) {
       console.error('Failed to load demo dataset:', error);
       // Fallback to mock data
-      setFile({name: 'example_loan_data.csv', size: 12345});
+      setFile({ name: 'example_loan_data.csv', size: 12345 });
       setPreviewData(exampleDataset.slice(0, 10));
       setIsUploading(false);
       setUploadProgress(100);
       toast({
-        title: "Example Dataset Loaded",
-        description: "Using fallback dataset. You can now proceed with the analysis.",
+        title: 'Example Dataset Loaded',
+        description: 'Using fallback dataset. You can now proceed with the analysis.',
       });
     }
   };
@@ -285,17 +285,17 @@ export function UploadForm() {
 
       {file && (
         <div className="p-4 border rounded-lg bg-muted/50 transition-shadow duration-150 hover:shadow-sm">
-            <div className="flex items-center gap-4">
-                <File className="w-8 h-8 text-primary" />
-                <div className="flex-1">
-                    <p className="font-semibold">{file.name}</p>
-                    <p className="text-sm text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
-                </div>
-        {isUploading && <Progress value={uploadProgress} className="w-1/3" />}
-        <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
-          <X className="w-4 h-4" />
-        </Button>
+          <div className="flex items-center gap-4">
+            <File className="w-8 h-8 text-primary" />
+            <div className="flex-1">
+              <p className="font-semibold">{file.name}</p>
+              <p className="text-sm text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</p>
             </div>
+            {isUploading && <Progress value={uploadProgress} className="w-1/3" />}
+            <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
 

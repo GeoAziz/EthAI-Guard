@@ -1,6 +1,6 @@
-"use client";
-import React from "react";
-import RoleProtected from "@/components/auth/RoleProtected";
+'use client';
+import React from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import ChartPlaceholder from '@/components/ui/chart-placeholder';
@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function AdminDashboardPage() {
   return (
-    <RoleProtected required={["admin"]}>
+    <RoleProtected required={['admin']}>
       <div className="p-6">
         <Breadcrumbs />
         <PageHeader title="Organization Admin" subtitle="Overview & quick actions" />

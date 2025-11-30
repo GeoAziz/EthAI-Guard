@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export function AdminDashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -9,7 +9,7 @@ export function AdminDashboardShell({ children }: { children: React.ReactNode })
       </header>
       <div>{children}</div>
     </div>
-  )
+  );
 }
 
-export default AdminDashboardShell
+export default AdminDashboardShell;

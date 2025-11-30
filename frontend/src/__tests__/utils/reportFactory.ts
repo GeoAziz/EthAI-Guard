@@ -12,9 +12,9 @@ export function makeReportResponse({
     summary.overallFairnessScore = overallFairnessScore;
     summary.riskLevel = 'low';
   }
-  if (featureImportance) summary.featureImportance = featureImportance;
+  if (featureImportance) {summary.featureImportance = featureImportance;}
   summary.complianceStatus = complianceStatus;
-  if (violations && violations.length) summary.violations = violations;
+  if (violations && violations.length) {summary.violations = violations;}
 
   return {
     data: {

@@ -20,15 +20,15 @@ export function ProgressBar({
   className = '',
   showPercentage = true,
   color = 'blue',
-  animated = true
+  animated = true,
 }: ProgressBarProps) {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
-  
+
   const colorClasses = {
     blue: 'bg-blue-600',
     green: 'bg-green-600',
     yellow: 'bg-yellow-600',
-    red: 'bg-red-600'
+    red: 'bg-red-600',
   };
 
   return (
@@ -63,7 +63,7 @@ export function StepProgress({
   steps,
   currentStep,
   completedSteps = [],
-  className = ''
+  className = '',
 }: StepProgressProps) {
   return (
     <div className={`w-full ${className}`}>
@@ -98,7 +98,7 @@ export function StepProgress({
                   {step}
                 </div>
               </div>
-              
+
               {idx < steps.length - 1 && (
                 <div
                   className={`
@@ -127,7 +127,7 @@ export function Spinner({ size = 'md', color = 'blue-600', className = '' }: Spi
     sm: 'w-4 h-4 border-2',
     md: 'w-8 h-8 border-3',
     lg: 'w-12 h-12 border-4',
-    xl: 'w-16 h-16 border-4'
+    xl: 'w-16 h-16 border-4',
   };
 
   return (
@@ -158,7 +158,7 @@ export function AnalysisProgress({ stage, progress, message }: AnalysisProgressP
     { id: 'validating', label: 'Validating', icon: '✓' },
     { id: 'analyzing', label: 'Analyzing', icon: '🔍' },
     { id: 'generating', label: 'Generating Report', icon: '📊' },
-    { id: 'complete', label: 'Complete', icon: '✅' }
+    { id: 'complete', label: 'Complete', icon: '✅' },
   ];
 
   const currentStageIndex = stages.findIndex(s => s.id === stage);
@@ -169,14 +169,14 @@ export function AnalysisProgress({ stage, progress, message }: AnalysisProgressP
       <h3 className="text-xl font-semibold mb-6 text-center">
         Processing Your Analysis
       </h3>
-      
+
       <StepProgress
         steps={stages.map(s => s.label)}
         currentStep={currentStageIndex}
         completedSteps={completedStages}
         className="mb-8"
       />
-      
+
       {progress !== undefined && (
         <ProgressBar
           value={progress}
@@ -185,14 +185,14 @@ export function AnalysisProgress({ stage, progress, message }: AnalysisProgressP
           color="blue"
         />
       )}
-      
+
       {message && (
         <div className="text-center text-gray-600 mt-4">
           <Spinner className="inline-block mr-2" size="sm" />
           {message}
         </div>
       )}
-      
+
       <div className="text-center text-sm text-gray-500 mt-6">
         This usually takes 10-30 seconds
       </div>
@@ -213,9 +213,9 @@ export function LoadingOverlay({ message = 'Loading...', progress }: LoadingOver
           <Spinner size="xl" className="mx-auto mb-4" />
           <p className="text-lg font-semibold text-gray-800">{message}</p>
         </div>
-        
+
         {progress !== undefined && (
-          <ProgressBar value={progress} showPercentage={true} />
+          <ProgressBar value={progress} showPercentage />
         )}
       </div>
     </div>

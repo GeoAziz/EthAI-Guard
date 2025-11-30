@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +14,13 @@ export default function RequestAccessPage() {
   const { toast } = useToast();
 
   const submit = async () => {
-    if (!reason) return;
+    if (!reason) {return;}
     setStatus('submitting');
     try {
       const payload: any = { reason };
       // include name/email if available from auth
-  if ((user as any)?.name) payload.name = (user as any).name;
-  if ((user as any)?.email) payload.email = (user as any).email;
+      if ((user as any)?.name) {payload.name = (user as any).name;}
+      if ((user as any)?.email) {payload.email = (user as any).email;}
       const res = await api.post('/v1/access-requests', payload);
       // backend returns { status: 'created', id }
       setRequestId(res.data?.id || null);
@@ -36,7 +36,7 @@ export default function RequestAccessPage() {
   // After submission, poll for role changes so the UI updates automatically when an admin approves
   const pollRef = useRef<number | null>(null);
   useEffect(() => {
-    if (status !== 'submitted') return;
+    if (status !== 'submitted') {return;}
     let attempts = 0;
     const maxAttempts = 24; // poll for up to ~2 minutes (24 * 5s)
 
@@ -47,7 +47,7 @@ export default function RequestAccessPage() {
         if (hasRole('admin')) {
           toast({ title: 'Access granted', description: 'Your role is now admin. Reloading…' });
           // stop polling
-          if (pollRef.current) window.clearInterval(pollRef.current);
+          if (pollRef.current) {window.clearInterval(pollRef.current);}
         }
       } catch (e) {
         // ignore errors during polling
@@ -62,11 +62,11 @@ export default function RequestAccessPage() {
     pollRef.current = window.setInterval(doPoll, 5000);
 
     return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
+      if (pollRef.current) {window.clearInterval(pollRef.current);}
     };
   }, [status, refreshRoles, hasRole, toast]);
 
-  if (loading) return <div className="p-8">Loading…</div>;
+  if (loading) {return <div className="p-8">Loading…</div>;}
 
   return (
     <div className="p-8 max-w-2xl">

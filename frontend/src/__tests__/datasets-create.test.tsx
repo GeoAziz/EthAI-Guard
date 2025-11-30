@@ -6,8 +6,8 @@ import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
 
 vi.mock('@/lib/api', () => ({
   default: {
-    post: vi.fn()
-  }
+    post: vi.fn(),
+  },
 }));
 
 import api from '@/lib/api';
@@ -23,10 +23,16 @@ test('creates dataset and calls onCreated', async () => {
   const input = screen.getByRole('textbox');
   fireEvent.change(input, { target: { value: 'Test dataset' } });
 
+  // choose retention (programmatically associated label)
+  const retention = screen.getByLabelText('Retention');
+  fireEvent.change(retention, { target: { value: '30' } });
+
   const btn = screen.getByText('Create');
   fireEvent.click(btn);
 
   await waitFor(() => {
     expect(onCreated).toHaveBeenCalledWith('ds-123');
+    // ensure api.post was called with retention_days
+    expect((api.post as any)).toHaveBeenCalledWith('/v1/datasets', expect.objectContaining({ name: 'Test dataset', retention_days: 30 }));
   });
 });

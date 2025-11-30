@@ -6,9 +6,9 @@ export async function GET(req: Request) {
     const url = `${backend.replace(/\/$/, '')}/reports`;
     const headers: Record<string,string> = {};
     const cookie = req.headers.get('cookie');
-    if (cookie) headers['cookie'] = cookie;
+    if (cookie) {headers['cookie'] = cookie;}
     const auth = req.headers.get('authorization');
-    if (auth) headers['authorization'] = auth;
+    if (auth) {headers['authorization'] = auth;}
 
     const resp = await fetch(url, { headers, method: 'GET' });
     const body = await resp.text();

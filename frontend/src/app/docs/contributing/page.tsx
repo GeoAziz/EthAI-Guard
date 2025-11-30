@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -90,7 +90,7 @@ export default function ContributingPage() {
           <p className="text-muted-foreground mb-4">
             Get your local development environment ready.
           </p>
-          
+
           <Card className="mb-4">
             <CardHeader>
               <CardTitle className="text-base">1. Fork and Clone</CardTitle>
@@ -99,7 +99,7 @@ export default function ContributingPage() {
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-{`# Fork the repo on GitHub first, then:
+                    {`# Fork the repo on GitHub first, then:
 git clone https://github.com/YOUR_USERNAME/EthAI-Guard.git
 cd EthAI-Guard
 git remote add upstream https://github.com/GeoAziz/EthAI-Guard.git`}
@@ -117,7 +117,7 @@ git remote add upstream https://github.com/GeoAziz/EthAI-Guard.git`}
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-{`git checkout -b feature/your-feature-name
+                    {`git checkout -b feature/your-feature-name
 # or
 git checkout -b fix/your-bug-fix`}
                   </pre>
@@ -134,7 +134,7 @@ git checkout -b fix/your-bug-fix`}
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-{`# Frontend
+                    {`# Frontend
 cd frontend && npm install
 
 # Backend
@@ -156,7 +156,7 @@ cd ai_core && pip install -r requirements.txt`}
               <Card className="bg-muted">
                 <CardContent className="pt-6">
                   <pre className="text-sm overflow-x-auto">
-{`# Frontend tests
+                    {`# Frontend tests
 npm test
 
 # Backend tests

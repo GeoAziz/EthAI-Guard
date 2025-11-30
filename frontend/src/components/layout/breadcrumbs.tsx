@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -8,7 +8,7 @@ export function Breadcrumbs() {
   const pathname = usePathname() || '/';
   const parts = pathname.split('/').filter(Boolean);
 
-  if (parts.length === 0) return null;
+  if (parts.length === 0) {return null;}
 
   const crumbs = parts.map((p, i) => {
     const href = '/' + parts.slice(0, i + 1).join('/');

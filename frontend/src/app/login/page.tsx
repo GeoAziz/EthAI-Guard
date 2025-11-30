@@ -1,27 +1,27 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { AuthLayout } from "@/components/auth/auth-layout";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import React from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { AuthLayout } from '@/components/auth/auth-layout';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { defaultRouteForRoles } from '@/lib/rbac';
 import { auth } from '@/lib/firebase';
 import { sendEmailVerification } from 'firebase/auth';
 import api from '@/lib/api';
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  email: z.string().email({ message: 'Please enter a valid email.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
 });
 
 export default function LoginPage() {
@@ -35,14 +35,14 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    
+
     try {
       // Perform login (this may return a Firebase credential when using Firebase)
       const cred = await login(values.email, values.password);
@@ -63,7 +63,7 @@ export default function LoginPage() {
       }
 
       toast({
-        title: "Welcome back!",
+        title: 'Welcome back!',
         description: "You've been successfully logged in. Redirecting...",
         duration: 2000,
       });
@@ -76,8 +76,8 @@ export default function LoginPage() {
         const me = await api.get('/v1/users/me');
         const roleFromBackend = me?.data?.role;
         let backendRoles: string[] | undefined;
-        if (Array.isArray(roleFromBackend)) backendRoles = roleFromBackend;
-        else if (typeof roleFromBackend === 'string') backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (Array.isArray(roleFromBackend)) {backendRoles = roleFromBackend;}
+        else if (typeof roleFromBackend === 'string') {backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);}
 
         if (backendRoles && backendRoles.length > 0) {
           router.push(defaultRouteForRoles(backendRoles));
@@ -94,8 +94,8 @@ export default function LoginPage() {
           const idTokenResult = await current.getIdTokenResult(true);
           const claims = idTokenResult?.claims || {};
           let effectiveRoles: string[] | undefined;
-          if (Array.isArray(claims.roles)) effectiveRoles = claims.roles as string[];
-          else if (typeof claims.role === 'string') effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
+          if (Array.isArray(claims.roles)) {effectiveRoles = claims.roles as string[];}
+          else if (typeof claims.role === 'string') {effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);}
           const dest = defaultRouteForRoles(effectiveRoles ?? undefined);
           router.push(dest);
           return;
@@ -105,40 +105,40 @@ export default function LoginPage() {
       }
 
       // 3) Last-resort: use hasRole from AuthContext
-      if (hasRole && hasRole('admin')) router.push('/dashboard/admin/access-requests');
-      else router.push('/dashboard');
+      if (hasRole && hasRole('admin')) {router.push('/dashboard/admin/access-requests');}
+      else {router.push('/dashboard');}
     } catch (error: any) {
-      console.error("Login error:", error);
-      
+      console.error('Login error:', error);
+
       // Improved error handling with specific messages
-      let errorTitle = "Authentication Failed";
-      let errorMessage = "Please check your email and password.";
-      
+      let errorTitle = 'Authentication Failed';
+      let errorMessage = 'Please check your email and password.';
+
       // Firebase error codes with enhanced messaging
       if (error.code === 'auth/user-not-found') {
-        errorTitle = "Account Not Found";
-        errorMessage = "No account exists with this email address. Please check your email or sign up.";
+        errorTitle = 'Account Not Found';
+        errorMessage = 'No account exists with this email address. Please check your email or sign up.';
       } else if (error.code === 'auth/wrong-password') {
-        errorTitle = "Incorrect Password";
-        errorMessage = "The password you entered is incorrect. Please try again.";
+        errorTitle = 'Incorrect Password';
+        errorMessage = 'The password you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/invalid-email') {
-        errorTitle = "Invalid Email";
-        errorMessage = "Please enter a valid email address.";
+        errorTitle = 'Invalid Email';
+        errorMessage = 'Please enter a valid email address.';
       } else if (error.code === 'auth/user-disabled') {
-        errorTitle = "Account Disabled";
-        errorMessage = "This account has been disabled. Please contact support for assistance.";
+        errorTitle = 'Account Disabled';
+        errorMessage = 'This account has been disabled. Please contact support for assistance.';
       } else if (error.code === 'auth/too-many-requests') {
-        errorTitle = "Too Many Attempts";
-        errorMessage = "Access temporarily blocked due to too many failed attempts. Please try again in a few minutes.";
+        errorTitle = 'Too Many Attempts';
+        errorMessage = 'Access temporarily blocked due to too many failed attempts. Please try again in a few minutes.';
       } else if (error.code === 'auth/network-request-failed') {
-        errorTitle = "Connection Error";
-        errorMessage = "Unable to connect. Please check your internet connection.";
+        errorTitle = 'Connection Error';
+        errorMessage = 'Unable to connect. Please check your internet connection.';
       }
-      
+
       toast({
         title: errorTitle,
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
         duration: 5000,
       });
     } finally {
@@ -233,7 +233,7 @@ export default function LoginPage() {
         ) : null}
       </div>
       <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{" "}
+        Don&apos;t have an account?{' '}
         <Link href="/register" className="underline text-primary">
           Sign up
         </Link>

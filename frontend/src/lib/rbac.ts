@@ -15,9 +15,9 @@ const ROLE_DEFAULT_ROUTE: Record<UserRole, string> = {
  * Pick a primary role from a list of roles according to priority.
  */
 export function pickPrimaryRole(roles: string[] | undefined): UserRole | null {
-  if (!roles || roles.length === 0) return null;
+  if (!roles || roles.length === 0) {return null;}
   for (const r of ROLE_PRIORITY) {
-    if (roles.includes(r)) return r;
+    if (roles.includes(r)) {return r;}
   }
   // If none of the known roles match, return the first declared role.
   return (roles[0] as UserRole) || null;
@@ -29,7 +29,7 @@ export function pickPrimaryRole(roles: string[] | undefined): UserRole | null {
  */
 export function defaultRouteForRoles(roles: string[] | undefined): string {
   const primary = pickPrimaryRole(roles);
-  if (!primary) return '/';
+  if (!primary) {return '/';}
   return ROLE_DEFAULT_ROUTE[primary] ?? '/dashboard';
 }
 
@@ -37,7 +37,7 @@ export function defaultRouteForRoles(roles: string[] | undefined): string {
  * Check whether the user's roles include any of the required roles.
  */
 export function hasAnyRole(userRoles: string[] | undefined, required: string | string[]): boolean {
-  if (!userRoles || userRoles.length === 0) return false;
+  if (!userRoles || userRoles.length === 0) {return false;}
   const requiredArr = Array.isArray(required) ? required : [required];
   return requiredArr.some((r) => userRoles.includes(r));
 }

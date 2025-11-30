@@ -1,11 +1,12 @@
-"use client";
-import React, { useState } from "react";
-import RoleProtected from "@/components/auth/RoleProtected";
+'use client';
+import React, { useState } from 'react';
+import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
 import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
 import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 
 export default function AdminDatasetsPage() {
   const [name, setName] = useState('');
@@ -19,6 +20,9 @@ export default function AdminDatasetsPage() {
   const [uploading, setUploading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string>('');
+  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
 
   // legacy inline upload retained for compatibility but primary flows use modals
   async function handleUpload(e: React.FormEvent) {
@@ -66,7 +70,7 @@ export default function AdminDatasetsPage() {
 
   async function loadDatasets() {
     try {
-      const res = await api.get('/datasets');
+      const res = await api.get('/v1/datasets');
       setDatasets(res.data.datasets || []);
     } catch (e) {
       console.warn('Failed to load datasets', e);
@@ -76,7 +80,7 @@ export default function AdminDatasetsPage() {
   React.useEffect(() => { loadDatasets(); }, []);
 
   return (
-    <RoleProtected required={["admin"]}>
+    <RoleProtected required={['admin']}>
       <div className="p-8 max-w-4xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Datasets (Admin)" subtitle="Upload, version, and manage datasets" />
@@ -108,127 +112,154 @@ export default function AdminDatasetsPage() {
               </div>
             </div>
           )}
-        
-                  {datasetId && (
-                    <div className="mt-6">
-                      <h5 className="font-medium">Versions</h5>
-                      {versions.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">No versions available</div>
-                      ) : (
-                        <div className="mt-2">
-                          <table className="min-w-full text-sm table-auto border">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="p-2 text-left">Filename</th>
-                                <th className="p-2 text-left">Rows</th>
-                                <th className="p-2 text-left">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {versions.map((v: any) => (
-                                <tr key={v.versionId} className="border-t">
-                                  <td className="p-2">{v.filename}</td>
-                                  <td className="p-2">{v.rows}</td>
-                                  <td className="p-2">
-                                    <button className="mr-2 text-sm text-primary" onClick={async () => {
-                                      try {
-                                        const meta = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
-                                        setPreview({ header: meta.data.version.header || [], rows: meta.data.version.rows_preview || [] });
-                                      } catch (e) { console.error(e); }
-                                    }}>Preview</button>
-                                    <button className="mr-2 text-sm text-primary" onClick={async () => {
-                                      try {
-                                        const resp = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}/download`, { responseType: 'blob' });
-                                        const url = window.URL.createObjectURL(new Blob([resp.data]));
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = v.filename || 'dataset.csv';
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        a.remove();
-                                        window.URL.revokeObjectURL(url);
-                                      } catch (e) { console.error('download failed', e); }
-                                    }}>Download</button>
-                                    <button className="text-sm text-red-600" onClick={async () => {
-                                    if (!confirm('Delete this version?')) return;
-                                    try {
-                                      await api.delete(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
-                                      // refresh versions
-                                      const vres = await api.get(`/v1/datasets/${datasetId}/versions`);
-                                      setVersions(vres.data.versions || []);
-                                    } catch (e) { console.error('delete failed', e); }
-                                    }}>Delete</button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  </div>
 
-            {showCreate && (
-              <div className="mt-4">
-                <CreateDatasetModal onClose={() => setShowCreate(false)} onCreated={(id) => { setDatasetId(id); setShowCreate(false); }} />
-              </div>
-            )}
+          {datasetId && (
+            <div className="mt-6">
+              <h5 className="font-medium">Versions</h5>
+              {versions.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No versions available</div>
+              ) : (
+                <div className="mt-2">
+                  <table className="min-w-full text-sm table-auto border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="p-2 text-left">Filename</th>
+                        <th className="p-2 text-left">Rows</th>
+                        <th className="p-2 text-left">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versions.map((v: any) => (
+                        <tr key={v.versionId} className="border-t">
+                          <td className="p-2">{v.filename}</td>
+                          <td className="p-2">{v.rows}</td>
+                          <td className="p-2">
+                            <button
+                              className="mr-2 text-sm text-primary"
+                              onClick={async () => {
+                                try {
+                                  const meta = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
+                                  setPreview({ header: meta.data.version.header || [], rows: meta.data.version.rows_preview || [] });
+                                } catch (e) { console.error(e); }
+                              }}
+                            >Preview
+                            </button>
+                            <button
+                              className="mr-2 text-sm text-primary"
+                              onClick={async () => {
+                                try {
+                                  const resp = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}/download`, { responseType: 'blob' });
+                                  const url = window.URL.createObjectURL(new Blob([resp.data]));
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = v.filename || 'dataset.csv';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  window.URL.revokeObjectURL(url);
+                                } catch (e) { console.error('download failed', e); }
+                              }}
+                            >Download
+                            </button>
+                            <button
+                              className="text-sm text-red-600"
+                              onClick={() => {
+                                setConfirmMessage('Delete this version?');
+                                setConfirmAction(() => async () => {
+                                  try {
+                                    await api.delete(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
+                                    const vres = await api.get(`/v1/datasets/${datasetId}/versions`);
+                                    setVersions(vres.data.versions || []);
+                                  } catch (e) { console.error('delete failed', e); }
+                                });
+                                setConfirmOpen(true);
+                              }}
+                            >Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-            {showUpload && datasetId && (
-              <div className="mt-4">
-                <UploadDatasetModal datasetId={datasetId} onClose={() => setShowUpload(false)} onIngested={(p) => { setPreview(p); setShowUpload(false); }} />
-              </div>
-            )}
+        {showCreate && (
+          <div className="mt-4">
+            <CreateDatasetModal onClose={() => setShowCreate(false)} onCreated={(id) => { setDatasetId(id); setShowCreate(false); }} />
+          </div>
+        )}
 
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-3">Datasets</h4>
-                    {datasets.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No datasets yet</div>
-                    ) : (
-                      <div className="overflow-auto">
-                        <table className="min-w-full text-sm table-auto border">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="p-2 text-left">Name</th>
-                              <th className="p-2 text-left">Versions</th>
-                              <th className="p-2 text-left">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {datasets.map((ds: any) => (
-                              <tr key={ds.datasetId} className="border-t">
-                                <td className="p-2">{ds.name}</td>
-                                <td className="p-2">{ds.versions}</td>
-                                <td className="p-2">
-                                  <button className="mr-2 text-sm text-primary" onClick={async () => {
-                                    setSelectedDataset(ds.datasetId);
-                                    setDatasetId(ds.datasetId);
-                                    try {
-                                      const vres = await api.get(`/v1/datasets/${ds.datasetId}/versions`);
-                                      setVersions(vres.data.versions || []);
-                                    } catch (e) { console.error(e); }
-                                  }}>View</button>
-                                  <button className="text-sm text-red-600" onClick={async () => {
-                                    if (!confirm('Delete dataset and all versions?')) return;
-                                    try {
-                                      await api.delete(`/v1/datasets/${ds.datasetId}`);
-                                      await loadDatasets();
-                                      if (selectedDataset === ds.datasetId) {
-                                        setSelectedDataset(null);
-                                        setVersions([]);
-                                        setPreview(null);
-                                      }
-                                    } catch (e) { console.error('delete failed', e); }
-                                  }}>Delete</button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
+        {showUpload && datasetId && (
+          <div className="mt-4">
+            <UploadDatasetModal datasetId={datasetId} onClose={() => setShowUpload(false)} onIngested={(p) => { setPreview(p); setShowUpload(false); }} />
+          </div>
+        )}
+
+        <ConfirmationModal open={confirmOpen} message={confirmMessage} onCancel={() => { setConfirmOpen(false); setConfirmAction(null); }} onConfirm={async () => { setConfirmOpen(false); if (confirmAction) { await confirmAction(); setConfirmAction(null); } }} />
+
+        <div className="mt-6">
+          <h4 className="font-medium mb-3">Datasets</h4>
+          {datasets.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No datasets yet</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="min-w-full text-sm table-auto border">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-2 text-left">Name</th>
+                    <th className="p-2 text-left">Versions</th>
+                    <th className="p-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datasets.map((ds: any) => (
+                    <tr key={ds.datasetId} className="border-t">
+                      <td className="p-2">{ds.name}</td>
+                      <td className="p-2">{ds.versions}</td>
+                      <td className="p-2">
+                        <button
+                          className="mr-2 text-sm text-primary"
+                          onClick={async () => {
+                            setSelectedDataset(ds.datasetId);
+                            setDatasetId(ds.datasetId);
+                            try {
+                              const vres = await api.get(`/v1/datasets/${ds.datasetId}/versions`);
+                              setVersions(vres.data.versions || []);
+                            } catch (e) { console.error(e); }
+                          }}
+                        >View
+                        </button>
+                        <button
+                          className="text-sm text-red-600"
+                          onClick={() => {
+                            setConfirmMessage('Delete dataset and all versions?');
+                            setConfirmAction(() => async () => {
+                              try {
+                                await api.delete(`/v1/datasets/${ds.datasetId}`);
+                                await loadDatasets();
+                                if (selectedDataset === ds.datasetId) {
+                                  setSelectedDataset(null);
+                                  setVersions([]);
+                                  setPreview(null);
+                                }
+                              } catch (e) { console.error('delete failed', e); }
+                            });
+                            setConfirmOpen(true);
+                          }}
+                        >Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </RoleProtected>
   );

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
@@ -7,7 +7,7 @@ import ChartPlaceholder from '@/components/ui/chart-placeholder';
 
 export default function FairnessPage() {
   return (
-    <RoleProtected required={["analyst", "admin"]}>
+    <RoleProtected required={['analyst', 'admin']}>
       <div className="p-8 max-w-6xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Fairness Dashboard" subtitle="Group metrics and heatmaps for protected attributes" />

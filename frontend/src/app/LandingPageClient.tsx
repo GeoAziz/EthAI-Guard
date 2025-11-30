@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -68,7 +68,7 @@ function MobileHeader() {
 
   // Lock body scroll when menu is open to prevent background scrolling
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined') {return;}
     const prev = document.body.style.overflow;
     document.body.style.overflow = menuOpen ? 'hidden' : prev;
     return () => {
@@ -90,11 +90,11 @@ function MobileHeader() {
       {/* Mobile hamburger */}
       <button
         className="md:hidden ml-auto flex items-center justify-center rounded p-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen(v => !v)}
       >
-        <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
+        <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-foreground">
           {menuOpen ? (
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -173,8 +173,8 @@ export default function LandingPageClient() {
             aria-hidden="true"
             className="absolute inset-0 grid grid-cols-2 -space-x-52 opacity-20"
           >
-            <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700"></div>
-            <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600"></div>
+            <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700" />
+            <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600" />
           </div>
           <div className="container relative z-10 text-center px-4">
             <Link href="/blog" className="inline-flex items-center rounded-full border px-3 md:px-4 py-1 md:py-1.5 mb-4 md:mb-6 text-xs md:text-sm font-medium bg-card/50 backdrop-blur-sm hover:bg-card transition-colors">
@@ -189,7 +189,7 @@ export default function LandingPageClient() {
               </span>
             </h1>
             <p className="max-w-3xl mx-auto text-base md:text-lg lg:text-xl text-muted-foreground mb-6 md:mb-8 px-4">
-              EthixAI is an <span className="font-semibold text-foreground">open-source</span> ethics and explainability engine for financial institutions, 
+              EthixAI is an <span className="font-semibold text-foreground">open-source</span> ethics and explainability engine for financial institutions,
               ensuring your AI models are <span className="font-semibold text-foreground">fair</span>, <span className="font-semibold text-foreground">transparent</span>, and <span className="font-semibold text-foreground">compliant</span>.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-8 md:mb-12 px-4">
@@ -506,10 +506,11 @@ export default function LandingPageClient() {
             </p>
             <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-6">
               {frameworkLogos.map((fw) => (
-                <div 
-                  key={fw.name} 
+                <div
+                  key={fw.name}
                   className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title={`Built with ${fw.name}`}        >
+                  title={`Built with ${fw.name}`}
+                >
                   {fw.logo}
                 </div>
               ))}

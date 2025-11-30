@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,7 @@ export default function PostLoginRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {return;}
 
     if (roles?.includes('admin')) {
       router.replace('/dashboard/admin');

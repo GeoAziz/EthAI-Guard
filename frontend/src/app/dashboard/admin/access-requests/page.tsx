@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import AdminDashboardShell from '@/components/layout/AdminDashboardShell';
@@ -30,7 +30,7 @@ export default function AdminAccessRequests() {
   const [selected, setSelected] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [emailUser, setEmailUser] = useState(true);
-  const announce = useAnnounce()
+  const announce = useAnnounce();
   const confirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const fetchRequests = async () => {
@@ -72,7 +72,7 @@ export default function AdminAccessRequests() {
   };
 
   const performAction = async () => {
-    if (!selected || !confirmAction) return;
+    if (!selected || !confirmAction) {return;}
     setActionLoading(true);
     try {
       let res: any = null;
@@ -144,7 +144,7 @@ export default function AdminAccessRequests() {
   };
 
   const retryClaimsSync = async (email: string) => {
-    if (!email) return;
+    if (!email) {return;}
     setActionLoading(true);
     try {
       const res = await api.post('/v1/users/sync-claims', { email });
@@ -169,88 +169,88 @@ export default function AdminAccessRequests() {
   return (
     <RoleProtected required="admin">
       <AdminDashboardShell>
-      <div className="p-8">
-        <h1 className="text-2xl font-semibold mb-4">Access Requests</h1>
-      <p className="text-sm text-muted-foreground mb-6">List of users requesting admin access. This page requires backend endpoints to be implemented.</p>
+        <div className="p-8">
+          <h1 className="text-2xl font-semibold mb-4">Access Requests</h1>
+          <p className="text-sm text-muted-foreground mb-6">List of users requesting admin access. This page requires backend endpoints to be implemented.</p>
 
-      {loading && <div>Loading…</div>}
+          {loading && <div>Loading…</div>}
 
-      {!loading && requests && requests.length === 0 && (
-        <Card>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">No pending requests or backend endpoint missing.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-4">
-        {requests && requests.map((r: any) => {
-          const isPending = String(r.status).toLowerCase() === 'pending';
-          let badgeClass = 'bg-yellow-100 text-yellow-800';
-          if (String(r.status).toLowerCase() === 'approved') badgeClass = 'bg-green-100 text-green-800';
-          if (String(r.status).toLowerCase() === 'rejected') badgeClass = 'bg-red-100 text-red-800';
-
-          return (
-            <Card key={r.id || r._id}>
-              <CardHeader className="flex items-center justify-between">
-                <CardTitle className="truncate">{r.email || r.name || r.requester || 'Unknown'}</CardTitle>
-                <div className="ml-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${badgeClass}`} aria-hidden>
-                    {String(r.status).toUpperCase()}
-                  </span>
-                </div>
-              </CardHeader>
+          {!loading && requests && requests.length === 0 && (
+            <Card>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Reason: {r.reason}</p>
-                {r.handledBy && <p className="text-sm text-muted-foreground">Handled By: {r.handledBy}</p>}
-                <p className="text-xs text-muted-foreground">Created: {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</p>
-                <div className="mt-3 flex gap-2">
-                  <Button aria-label={`Approve request for ${r.email || r.name}`} onClick={() => beginAction('approve', r)} disabled={!isPending || actionLoading}>
-                    Approve
-                  </Button>
-                  <Button aria-label={`Reject request for ${r.email || r.name}`} variant="ghost" onClick={() => beginAction('reject', r)} disabled={!isPending || actionLoading}>
-                    Reject
-                  </Button>
-                  <Button aria-label={`Promote ${r.email || r.name} to admin`} variant="secondary" onClick={() => beginAction('promote' as any, r)} disabled={actionLoading}>
-                    Promote
-                  </Button>
-                  {r.email && (
-                    <Button aria-label={`Retry claims sync for ${r.email}`} variant="outline" onClick={() => retryClaimsSync(r.email)} disabled={actionLoading}>
-                      Retry claims-sync
-                    </Button>
-                  )}
-                </div>
+                <p className="text-sm text-muted-foreground">No pending requests or backend endpoint missing.</p>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Confirmation dialog */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{confirmAction === 'approve' ? 'Approve request' : 'Reject request'}</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to {confirmAction} the access request for <strong>{selected?.email || selected?.name}</strong>?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-4 pb-4">
-            <div className="flex items-center gap-3">
-              <Checkbox checked={emailUser} onCheckedChange={(v:any) => setEmailUser(Boolean(v))} id="emailUserToggle" />
-              <Label htmlFor="emailUserToggle" className="text-sm">Send email notification to user</Label>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">When enabled, the user will receive an approve/reject email. This action is non-blocking — failures are reported but won't prevent the request from being processed.</p>
+          <div className="space-y-4">
+            {requests && requests.map((r: any) => {
+              const isPending = String(r.status).toLowerCase() === 'pending';
+              let badgeClass = 'bg-yellow-100 text-yellow-800';
+              if (String(r.status).toLowerCase() === 'approved') {badgeClass = 'bg-green-100 text-green-800';}
+              if (String(r.status).toLowerCase() === 'rejected') {badgeClass = 'bg-red-100 text-red-800';}
+
+              return (
+                <Card key={r.id || r._id}>
+                  <CardHeader className="flex items-center justify-between">
+                    <CardTitle className="truncate">{r.email || r.name || r.requester || 'Unknown'}</CardTitle>
+                    <div className="ml-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${badgeClass}`} aria-hidden>
+                        {String(r.status).toUpperCase()}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Reason: {r.reason}</p>
+                    {r.handledBy && <p className="text-sm text-muted-foreground">Handled By: {r.handledBy}</p>}
+                    <p className="text-xs text-muted-foreground">Created: {r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button aria-label={`Approve request for ${r.email || r.name}`} onClick={() => beginAction('approve', r)} disabled={!isPending || actionLoading}>
+                        Approve
+                      </Button>
+                      <Button aria-label={`Reject request for ${r.email || r.name}`} variant="ghost" onClick={() => beginAction('reject', r)} disabled={!isPending || actionLoading}>
+                        Reject
+                      </Button>
+                      <Button aria-label={`Promote ${r.email || r.name} to admin`} variant="secondary" onClick={() => beginAction('promote' as any, r)} disabled={actionLoading}>
+                        Promote
+                      </Button>
+                      {r.email && (
+                        <Button aria-label={`Retry claims sync for ${r.email}`} variant="outline" onClick={() => retryClaimsSync(r.email)} disabled={actionLoading}>
+                          Retry claims-sync
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={actionLoading}>Cancel</Button>
-            <Button ref={confirmButtonRef} onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>
-          </DialogFooter>
-          <DialogClose />
-        </DialogContent>
-      </Dialog>
-      {/* Screen-reader announcement region is provided globally by AnnounceProvider */}
-      </div>
+
+          {/* Confirmation dialog */}
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{confirmAction === 'approve' ? 'Approve request' : 'Reject request'}</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to {confirmAction} the access request for <strong>{selected?.email || selected?.name}</strong>?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="px-4 pb-4">
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={emailUser} onCheckedChange={(v:any) => setEmailUser(Boolean(v))} id="emailUserToggle" />
+                  <Label htmlFor="emailUserToggle" className="text-sm">Send email notification to user</Label>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">When enabled, the user will receive an approve/reject email. This action is non-blocking — failures are reported but won't prevent the request from being processed.</p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={actionLoading}>Cancel</Button>
+                <Button ref={confirmButtonRef} onClick={performAction} disabled={actionLoading}>{actionLoading ? 'Working…' : confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}</Button>
+              </DialogFooter>
+              <DialogClose />
+            </DialogContent>
+          </Dialog>
+          {/* Screen-reader announcement region is provided globally by AnnounceProvider */}
+        </div>
       </AdminDashboardShell>
     </RoleProtected>
   );

@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export default function FairnessMetricsPage() {
           <p className="text-muted-foreground mb-4">
             Measures whether different demographic groups receive positive outcomes at the same rate.
           </p>
-          
+
           <Card className="mb-4 bg-muted">
             <CardHeader>
               <CardTitle className="text-base">Mathematical Definition</CardTitle>
@@ -53,7 +53,7 @@ export default function FairnessMetricsPage() {
                 <div>
                   <p className="text-sm font-semibold mb-1">Female Approval Rate</p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-primary/20 h-8 rounded flex items-center justify-end px-2" style={{width: '60%'}}>
+                    <div className="flex-1 bg-primary/20 h-8 rounded flex items-center justify-end px-2" style={{ width: '60%' }}>
                       <span className="text-sm font-semibold">45%</span>
                     </div>
                   </div>
@@ -93,7 +93,7 @@ export default function FairnessMetricsPage() {
           <p className="text-muted-foreground mb-4">
             Requires equal true positive rates across groups. Qualified individuals should have equal chance of positive outcome.
           </p>
-          
+
           <Card className="mb-4 bg-muted">
             <CardHeader>
               <CardTitle className="text-base">Mathematical Definition</CardTitle>
@@ -117,7 +117,7 @@ export default function FairnessMetricsPage() {
                 <Card className="bg-muted">
                   <CardContent className="pt-4">
                     <pre className="text-xs">
-{`TPR = True Positives / (True Positives + False Negatives)
+                      {`TPR = True Positives / (True Positives + False Negatives)
 
 Group A: TPR = 80 / (80 + 20) = 0.80
 Group B: TPR = 60 / (60 + 40) = 0.60
@@ -135,8 +135,8 @@ Difference: |0.80 - 0.60| = 0.20`}
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  A 20% TPR difference means qualified individuals in Group B 
-                  are 20% less likely to receive approval than Group A, 
+                  A 20% TPR difference means qualified individuals in Group B
+                  are 20% less likely to receive approval than Group A,
                   indicating systematic disadvantage.
                 </p>
               </CardContent>
@@ -149,7 +149,7 @@ Difference: |0.80 - 0.60| = 0.20`}
           <p className="text-muted-foreground mb-4">
             Legal standard measuring if selection rate for one group is less than 80% of another group's rate (80% rule).
           </p>
-          
+
           <Card className="mb-4 bg-muted">
             <CardHeader>
               <CardTitle className="text-base">Mathematical Definition</CardTitle>
@@ -173,7 +173,7 @@ Difference: |0.80 - 0.60| = 0.20`}
                 <Card className="bg-muted">
                   <CardContent className="pt-4">
                     <pre className="text-xs">
-{`White approval rate: 75%
+                      {`White approval rate: 75%
 Black approval rate: 50%
 
 DI = 50% / 75% = 0.67
@@ -251,8 +251,8 @@ Result: 0.67 < 0.80 → Fails 80% rule`}
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  It's mathematically impossible to satisfy all fairness definitions simultaneously 
-                  when base rates differ between groups. Choose metrics aligned with your use case 
+                  It's mathematically impossible to satisfy all fairness definitions simultaneously
+                  when base rates differ between groups. Choose metrics aligned with your use case
                   and regulatory requirements.
                 </p>
               </CardContent>

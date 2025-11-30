@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,10 @@ export interface RoleProtectedProps {
 }
 
 export function RoleProtected({ required, children }: RoleProtectedProps) {
+  // Test-only bypass: set NEXT_PUBLIC_TEST_BYPASS_AUTH=1 to skip auth checks during E2E runs
+  if (process.env.NEXT_PUBLIC_TEST_BYPASS_AUTH === '1') {
+    return <>{children}</>;
+  }
   const { user, loading, roles, refreshRoles } = useAuth();
   const router = useRouter();
 
@@ -25,10 +29,10 @@ export function RoleProtected({ required, children }: RoleProtectedProps) {
     return <div className="flex items-center justify-center h-40 text-muted-foreground">Loading…</div>;
   }
 
-  if (!user) return null;
+  if (!user) {return null;}
 
   // If no requirement provided, treat as authenticated-only.
-  if (!required) return <>{children}</>;
+  if (!required) {return <>{children}</>;}
 
   // Try to refresh roles once if empty (best-effort)
   if ((!roles || roles.length === 0) && refreshRoles) {

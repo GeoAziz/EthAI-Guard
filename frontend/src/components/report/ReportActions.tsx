@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 
@@ -52,7 +52,7 @@ export default function ReportActions({ reportId }: { reportId: string }) {
   }
 
   function escapeCsv(v: string) {
-    if (v == null) return '';
+    if (v == null) {return '';}
     if (v.includes(',') || v.includes('\n') || v.includes('"')) {
       return '"' + v.replace(/"/g, '""') + '"';
     }

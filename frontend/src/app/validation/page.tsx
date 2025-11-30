@@ -45,7 +45,7 @@ export default function ValidationListPage() {
       setLoading(true);
       const token = localStorage.getItem('token') || '';
       const res = await axios.get(`${BACKEND_URL}/v1/validation-reports`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       setReports(res.data.reports);
       setError('');
@@ -76,20 +76,20 @@ export default function ValidationListPage() {
           include_stability_test: true,
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
-      
+
       // Refresh list
       await fetchReports();
-      
+
       // Reset form
       setNewValidation({
         model_name: '',
         model_version: '1.0',
         num_synthetic_cases: 200,
       });
-      
+
       alert('Validation completed successfully!');
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Validation failed');
@@ -99,8 +99,8 @@ export default function ValidationListPage() {
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'pass') return 'bg-green-100 text-green-800 border-green-300';
-    if (status === 'conditional_pass') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (status === 'pass') {return 'bg-green-100 text-green-800 border-green-300';}
+    if (status === 'conditional_pass') {return 'bg-yellow-100 text-yellow-800 border-yellow-300';}
     return 'bg-red-100 text-red-800 border-red-300';
   };
 
@@ -114,8 +114,8 @@ export default function ValidationListPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
+    if (score >= 80) {return 'text-green-600';}
+    if (score >= 60) {return 'text-yellow-600';}
     return 'text-red-600';
   };
 
@@ -212,7 +212,7 @@ export default function ValidationListPage() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
             <p className="text-gray-600 mt-4">Loading validation reports...</p>
           </div>
         )}
