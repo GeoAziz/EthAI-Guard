@@ -20,9 +20,9 @@ export default function DatasetDetailPage() {
   async function load() {
     setLoading(true);
     try {
-      const d = await api.get(`/datasets/${id}`);
-      setDataset(d.data.dataset || null);
-      const v = await api.get(`/datasets/${id}/versions`);
+  const d = await api.get(`/v1/datasets/${id}`);
+  setDataset(d.data.dataset || null);
+  const v = await api.get(`/v1/datasets/${id}/versions`);
       setVersions(v.data.versions || []);
     } catch (e) {
       console.error('failed to load dataset', e);
@@ -31,14 +31,14 @@ export default function DatasetDetailPage() {
 
   async function handlePreview(versionId: string) {
     try {
-      const meta = await api.get(`/datasets/${id}/versions/${versionId}`);
+  const meta = await api.get(`/v1/datasets/${id}/versions/${versionId}`);
       setPreview({ header: meta.data.version.header || [], rows: meta.data.version.rows_preview || [] });
     } catch (e) { console.error(e); }
   }
 
   async function handleDownload(versionId: string, filename?: string) {
     try {
-      const resp = await api.get(`/datasets/${id}/versions/${versionId}/download`, { responseType: 'blob' });
+  const resp = await api.get(`/v1/datasets/${id}/versions/${versionId}/download`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([resp.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -53,7 +53,7 @@ export default function DatasetDetailPage() {
   async function handleDeleteVersion(versionId: string) {
     if (!confirm('Delete this version?')) return;
     try {
-      await api.delete(`/datasets/${id}/versions/${versionId}`);
+  await api.delete(`/v1/datasets/${id}/versions/${versionId}`);
       await load();
     } catch (e) { console.error('delete failed', e); }
   }
@@ -61,7 +61,7 @@ export default function DatasetDetailPage() {
   async function handleDeleteDataset() {
     if (!confirm('Delete dataset and all versions?')) return;
     try {
-      await api.delete(`/datasets/${id}`);
+  await api.delete(`/v1/datasets/${id}`);
       router.push('/dashboard/admin/datasets');
     } catch (e) { console.error('delete dataset failed', e); }
   }

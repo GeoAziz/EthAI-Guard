@@ -4,6 +4,8 @@ import RoleProtected from "@/components/auth/RoleProtected";
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
+import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
+import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
 
 export default function AdminDatasetsPage() {
   const [name, setName] = useState('');
@@ -15,7 +17,10 @@ export default function AdminDatasetsPage() {
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
+  // legacy inline upload retained for compatibility but primary flows use modals
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !file) {
@@ -25,8 +30,8 @@ export default function AdminDatasetsPage() {
     setUploading(true);
     setStatus('Creating dataset record...');
     try {
-      const create = await api.post('/datasets/upload', { name, type: file.name.split('.').pop() || 'csv' });
-      const datasetId = create.data.datasetId;
+      const create = await api.post('/v1/datasets', { name, type: file.name.split('.').pop() || 'csv' });
+      const datasetId = create.data.datasetId || create.data.id;
       setDatasetId(datasetId);
 
       setStatus('Reading file...');
@@ -38,15 +43,15 @@ export default function AdminDatasetsPage() {
       });
 
       setStatus('Requesting presign...');
-      await api.post(`/datasets/${datasetId}/presign`);
+      await api.post(`/v1/datasets/${datasetId}/presign`);
       setStatus('Uploading content...');
-      const ingest = await api.post(`/datasets/${datasetId}/ingest`, { filename: file.name, content_base64: b64 });
+      const ingest = await api.post(`/v1/datasets/${datasetId}/ingest`, { filename: file.name, content_base64: b64 });
       setStatus('Ingest completed');
       setPreview({ header: ingest.data.header || [], rows: ingest.data.rows_preview || [] });
 
       // fetch versions for dataset
       try {
-        const vres = await api.get(`/datasets/${datasetId}/versions`);
+        const vres = await api.get(`/v1/datasets/${datasetId}/versions`);
         setVersions(vres.data.versions || []);
       } catch (e) {
         console.warn('Failed to fetch versions', e);
@@ -78,22 +83,13 @@ export default function AdminDatasetsPage() {
 
         <div className="mt-6 rounded-lg border bg-white p-4">
           <h4 className="font-medium mb-3">Upload dataset (MVP)</h4>
-          <form onSubmit={handleUpload} className="space-y-3">
-            <div>
-              <label className="block text-sm">Dataset name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="border rounded px-2 py-1 w-full" />
-            </div>
-            <div>
-              <label className="block text-sm">File (CSV)</label>
-              <input type="file" accept=".csv,text/csv" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} />
-            </div>
-            <div>
-              <button disabled={uploading} className="inline-flex items-center rounded-md bg-primary px-3 py-1 text-white">
-                {uploading ? 'Uploading…' : 'Upload & Ingest'}
-              </button>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button onClick={() => setShowCreate(true)} className="px-3 py-1 border rounded">Create dataset</button>
+              <button onClick={() => setShowUpload(true)} className="px-3 py-1 bg-primary text-white rounded">Upload file</button>
             </div>
             {status && <div className="text-sm text-muted-foreground">{status}</div>}
-          </form>
+          </div>
 
           {preview && (
             <div className="mt-4">
@@ -136,13 +132,13 @@ export default function AdminDatasetsPage() {
                                   <td className="p-2">
                                     <button className="mr-2 text-sm text-primary" onClick={async () => {
                                       try {
-                                        const meta = await api.get(`/datasets/${datasetId}/versions/${v.versionId}`);
+                                        const meta = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
                                         setPreview({ header: meta.data.version.header || [], rows: meta.data.version.rows_preview || [] });
                                       } catch (e) { console.error(e); }
                                     }}>Preview</button>
                                     <button className="mr-2 text-sm text-primary" onClick={async () => {
                                       try {
-                                        const resp = await api.get(`/datasets/${datasetId}/versions/${v.versionId}/download`, { responseType: 'blob' });
+                                        const resp = await api.get(`/v1/datasets/${datasetId}/versions/${v.versionId}/download`, { responseType: 'blob' });
                                         const url = window.URL.createObjectURL(new Blob([resp.data]));
                                         const a = document.createElement('a');
                                         a.href = url;
@@ -154,13 +150,13 @@ export default function AdminDatasetsPage() {
                                       } catch (e) { console.error('download failed', e); }
                                     }}>Download</button>
                                     <button className="text-sm text-red-600" onClick={async () => {
-                                      if (!confirm('Delete this version?')) return;
-                                      try {
-                                        await api.delete(`/datasets/${datasetId}/versions/${v.versionId}`);
-                                        // refresh versions
-                                        const vres = await api.get(`/datasets/${datasetId}/versions`);
-                                        setVersions(vres.data.versions || []);
-                                      } catch (e) { console.error('delete failed', e); }
+                                    if (!confirm('Delete this version?')) return;
+                                    try {
+                                      await api.delete(`/v1/datasets/${datasetId}/versions/${v.versionId}`);
+                                      // refresh versions
+                                      const vres = await api.get(`/v1/datasets/${datasetId}/versions`);
+                                      setVersions(vres.data.versions || []);
+                                    } catch (e) { console.error('delete failed', e); }
                                     }}>Delete</button>
                                   </td>
                                 </tr>
@@ -172,6 +168,18 @@ export default function AdminDatasetsPage() {
                     </div>
                   )}
                   </div>
+
+            {showCreate && (
+              <div className="mt-4">
+                <CreateDatasetModal onClose={() => setShowCreate(false)} onCreated={(id) => { setDatasetId(id); setShowCreate(false); }} />
+              </div>
+            )}
+
+            {showUpload && datasetId && (
+              <div className="mt-4">
+                <UploadDatasetModal datasetId={datasetId} onClose={() => setShowUpload(false)} onIngested={(p) => { setPreview(p); setShowUpload(false); }} />
+              </div>
+            )}
 
                   <div className="mt-6">
                     <h4 className="font-medium mb-3">Datasets</h4>
@@ -197,14 +205,14 @@ export default function AdminDatasetsPage() {
                                     setSelectedDataset(ds.datasetId);
                                     setDatasetId(ds.datasetId);
                                     try {
-                                      const vres = await api.get(`/datasets/${ds.datasetId}/versions`);
+                                      const vres = await api.get(`/v1/datasets/${ds.datasetId}/versions`);
                                       setVersions(vres.data.versions || []);
                                     } catch (e) { console.error(e); }
                                   }}>View</button>
                                   <button className="text-sm text-red-600" onClick={async () => {
                                     if (!confirm('Delete dataset and all versions?')) return;
                                     try {
-                                      await api.delete(`/datasets/${ds.datasetId}`);
+                                      await api.delete(`/v1/datasets/${ds.datasetId}`);
                                       await loadDatasets();
                                       if (selectedDataset === ds.datasetId) {
                                         setSelectedDataset(null);
