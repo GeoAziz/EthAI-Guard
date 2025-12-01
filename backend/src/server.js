@@ -749,7 +749,7 @@ app.post('/auth/firebase/exchange', async (req, res) => {
 			}
 		} else {
 			const User = require('./models/User');
-			userDoc = await User.findOne({ firebase_uid: decoded.uid }) || await User.findOne({ email: decoded.email });
+			userDoc = await User.findOne({ firebase_uid: { $eq: decoded.uid } }) || await User.findOne({ email: { $eq: decoded.email } });
 			if (!userDoc) {
 				userDoc = await User.create({ name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' });
 			} else {
