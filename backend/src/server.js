@@ -11,6 +11,7 @@ const hpp = optRequire('hpp');
 const compression = optRequire('compression');
 const xssClean = optRequire('xss-clean');
 const mongoose = require('mongoose');
+const escape = require('escape-html');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const argon2 = require('argon2');
@@ -1543,7 +1544,9 @@ app.get('/report/:id/export', authMiddleware, async (req, res) => {
 		}
 
 		// Fallback: serve printable HTML
-		const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report ${req.params.id}</title><style>body{font-family:system-ui,Arial,Helvetica,sans-serif;padding:20px}</style></head><body><h1>Report ${req.params.id}</h1><pre>${JSON.stringify(rpt, null, 2)}</pre></body></html>`;
+		const safeId = escape(req.params.id);
+		const safeReport = escape(JSON.stringify(rpt, null, 2));
+		const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report ${safeId}</title><style>body{font-family:system-ui,Arial,Helvetica,sans-serif;padding:20px}</style></head><body><h1>Report ${safeId}</h1><pre>${safeReport}</pre></body></html>`;
 		res.set('Content-Type', 'text/html');
 		return res.send(html);
 	} catch (e) {
