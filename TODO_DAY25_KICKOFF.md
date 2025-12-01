@@ -293,7 +293,7 @@ jobs:
             --fail-on-slo-violation
       
       - name: Upload reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-reports
           path: reports/

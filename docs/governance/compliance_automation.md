@@ -273,7 +273,7 @@ github_actions_trigger:
             --output-dir /tmp/model_cards/
       
       - name: "Upload Model Card Artifact"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: model-card
           path: /tmp/model_cards/*.json
@@ -911,14 +911,14 @@ jobs:
       
       - name: Upload Model Cards
         if: steps.detect-models.outputs.skip != 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: model-cards
           path: /tmp/model_cards/*.json
       
       - name: Upload Compliance Reports
         if: steps.detect-models.outputs.skip != 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: compliance-reports
           path: /tmp/compliance_reports/*.json
@@ -1027,7 +1027,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Download Model Cards from Governance Check
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: model-cards
           path: ./model_cards

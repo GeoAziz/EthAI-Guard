@@ -111,7 +111,7 @@ jobs:
         run: npm run build
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/.next
@@ -215,7 +215,7 @@ jobs:
       
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-logs
           path: docker-logs.txt
@@ -264,7 +264,7 @@ jobs:
             --output reports/ci_summary.txt
       
       - name: Upload performance reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-reports
           path: reports/
@@ -328,9 +328,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [integration-tests, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: staging
-      url: https://staging.ethixai.example.com
+    # The 'environment' attribute was removed to satisfy the workflow schema/linter which
+    # reported that the environment name 'staging' is not valid in this repository.
+    # Re-add an 'environment' mapping (or a valid environment string) once a matching
+    # repository environment is configured.
     
     steps:
       - name: Checkout code

@@ -93,7 +93,7 @@ jobs:
           cyclonedx-py -o sbom.json
       
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom
           path: |
