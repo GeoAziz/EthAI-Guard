@@ -1,7 +1,7 @@
-fastapi==0.100.0
-uvicorn[standard]==0.22.0
-pymongo==4.4.0
-scikit-learn==1.4.0
+fastapi==0.109.1
+uvicorn==0.22.0
+pymongo==4.6.3
+scikit-learn==1.5.0
 shap==0.41.0
 pandas==2.2.2
 numpy<2
@@ -11,9 +11,16 @@ loguru==0.7.2
 
 # Test dependencies
 pytest==7.4.0
-requests==2.31.0
+requests==2.32.4
 httpx==0.24.1
 matplotlib==3.8.1
-pillow==10.1.0
+pillow==10.3.0
 prometheus_client==0.16.0
 python-json-logger==2.0.4
+
+# Explicit patched transitive deps
+# Conservative upgrades for audited vulnerabilities (non-breaking targets):
+# - fonttools: fixes GHSA-768j-98cg-p3fv in 4.60.2
+# - sentry-sdk: fixes GHSA-g92j-qhmh-64v2 in 1.45.1
+fonttools==4.61.0
+sentry-sdk==1.45.1
