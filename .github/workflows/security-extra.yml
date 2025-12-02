@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
       - name: Install backend deps
         working-directory: backend
         run: npm install --no-audit --no-fund
