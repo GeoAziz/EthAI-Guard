@@ -12,6 +12,20 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+        exclude: >
+          (?x)^(
+            \.venv_verify/.*|
+            backend/tmp/.*|
+            backend/scripts/seedUsers\.js|
+            backend/scripts/wipe_and_seed_users\.js|
+            backend/tests/.*\.test\.js|
+            docs/.*\.md|
+            tmp/.*|
+            tools/.*/data/.*\.json|
+            reports/.*\.json|
+            .*\.test\.js|
+            .*_test\.py
+          )$
 
   - repo: https://github.com/psf/black
     rev: 24.10.0
