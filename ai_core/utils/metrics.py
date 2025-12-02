@@ -201,7 +201,7 @@ system_info.info({
 def track_inference_time(model_type: str) -> Callable:
     """
     Decorator to track inference time
-    
+
     Usage:
         @track_inference_time('credit_scoring')
         def run_inference(data):
@@ -212,7 +212,7 @@ def track_inference_time(model_type: str) -> Callable:
         def wrapper(*args, **kwargs) -> Any:
             start_time = time.time()
             status = 'success'
-            
+
             try:
                 result = func(*args, **kwargs)
                 return result
@@ -227,7 +227,7 @@ def track_inference_time(model_type: str) -> Callable:
                 duration = time.time() - start_time
                 inference_duration.labels(model_type=model_type).observe(duration)
                 inference_requests_total.labels(model_type=model_type, status=status).inc()
-        
+
         return wrapper
     return decorator
 
@@ -235,7 +235,7 @@ def track_inference_time(model_type: str) -> Callable:
 def track_shap_computation(model_type: str) -> Callable:
     """
     Decorator to track SHAP computation time
-    
+
     Usage:
         @track_shap_computation('credit_scoring')
         def compute_shap_values(model, data):
@@ -245,14 +245,14 @@ def track_shap_computation(model_type: str) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             start_time = time.time()
-            
+
             try:
                 result = func(*args, **kwargs)
                 return result
             finally:
                 duration = time.time() - start_time
                 shap_computation_duration.labels(model_type=model_type).observe(duration)
-        
+
         return wrapper
     return decorator
 
@@ -327,7 +327,7 @@ def record_model_load(model_type: str, duration_seconds: float):
 def record_data_validation(duration_seconds: float, errors: int = 0, error_type: Optional[str] = None):
     """Record data validation metrics"""
     data_validation_duration.observe(duration_seconds)
-    
+
     if errors > 0 and error_type:
         data_validation_errors.labels(error_type=error_type).inc(errors)
 
@@ -339,7 +339,7 @@ def record_http_request(method: str, endpoint: str, status_code: int, duration_s
         endpoint=endpoint,
         status_code=status_code
     ).inc()
-    
+
     http_request_duration.labels(
         method=method,
         endpoint=endpoint
@@ -355,11 +355,11 @@ def update_system_metrics(memory_rss: int, memory_vms: int, cpu_percent: float):
 
 class RequestTracker:
     """Context manager for tracking requests"""
-    
+
     def __enter__(self):
         active_requests.inc()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         active_requests.dec()
 
@@ -379,11 +379,11 @@ __all__ = [
     'model_cache_misses',
     'http_requests_total',
     'http_request_duration',
-    
+
     # Decorators
     'track_inference_time',
     'track_shap_computation',
-    
+
     # Helper functions
     'record_inference_request',
     'record_inference_duration',
@@ -396,7 +396,7 @@ __all__ = [
     'record_data_validation',
     'record_http_request',
     'update_system_metrics',
-    
+
     # Context manager
     'RequestTracker'
 ]

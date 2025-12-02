@@ -67,7 +67,7 @@ def train_quick_model(X: pd.DataFrame, y: pd.Series):
         # Create a simple synthetic target that alternates (ensures both classes present)
         # This ensures we have samples of both classes for binary classification
         y = pd.Series(np.arange(len(X)) % 2, index=X.index)
-    
+
     # Prefer a lightweight tree ensemble if available for faster SHAP TreeExplainer
     try:
         if LIGHTGBM_AVAILABLE:

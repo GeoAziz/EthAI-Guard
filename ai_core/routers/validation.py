@@ -62,7 +62,7 @@ async def validate_model(request: ValidateModelRequest):
     """
     try:
         logger.info(f"Starting model validation: {request.model_name} v{request.model_version}")
-        
+
         # Step 1: Generate synthetic dataset
         logger.info(f"Generating {request.num_synthetic_cases} synthetic test cases...")
         synthetic_cases = generate_synthetic_cases(
@@ -70,7 +70,7 @@ async def validate_model(request: ValidateModelRequest):
             include_edge_cases=request.include_edge_cases
         )
         dataset_stats = get_dataset_stats(synthetic_cases)
-        
+
         # Step 2: Run evaluations through model
         logger.info("Running evaluations through model...")
 
@@ -147,18 +147,18 @@ async def validate_model(request: ValidateModelRequest):
                 "risk_level": risk_level,
                 "triggered_rules": rules,
             }
-        
+
         validation_result = run_validation(
             model_func=model_eval_func,
             synthetic_cases=synthetic_cases,
             include_stability_test=request.include_stability_test
         )
-        
+
         validation_summary = extract_validation_summary(validation_result["results"])
-        
+
         # Step 3: Compute fairness metrics
         logger.info("Computing fairness metrics...")
-        
+
         # Transform results to metrics input format
         results_for_metrics = []
         for r in validation_result["results"]:
@@ -172,7 +172,7 @@ async def validate_model(request: ValidateModelRequest):
                     "disability": r["input"].get("applicant", {}).get("disability"),
                 }
             })
-        
+
         # If stability test was performed, transform noisy results
         noisy_for_metrics = None
         if validation_result.get("stability_test_performed") and "noisy_results" in validation_result:
@@ -188,7 +188,7 @@ async def validate_model(request: ValidateModelRequest):
                         "disability": r["input"].get("applicant", {}).get("disability"),
                     }
                 })
-        
+
         all_metrics = calculate_all_metrics(
             results=results_for_metrics,
             results_noisy=noisy_for_metrics
@@ -207,7 +207,7 @@ async def validate_model(request: ValidateModelRequest):
             "overall_fairness_score": all_metrics.get("overall_fairness_score", 0.0),
             "metrics": metrics_list,
         }
-        
+
         # Step 4: Generate validation report
         logger.info("Generating validation report...")
         model_metadata = {
@@ -215,7 +215,7 @@ async def validate_model(request: ValidateModelRequest):
             "version": request.model_version,
             "description": request.model_description or "Ethical AI model for loan decision analysis",
         }
-        
+
         report = generate_validation_report(
             model_metadata=model_metadata,
             synthetic_stats=dataset_stats,
@@ -223,9 +223,9 @@ async def validate_model(request: ValidateModelRequest):
             validation_summary=validation_summary,
             include_html=request.include_html_report
         )
-        
+
         logger.info(f"Validation complete: status={report['status']}, score={report['overall_score']:.1f}")
-        
+
         # Step 5: Return summary
         return ValidateModelResponse(
             report_id=report["report_json"]["report_id"],
@@ -243,7 +243,7 @@ async def validate_model(request: ValidateModelRequest):
             report_json=report["report_json"],
             report_html=report.get("report_html"),
         )
-    
+
     except Exception as e:
         logger.error(f"Model validation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Model validation failed: {str(e)}")
