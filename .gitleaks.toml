@@ -1,54 +1,182 @@
-title = "EthixAI Secret Detection"
+title = "EthixAI-Guard Secret Detection - Enhanced"
+
+[extend]
+useDefault = true
+
+# ========================================
+# EthixAI-Specific Custom Rules
+# ========================================
+
+[[rules]]
+id = "ethixai-api-key"
+description = "EthixAI API Key Pattern"
+regex = '''(?i)(ethixai|ethai)[_-]?(api|key)[_-]?[:=]\s*['"]?[a-zA-Z0-9+/=_-]{32,}['"]?'''
+tags = ["api-key", "ethixai", "high-risk"]
+
+[[rules]]
+id = "firebase-service-account"
+description = "Firebase Admin Service Account JSON"
+regex = '''["']type["']\s*:\s*["']service_account["']'''
+path = '''(?i).*service.*account.*\.json$'''
+tags = ["firebase", "service-account", "critical"]
+
+[[rules]]
+id = "firebase-private-key"
+description = "Firebase Private Key"
+regex = '''-----BEGIN PRIVATE KEY-----[A-Za-z0-9+/\n]+-----END PRIVATE KEY-----'''
+tags = ["firebase", "private-key", "critical"]
 
 [[rules]]
 id = "generic-api-key"
 description = "Generic API Key"
-regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9]{20,})['"]'''
-tags = ["key", "API"]
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9]{32,})['"]'''
+tags = ["key", "API", "high-risk"]
 
 [[rules]]
 id = "jwt-secret"
 description = "JWT Secret"
-regex = '''(?i)(jwt[_-]?secret|secret[_-]?key|refresh[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9+/=]{16,})['"]'''
-tags = ["jwt", "secret"]
+regex = '''(?i)(jwt[_-]?secret|secret[_-]?key|refresh[_-]?secret|session[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9+/=!@#$%^&*()_-]{32,})['"]'''
+tags = ["jwt", "secret", "high-risk"]
 
 [[rules]]
 id = "private-key"
 description = "Private Key"
 regex = '''-----BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY-----'''
-tags = ["key", "private"]
+tags = ["key", "private", "critical"]
 
 [[rules]]
 id = "aws-access-key"
 description = "AWS Access Key"
 regex = '''AKIA[0-9A-Z]{16}'''
-tags = ["aws", "key"]
+tags = ["aws", "key", "critical"]
 
 [[rules]]
 id = "mongodb-password"
 description = "MongoDB Connection String"
-regex = '''mongodb(\+srv)?://[^:]+:([^@]{8,})@'''
-tags = ["mongodb", "password"]
+regex = '''mongodb(\+srv)?://[^:]+:([^@]{8,})@[^/]+'''
+tags = ["mongodb", "password", "high-risk"]
+
+[[rules]]
+id = "postgresql-connection"
+description = "PostgreSQL Connection String"
+regex = '''postgres(ql)?://[a-zA-Z0-9_-]+:[a-zA-Z0-9_@!%-]+@[a-zA-Z0-9.-]+'''
+tags = ["postgresql", "database", "high-risk"]
 
 [[rules]]
 id = "encryption-key"
 description = "Encryption Key"
 regex = '''(?i)(encryption[_-]?key|field[_-]?encryption[_-]?key)\s*[:=]\s*['"]([a-zA-Z0-9+/=]{32,})['"]'''
-tags = ["encryption", "key"]
+tags = ["encryption", "key", "high-risk"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+tags = ["openai", "api-key", "critical"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic Claude API Key"
+regex = '''sk-ant-[a-zA-Z0-9-]{95,}'''
+tags = ["anthropic", "api-key", "critical"]
+
+[[rules]]
+id = "web3-private-key"
+description = "Ethereum/Web3 Private Key"
+regex = '''(?i)(private[_-]?key|priv[_-]?key)[_-]?[:=]\s*['"]?0x[a-fA-F0-9]{64}['"]?'''
+tags = ["web3", "ethereum", "private-key", "critical"]
+
+[[rules]]
+id = "docker-registry-token"
+description = "Docker Registry Authentication Token"
+regex = '''(?i)(docker|registry)[_-]?(token|auth|password)[_-]?[:=]\s*['"]?[a-zA-Z0-9+/=_-]{32,}['"]?'''
+tags = ["docker", "registry", "token", "medium-risk"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["github", "token", "high-risk"]
+
+[[rules]]
+id = "generic-password"
+description = "Generic Password in Code"
+regex = '''(?i)(password|passwd|pwd)[_-]?[:=]\s*['"]([^'"]{8,})['"]'''
+tags = ["password", "medium-risk"]
+
+# ========================================
+# Global Allowlist Configuration
+# ========================================
 
 [allowlist]
-description = "Allowlist for false positives"
+description = "Allowlist for false positives and documentation"
+
 paths = [
+  # Documentation
   '''^\.env\.example$''',
   '''^docs/.*''',
   '''.*\.md$''',
+  '''DAY\d+_.*\.md$''',
+  '''reports/.*''',
+  
+  # Test files
   '''.*/test/.*''',
-  '''.*\.example$'''
+  '''.*/tests/.*''',
+  '''.*_test\.(py|js|ts)$''',
+  '''.*\.test\.(py|js|ts)$''',
+  '''.*__mocks__/.*''',
+  
+  # Examples and templates
+  '''.*\.example$''',
+  '''.*\.example\..*$''',
+  '''.*\.template$''',
+  '''.*\.sample$''',
+  
+  # CI/CD (already reviewed)
+  '''\.github/workflows/.*\.yml$''',
+  
+  # Build artifacts
+  '''dist/.*''',
+  '''build/.*''',
+  '''node_modules/.*''',
+  '''__pycache__/.*''',
+  '''.*\.min\.js$''',
+  '''.*package-lock\.json$''',
+  '''.*yarn\.lock$''',
+  '''.*poetry\.lock$'''
 ]
 
 regexes = [
+  # Placeholders
   '''example\.com''',
   '''localhost''',
+  '''127\.0\.0\.1''',
+  '''0\.0\.0\.0''',
   '''secret[_-]?key[_-]?(here|value|xxx)''',
-  '''your[_-](secret|key|password)'''
+  '''your[_-](secret|key|password)''',
+  '''change-this''',
+  '''replace-with-.*''',
+  
+  # Test credentials
+  '''example-.*''',
+  '''test-.*''',
+  '''dummy-.*''',
+  '''placeholder-.*''',
+  '''testuser:testpass''',
+  '''admin:admin''',
+  '''user:password''',
+  
+  # Known test keys (all zeros/ones)
+  '''0x0{64}''',
+  '''0x1{64}'''
+]
+
+stopwords = [
+  "example",
+  "test",
+  "dummy",
+  "placeholder",
+  "sample",
+  "template",
+  "mock"
 ]
