@@ -34,3 +34,8 @@ __pycache__/
 *.tmp
 serviceAccountKey.json
 creds.md
+PRE_DEMO_CHECKLIST.md
+STATIC_TO_DYNAMIC_TRANSFORMATION.md
+docs/monitoring/monitoring_infrastructure.md
+diagnose-firebase.sh
+docs/deploy/secrets-management.md
