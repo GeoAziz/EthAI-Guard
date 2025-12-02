@@ -1,0 +1,43 @@
+# Ignore node and python deps
+node_modules
+**/node_modules
+.venv
+*/.venv
+venv
+/.venv
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Git and editor
+.git
+.gitignore
+.vscode/
+.idea/
+
+# Next.js and build artifacts
+.next/
+build/
+dist/
+
+# Large data and temp files
+data/
+datasets/
+tmp/
+tmp-*
+*.log
+
+# OS
+.DS_Store
+
+# Docker files not needed in context
+**/*.tar
+
+# Coverage and test outputs
+.pytest_cache/
+coverage/
+
+# Misc
+*.sqlite3
+*.db
