@@ -189,13 +189,24 @@ jobs:
           cache-to: type=registry,ref=${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
 
       - name: Scan images for vulnerabilities (Trivy)
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest image \
-            --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+        uses: aquasec/trivy-action@0.20.0
+        with:
+          image-ref: ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+          scanners: 'vuln'
+          timeout: '5m'
+        env:
+          TRIVY_DB_REPOSITORY: 'ghcr.io/aquasecurity/trivy-db'
+          TRIVY_DEBUG: 'false'
+
+      - name: Upload Trivy SARIF (backend)
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-backend.sarif
 
   # =========================
   # Job 2: Deploy to Staging
