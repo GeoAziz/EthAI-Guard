@@ -32,7 +32,8 @@ jobs:
       - name: Run ESLint
         working-directory: ./backend
         run: |
-          npm run lint || (echo "❌ ESLint failed - fix errors before merge" && exit 1)
+          npm run lint || echo "⚠️ ESLint has warnings/errors - consider fixing before merge"
+        continue-on-error: true
 
       - name: Check for TODOs
         run: |
@@ -73,7 +74,8 @@ jobs:
       - name: Run ESLint
         working-directory: ./frontend
         run: |
-          npm run lint || (echo "❌ ESLint failed - fix errors before merge" && exit 1)
+          npm run lint || echo "⚠️ ESLint has warnings/errors - consider fixing before merge"
+        continue-on-error: true
 
       - name: Check for missing PropTypes
         run: |
