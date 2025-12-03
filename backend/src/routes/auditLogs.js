@@ -79,7 +79,7 @@ router.get('/logs', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching audit logs:', error);
+    logger.error('Error fetching audit logs:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit logs',
@@ -118,7 +118,7 @@ router.get('/logs/:model_id/trail', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching audit trail:', error);
+    logger.error('Error fetching audit trail:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit trail',
@@ -144,7 +144,7 @@ router.get('/summary', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching audit summary:', error);
+    logger.error('Error fetching audit summary:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit summary',
@@ -199,7 +199,7 @@ router.post('/log', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating audit log:', error);
+    logger.error('Error creating audit log:', error);
 
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -241,7 +241,7 @@ router.get('/violations', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching violations:', error);
+    logger.error('Error fetching violations:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch violations',
@@ -270,7 +270,7 @@ router.get('/compliance-rate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error calculating compliance rate:', error);
+    logger.error('Error calculating compliance rate:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to calculate compliance rate',
@@ -294,7 +294,7 @@ router.get('/event-types', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching event types:', error);
+    logger.error('Error fetching event types:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch event types',
@@ -318,7 +318,7 @@ router.get('/actors', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching actors:', error);
+    logger.error('Error fetching actors:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch actors',
@@ -368,7 +368,7 @@ router.get('/timeline', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching timeline:', error);
+    logger.error('Error fetching timeline:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit timeline',

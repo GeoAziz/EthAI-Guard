@@ -6,6 +6,7 @@
  */
 
 const AuditLog = require('../models/AuditLog');
+const logger = require('../utils/logger');
 
 class AuditLogger {
   /**
@@ -28,7 +29,7 @@ class AuditLogger {
     // to prevent validation errors when the full AuditLog schema isn't satisfied.
     if (process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY === '1' || process.env.USE_IN_MEMORY === '1') {
       try {
-        console.log('🟡 AuditLogger (noop in test mode):', event?.type || '<no-type>', (event && event.details) ? event.details : '');
+        logger.info('🟡 AuditLogger (noop in test mode):', event?.type || '<no-type>', (event && event.details) ? event.details : '');
       } catch (e) {
         /* ignore */
       }
@@ -65,11 +66,11 @@ class AuditLogger {
         await this.sendCriticalAlert(auditEntry);
       }
 
-      console.log(`✅ Audit log created: ${auditEntry._id} (${event.type})`);
+      logger.info(`✅ Audit log created: ${auditEntry._id} (${event.type})`);
       return auditEntry;
 
     } catch (error) {
-      console.error('❌ Failed to create audit log:', error);
+      logger.error('❌ Failed to create audit log:', error);
       throw error;
     }
   }
@@ -177,7 +178,7 @@ class AuditLogger {
         },
       };
     } catch (error) {
-      console.error('❌ Audit log query failed:', error);
+      logger.error('❌ Audit log query failed:', error);
       throw error;
     }
   }
@@ -208,7 +209,7 @@ class AuditLogger {
         summary,
       };
     } catch (error) {
-      console.error('❌ Failed to get audit trail for %s:', model_id, error);
+      logger.error('❌ Failed to get audit trail for %s:', model_id, error);
       throw error;
     }
   }
@@ -277,7 +278,7 @@ class AuditLogger {
         summary,
       };
     } catch (error) {
-      console.error('❌ Failed to generate summary:', error);
+      logger.error('❌ Failed to generate summary:', error);
       throw error;
     }
   }
@@ -320,7 +321,7 @@ class AuditLogger {
     const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
     if (!webhookUrl) {
-      console.warn('⚠️ SLACK_WEBHOOK_URL not configured, skipping alert');
+      logger.warn('⚠️ SLACK_WEBHOOK_URL not configured, skipping alert');
       return;
     }
 
@@ -335,12 +336,12 @@ class AuditLogger {
       });
 
       if (!response.ok) {
-        console.error(`❌ Slack alert failed: ${response.statusText}`);
+        logger.error(`❌ Slack alert failed: ${response.statusText}`);
       } else {
-        console.log('✅ Critical alert sent to Slack');
+        logger.info('✅ Critical alert sent to Slack');
       }
     } catch (error) {
-      console.error('❌ Failed to send Slack alert:', error);
+      logger.error('❌ Failed to send Slack alert:', error);
     }
   }
 

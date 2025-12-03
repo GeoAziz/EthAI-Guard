@@ -33,7 +33,7 @@ router.get('/snapshots/:model_id', async (req, res) => {
       snapshots,
     });
   } catch (error) {
-    console.error('Error fetching drift snapshots:', error);
+    logger.error('Error fetching drift snapshots:', error);
     res.status(500).json({ error: 'Failed to fetch drift snapshots' });
   }
 });
@@ -66,7 +66,7 @@ router.get('/alerts/:model_id', async (req, res) => {
       alerts,
     });
   } catch (error) {
-    console.error('Error fetching drift alerts:', error);
+    logger.error('Error fetching drift alerts:', error);
     res.status(500).json({ error: 'Failed to fetch drift alerts' });
   }
 });
@@ -101,7 +101,7 @@ router.post('/alerts/:alert_id/resolve', async (req, res) => {
 
     res.json({ success: true, message: 'Alert resolved' });
   } catch (error) {
-    console.error('Error resolving alert:', error);
+    logger.error('Error resolving alert:', error);
     res.status(500).json({ error: 'Failed to resolve alert' });
   }
 });
@@ -143,7 +143,7 @@ router.get('/status/:model_id', async (req, res) => {
         : null,
     });
   } catch (error) {
-    console.error('Error fetching drift status:', error);
+    logger.error('Error fetching drift status:', error);
     res.status(500).json({ error: 'Failed to fetch drift status' });
   }
 });
@@ -178,7 +178,7 @@ router.post('/models/:model_id/trigger-retrain', async (req, res) => {
       request: retrainRequest,
     });
   } catch (error) {
-    console.error('Error triggering retrain:', error);
+    logger.error('Error triggering retrain:', error);
     res.status(500).json({ error: 'Failed to trigger retrain' });
   }
 });

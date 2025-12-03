@@ -4,6 +4,8 @@
  * Sends drift alerts to Slack via webhook.
  */
 
+const logger = require('../utils/logger');
+
 /**
  * Send alert to Slack
  * @param {Object} alert - Drift alert object
@@ -11,7 +13,7 @@
  */
 async function sendSlackAlert(alert, webhookUrl) {
   if (!webhookUrl) {
-    console.warn('Slack webhook URL not configured');
+    logger.warn('Slack webhook URL not configured');
     return { success: false, error: 'No webhook URL' };
   }
 
@@ -101,14 +103,14 @@ async function sendSlackAlert(alert, webhookUrl) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Slack webhook error:', errorText);
+      logger.error('Slack webhook error:', errorText);
       return { success: false, error: errorText };
     }
 
-    console.log(`Slack notification sent for alert ${alert._id}`);
+    logger.info(`Slack notification sent for alert ${alert._id}`);
     return { success: true };
   } catch (error) {
-    console.error('Failed to send Slack notification:', error);
+    logger.error('Failed to send Slack notification:', error);
     return { success: false, error: error.message };
   }
 }
@@ -120,7 +122,7 @@ async function sendSlackAlert(alert, webhookUrl) {
  */
 async function sendDailySummary(summary, webhookUrl) {
   if (!webhookUrl) {
-    console.warn('Slack webhook URL not configured');
+    logger.warn('Slack webhook URL not configured');
     return { success: false, error: 'No webhook URL' };
   }
 
@@ -178,14 +180,14 @@ async function sendDailySummary(summary, webhookUrl) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Slack webhook error:', errorText);
+      logger.error('Slack webhook error:', errorText);
       return { success: false, error: errorText };
     }
 
-    console.log('Daily summary sent to Slack');
+    logger.info('Daily summary sent to Slack');
     return { success: true };
   } catch (error) {
-    console.error('Failed to send Slack summary:', error);
+    logger.error('Failed to send Slack summary:', error);
     return { success: false, error: error.message };
   }
 }

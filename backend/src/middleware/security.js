@@ -95,7 +95,7 @@ function rateLimiting(options = {}) {
 
     // Custom handler for rate limit exceeded
     handler: (req, res) => {
-      console.warn(`[Security] Rate limit exceeded for ${req.ip}`);
+      logger.warn(`[Security] Rate limit exceeded for ${req.ip}`);
 
       if (global.metricsCollector) {
         global.metricsCollector.rateLimitExceeded.inc({
@@ -153,7 +153,7 @@ function corsOptions() {
       if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
         callback(null, true);
       } else {
-        console.warn(`[Security] CORS blocked origin: ${origin}`);
+        logger.warn(`[Security] CORS blocked origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -208,7 +208,7 @@ function securityLogging() {
 
     // Log security events
     if (securityEvents.length > 0) {
-      console.warn(`[Security] Suspicious request from ${req.ip}:`, {
+      logger.warn(`[Security] Suspicious request from ${req.ip}:`, {
         ip: req.ip,
         method: req.method,
         url: req.url,

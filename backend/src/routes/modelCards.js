@@ -62,7 +62,7 @@ router.get('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching Model Cards:', error);
+    logger.error('Error fetching Model Cards:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Model Cards',
@@ -101,7 +101,7 @@ router.get('/stats', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    logger.error('Error fetching stats:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics',
@@ -132,7 +132,7 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching Model Card:', error);
+    logger.error('Error fetching Model Card:', error);
 
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -187,7 +187,7 @@ router.get('/:model_id/versions', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching model versions:', error);
+    logger.error('Error fetching model versions:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch model versions',
@@ -256,7 +256,7 @@ router.post('/', authGuard, requireRole('admin'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating/updating Model Card:', error);
+    logger.error('Error creating/updating Model Card:', error);
 
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -334,7 +334,7 @@ router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) =>
     });
 
   } catch (error) {
-    console.error('Error updating status:', error);
+    logger.error('Error updating status:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to update status',
@@ -387,7 +387,7 @@ router.delete('/:id', authGuard, requireRole('admin'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deprecating Model Card:', error);
+    logger.error('Error deprecating Model Card:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to deprecate Model Card',

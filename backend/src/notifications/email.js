@@ -3,6 +3,9 @@
  *
  * Sends drift alerts via email using SMTP.
  */
+
+const logger = require('../utils/logger');
+
 /**
  * Notification Email Templates and Sender
  *
@@ -20,7 +23,7 @@ try {
 
 function createTransporter() {
   if (!nodemailer) {
-    console.warn('nodemailer not available; email notifications disabled');
+    logger.warn('nodemailer not available; email notifications disabled');
     return null;
   }
   const config = {
@@ -34,7 +37,7 @@ function createTransporter() {
   };
 
   if (!config.auth.user || !config.auth.pass) {
-    console.warn('SMTP credentials not configured');
+    logger.warn('SMTP credentials not configured');
     return null;
   }
 

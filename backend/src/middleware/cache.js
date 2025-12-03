@@ -4,6 +4,7 @@
  */
 
 const NodeCache = require('node-cache');
+const logger = require('../utils/logger');
 
 // Initialize cache with 5-minute TTL, check period every 2 minutes
 const cache = new NodeCache({
@@ -36,12 +37,12 @@ function cacheMiddleware(duration = 300) {
         global.metricsCollector.cacheHits.inc({ endpoint: req.path });
       }
 
-      console.log(`[Cache] HIT: ${key}`);
+      logger.debug(`[Cache] HIT: ${key}`);
       return res.json(cachedResponse);
     }
 
     // Cache miss - proceed with request
-    console.log(`[Cache] MISS: ${key}`);
+    logger.debug(`[Cache] MISS: ${key}`);
 
     if (global.metricsCollector) {
       global.metricsCollector.cacheMisses.inc({ endpoint: req.path });
@@ -55,7 +56,7 @@ function cacheMiddleware(duration = 300) {
       // Only cache successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
         cache.set(key, body, duration);
-        console.log(`[Cache] STORED: ${key} (TTL: ${duration}s)`);
+        logger.debug(`[Cache] STORED: ${key} (TTL: ${duration}s)`);
       }
 
       return originalJson(body);
@@ -82,7 +83,7 @@ function invalidateCache(pattern) {
     });
 
     if (deletedCount > 0) {
-      console.log(`[Cache] INVALIDATED: ${deletedCount} keys matching "${pattern}"`);
+      logger.debug(`[Cache] INVALIDATED: ${deletedCount} keys matching "${pattern}"`);
     }
 
     next();
@@ -104,11 +105,11 @@ function clearCache(pattern = null) {
       }
     });
 
-    console.log(`[Cache] CLEARED: ${deletedCount} keys matching "${pattern}"`);
+    logger.debug(`[Cache] CLEARED: ${deletedCount} keys matching "${pattern}"`);
     return deletedCount;
   }
   cache.flushAll();
-  console.log('[Cache] CLEARED: All keys');
+  logger.info('[Cache] CLEARED: All keys');
   return true;
 
 }

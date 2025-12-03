@@ -4,13 +4,14 @@
  */
 
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 /**
  * Create all required indexes
  */
 async function createIndexes() {
   try {
-    console.log('[DB] Creating indexes...');
+    logger.info('[DB] Creating indexes...');
 
     // Get database connection
     const { db } = mongoose.connection;
@@ -26,7 +27,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: user_reports_idx');
+    logger.info('[DB] ✓ Created index: user_reports_idx');
 
     // Unique index: analysis_id (for lookups)
     await reportsCollection.createIndex(
@@ -37,7 +38,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: analysis_id_idx');
+    logger.info('[DB] ✓ Created index: analysis_id_idx');
 
     // Index: status (for filtering)
     await reportsCollection.createIndex(
@@ -47,7 +48,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: status_idx');
+    logger.info('[DB] ✓ Created index: status_idx');
 
     // Compound index: status + created_at (for monitoring)
     await reportsCollection.createIndex(
@@ -57,7 +58,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: status_date_idx');
+    logger.info('[DB] ✓ Created index: status_date_idx');
 
     // TTL index: created_at (auto-delete old reports after 90 days)
     await reportsCollection.createIndex(
@@ -68,7 +69,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created TTL index: ttl_idx (90 days)');
+    logger.info('[DB] ✓ Created TTL index: ttl_idx (90 days)');
 
     // Audit logs collection indexes
     const auditLogsCollection = db.collection('audit_logs');
@@ -81,7 +82,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: user_audit_idx');
+    logger.info('[DB] ✓ Created index: user_audit_idx');
 
     // Index: action (for filtering by action type)
     await auditLogsCollection.createIndex(
@@ -91,7 +92,7 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created index: action_idx');
+    logger.info('[DB] ✓ Created index: action_idx');
 
     // TTL index: auto-delete audit logs after 365 days
     await auditLogsCollection.createIndex(
@@ -102,15 +103,15 @@ async function createIndexes() {
         background: true,
       },
     );
-    console.log('[DB] ✓ Created TTL index: audit_ttl_idx (365 days)');
+    logger.info('[DB] ✓ Created TTL index: audit_ttl_idx (365 days)');
 
-    console.log('[DB] All indexes created successfully');
+    logger.info('[DB] All indexes created successfully');
 
     // List all indexes
     await listIndexes();
 
   } catch (error) {
-    console.error('[DB] Error creating indexes:', error);
+    logger.error('[DB] Error creating indexes:', error);
     throw error;
   }
 }
@@ -122,28 +123,28 @@ async function listIndexes() {
   try {
     const { db } = mongoose.connection;
 
-    console.log('\n[DB] Current indexes:');
+    logger.info('\n[DB] Current indexes:');
 
     // Reports collection
     const reportsCollection = db.collection('reports');
     const reportsIndexes = await reportsCollection.indexes();
-    console.log('\nReports collection:');
+    logger.info('\nReports collection:');
     reportsIndexes.forEach(idx => {
-      console.log(`  - ${idx.name}: ${JSON.stringify(idx.key)}`);
+      logger.info(`  - ${idx.name}: ${JSON.stringify(idx.key)}`);
     });
 
     // Audit logs collection
     const auditLogsCollection = db.collection('audit_logs');
     const auditIndexes = await auditLogsCollection.indexes();
-    console.log('\nAudit logs collection:');
+    logger.info('\nAudit logs collection:');
     auditIndexes.forEach(idx => {
-      console.log(`  - ${idx.name}: ${JSON.stringify(idx.key)}`);
+      logger.info(`  - ${idx.name}: ${JSON.stringify(idx.key)}`);
     });
 
-    console.log('');
+    logger.info('');
 
   } catch (error) {
-    console.error('[DB] Error listing indexes:', error);
+    logger.error('[DB] Error listing indexes:', error);
   }
 }
 
@@ -152,7 +153,7 @@ async function listIndexes() {
  */
 async function dropIndexes() {
   try {
-    console.log('[DB] Dropping custom indexes...');
+    logger.info('[DB] Dropping custom indexes...');
 
     const { db } = mongoose.connection;
 
@@ -170,10 +171,10 @@ async function dropIndexes() {
     await auditLogsCollection.dropIndex('action_idx').catch(() => {});
     await auditLogsCollection.dropIndex('audit_ttl_idx').catch(() => {});
 
-    console.log('[DB] Custom indexes dropped');
+    logger.info('[DB] Custom indexes dropped');
 
   } catch (error) {
-    console.error('[DB] Error dropping indexes:', error);
+    logger.error('[DB] Error dropping indexes:', error);
   }
 }
 
@@ -209,7 +210,7 @@ async function getIndexStats() {
     };
 
   } catch (error) {
-    console.error('[DB] Error getting index stats:', error);
+    logger.error('[DB] Error getting index stats:', error);
     return null;
   }
 }

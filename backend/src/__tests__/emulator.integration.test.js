@@ -13,7 +13,7 @@ const admin = require('firebase-admin');
 const FIREBASE_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST;
 
 if (!FIREBASE_HOST) {
-  console.warn('Skipping emulator.integration tests — FIREBASE_AUTH_EMULATOR_HOST not set');
+  logger.warn('Skipping emulator.integration tests — FIREBASE_AUTH_EMULATOR_HOST not set');
   // Create a dummy test suite that passes to avoid CI failure when not configured
   describe('emulator.integration (skipped)', () => {
     test('skipped', () => {

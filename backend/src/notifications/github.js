@@ -4,6 +4,8 @@
  * Creates GitHub Issues for critical drift alerts.
  */
 
+const logger = require('../utils/logger');
+
 /**
  * Create GitHub issue for critical alert
  * @param {Object} alert - Drift alert object
@@ -12,7 +14,7 @@
  */
 async function createGitHubIssue(alert, token, repo) {
   if (!token || !repo) {
-    console.warn('GitHub integration not configured');
+    logger.warn('GitHub integration not configured');
     return { success: false, error: 'GitHub not configured' };
   }
 
@@ -94,15 +96,15 @@ ${alert.severity === 'critical' ? `
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('GitHub API error:', errorData);
+      logger.error('GitHub API error:', errorData);
       return { success: false, error: errorData.message };
     }
 
     const issue = await response.json();
-    console.log(`GitHub issue created for alert ${alert._id}: ${issue.html_url}`);
+    logger.info(`GitHub issue created for alert ${alert._id}: ${issue.html_url}`);
     return { success: true, issueUrl: issue.html_url, issueNumber: issue.number };
   } catch (error) {
-    console.error('Failed to create GitHub issue:', error);
+    logger.error('Failed to create GitHub issue:', error);
     return { success: false, error: error.message };
   }
 }
@@ -143,7 +145,7 @@ async function addIssueComment(issueNumber, comment, token, repo) {
     const commentData = await response.json();
     return { success: true, commentUrl: commentData.html_url };
   } catch (error) {
-    console.error('Failed to add comment:', error);
+    logger.error('Failed to add comment:', error);
     return { success: false, error: error.message };
   }
 }
@@ -193,7 +195,7 @@ ${resolution}
 
     return { success: true };
   } catch (error) {
-    console.error('Failed to close issue:', error);
+    logger.error('Failed to close issue:', error);
     return { success: false, error: error.message };
   }
 }

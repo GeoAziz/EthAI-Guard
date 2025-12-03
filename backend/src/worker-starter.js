@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const logger = require('./utils/logger');
 
 function findWorkerPath() {
   // Prefer repo-root based path (when process started from repo root)
@@ -25,7 +26,7 @@ function startWorkerIfEnabled() {
 
   const workerPath = findWorkerPath();
   if (!workerPath) {
-    console.warn('[worker-starter] worker script not found; expected at tools/status/worker.js');
+    logger.warn('[worker-starter] worker script not found; expected at tools/status/worker.js');
     return null;
   }
 
@@ -36,17 +37,17 @@ function startWorkerIfEnabled() {
       env: { ...process.env },
     });
 
-    child.stdout.on('data', d => console.log('[status-worker]', d.toString().trim()));
-    child.stderr.on('data', d => console.error('[status-worker][err]', d.toString().trim()));
+    child.stdout.on('data', d => logger.info({ msg: d.toString().trim() }, '[status-worker]'));
+    child.stderr.on('data', d => logger.error({ msg: d.toString().trim() }, '[status-worker][err]'));
 
-    child.on('exit', (code, signal) => console.warn('[status-worker] exited', { code, signal }));
+    child.on('exit', (code, signal) => logger.warn({ code, signal }, '[status-worker] exited'));
 
     // allow parent to exit independently of worker
     child.unref();
-    console.log('[worker-starter] spawned status worker PID', child.pid);
+    logger.info({ pid: child.pid }, '[worker-starter] spawned status worker');
     return child;
   } catch (err) {
-    console.error('[worker-starter] failed to spawn worker', err);
+    logger.error({ err }, '[worker-starter] failed to spawn worker');
     return null;
   }
 }
