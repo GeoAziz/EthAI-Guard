@@ -9,6 +9,7 @@
 
 const request = require('supertest');
 const admin = require('firebase-admin');
+const logger = require('../utils/logger');
 
 const FIREBASE_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST;
 
