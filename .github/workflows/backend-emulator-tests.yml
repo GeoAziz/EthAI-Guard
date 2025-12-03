@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'backend/**'
+      - 'firebase.json'
   pull_request:
     paths:
       - 'backend/**'
+      - 'firebase.json'
 
 jobs:
   emulator-tests:
@@ -22,6 +24,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Setup Java (required for Firebase emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install repo dependencies (backend)
         run: |

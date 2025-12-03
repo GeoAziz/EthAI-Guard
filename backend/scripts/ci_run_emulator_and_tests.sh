@@ -7,12 +7,15 @@ set -euo pipefail
 # - FIREBASE_AUTH_EMULATOR_HOST is set in the environment (the workflow sets it)
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$ROOT_DIR/backend"
 
 echo "Starting Firebase emulators (Auth only) in background..."
-# start emulator in background, redirect logs to a file
-firebase emulators:start --only auth --project demo-project --import=./emulator_data --export-on-exit &> ./firebase-emulator.log &
+# start emulator from root directory where firebase.json exists
+cd "$ROOT_DIR"
+firebase emulators:start --only auth --project demo-project &> "$ROOT_DIR/backend/firebase-emulator.log" &
 EMU_PID=$!
+
+# Switch back to backend for tests
+cd "$ROOT_DIR/backend"
 
 echo "Waiting for Auth emulator to be ready..."
 # simple wait loop to ensure port is open
