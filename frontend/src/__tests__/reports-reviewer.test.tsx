@@ -21,7 +21,7 @@ describe('ReviewerReportsPage', () => {
   it('renders empty state', async () => {
     mockGet.mockResolvedValueOnce({ data: [] });
     render(<ReviewerReportsPage />);
-    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?page=1&limit=10&role=reviewer'));
     expect(screen.getByText('No reports assigned')).toBeInTheDocument();
   });
 
@@ -31,7 +31,7 @@ describe('ReviewerReportsPage', () => {
     ];
     mockGet.mockResolvedValueOnce({ data: reports });
     render(<ReviewerReportsPage />);
-    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?page=1&limit=10&role=reviewer'));
     expect(screen.getByText('rep-1')).toBeInTheDocument();
     expect(screen.getByText('m1')).toBeInTheDocument();
     expect(screen.getByText('d1')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('ReviewerReportsPage', () => {
   it('shows toast on api error', async () => {
     mockGet.mockRejectedValueOnce(new Error('boom'));
     render(<ReviewerReportsPage />);
-    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?page=1&limit=10&role=reviewer'));
     await waitFor(() => expect(toastSpy).toHaveBeenCalled());
   });
 });

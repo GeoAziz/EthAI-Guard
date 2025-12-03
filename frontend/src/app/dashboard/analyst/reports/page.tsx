@@ -27,24 +27,40 @@ function computeDriftScore(report: any) {
 
 export default function AnalystReportsPage() {
   const [reports, setReports] = useState<Array<any>>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchReports = React.useCallback(async () => {
     setLoading(true);
-    api.get('/v1/reports?role=analyst')
-      .then(res => {
-        if (!mounted) {return;}
-        setReports(Array.isArray(res?.data) ? res.data : (res?.data?.items || []));
-      })
-      .catch(err => {
-        console.error('Failed to load analyst reports', err);
-        toast?.({ title: 'Failed to load reports', variant: 'destructive' });
-      })
-      .finally(() => { if (mounted) {setLoading(false);} });
-    return () => { mounted = false; };
-  }, []);
+    try {
+      const q = new URLSearchParams();
+      q.set('page', String(page));
+      q.set('limit', String(limit));
+      q.set('role', 'analyst');
+      const path = `/v1/reports?${q.toString()}`;
+      const res = await api.get(path);
+      const data = res?.data;
+      if (Array.isArray(data)) {
+        setReports(data);
+        setTotal(null);
+      } else {
+        setReports(data?.items || []);
+        setTotal(typeof data?.total === 'number' ? data.total : null);
+      }
+    } catch (err) {
+      console.error('Failed to load analyst reports', err);
+      toast?.({ title: 'Failed to load reports', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, page, limit]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   async function handleExport(r: any) {
     try {

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
@@ -10,33 +10,57 @@ import formatDate from '@/lib/formatDate';
 
 export default function ReviewerReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchReports = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get('/v1/reports?role=reviewer');
-        if (!mounted) {return;}
-        setReports(Array.isArray(res?.data) ? res.data : (res?.data?.items || []));
-      } catch (err) {
-        console.error('Failed to load reviewer reports', err);
-        toast?.({ title: 'Failed to load reports', variant: 'destructive' });
-      } finally {
-        if (mounted) {setLoading(false);}
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = new URLSearchParams();
+      q.set('page', String(page));
+      q.set('limit', String(limit));
+      q.set('role', 'reviewer');
+      const path = `/v1/reports?${q.toString()}`;
+      const res = await api.get(path);
+      const data = res?.data;
+      if (Array.isArray(data)) {
+        setReports(data);
+        setTotal(null);
+      } else {
+        setReports(data?.items || []);
+        setTotal(typeof data?.total === 'number' ? data.total : null);
       }
-    };
+    } catch (err) {
+      console.error('Failed to load reviewer reports', err);
+      toast?.({ title: 'Failed to load reports', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, page, limit]);
+
+  useEffect(() => {
     fetchReports();
-    return () => { mounted = false; };
-  }, [toast]);
+  }, [fetchReports]);
 
   return (
     <RoleProtected required={['reviewer','admin']}>
       <div className="p-8 max-w-6xl mx-auto">
         <Breadcrumbs />
-        <PageHeader title="Reviewer inbox" subtitle="Reports assigned to you for review" />
+        <div className="flex justify-between items-center">
+          <PageHeader title="Reviewer inbox" subtitle="Reports assigned to you for review" />
+          <div className="flex gap-2 items-center">
+            <label htmlFor="reviewer-page-size-select" className="text-sm">Page size:</label>
+            <select id="reviewer-page-size-select" value={String(limit)} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="border p-1 rounded text-sm">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
 
         <div className="mt-6 rounded-lg border bg-white p-4">
           {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
@@ -67,6 +91,24 @@ export default function ReviewerReportsPage() {
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* Pagination controls */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {total !== null ? `Showing page ${page} — ${reports.length} of ${total}` : `Showing page ${page} — ${reports.length}`}
+          </div>
+          <div className="flex gap-2 items-center">
+            <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button className="btn" disabled={total !== null && page * limit >= (total || 0)} onClick={() => setPage((p) => p + 1)}>Next</button>
+            {total !== null && (
+              <div className="flex gap-1 items-center ml-2">
+                {Array.from({ length: Math.max(1, Math.ceil(total / limit)) }, (_, i) => i + 1).map((n) => (
+                  <button key={n} className={`btn ${n === page ? 'btn-active' : ''}`} onClick={() => setPage(n)} disabled={n === page}>{String(n)}</button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </RoleProtected>

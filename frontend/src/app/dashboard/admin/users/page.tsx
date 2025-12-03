@@ -75,14 +75,22 @@ export default function UsersAdminPage() {
     setLoading(true);
     try {
       const res = await api.get(`/v1/users?page=${p}&limit=50`);
-      const items = res?.data?.items || [];
-      const count = typeof res?.data?.count === 'number' ? res.data.count : items.length;
-      const limit = typeof res?.data?.limit === 'number' ? res.data.limit : 50;
-      const totalP = Math.max(1, Math.ceil(count / limit));
+      const data = res?.data;
+      let items, count, resLimit;
+      if (Array.isArray(data)) {
+        items = data;
+        count = data.length;
+        resLimit = 50;
+      } else {
+        items = data?.items || [];
+        count = typeof data?.total === 'number' ? data.total : (typeof data?.count === 'number' ? data.count : items.length);
+        resLimit = typeof data?.limit === 'number' ? data.limit : 50;
+      }
+      const totalP = Math.max(1, Math.ceil(count / resLimit));
       setUsers(items);
       setTotalCount(count);
       setTotalPages(totalP);
-      setPage(Number(res?.data?.page || p));
+      setPage(Number(data?.page || p));
     } catch (e) {
       toast({ title: 'Failed to load users', variant: 'destructive' });
     } finally {
@@ -153,6 +161,13 @@ export default function UsersAdminPage() {
               <Button size="sm" variant="outline" onClick={() => loadUsers(Math.max(1, page - 1))} disabled={loading || page <= 1}>Previous</Button>
               <div className="text-sm">Page {page} / {totalPages}</div>
               <Button size="sm" variant="outline" onClick={() => loadUsers(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages}>Next</Button>
+              {totalPages > 1 && (
+                <div className="flex gap-1 items-center ml-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                    <Button key={n} size="sm" variant={n === page ? 'default' : 'ghost'} onClick={() => loadUsers(n)} disabled={n === page || loading}>{String(n)}</Button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
