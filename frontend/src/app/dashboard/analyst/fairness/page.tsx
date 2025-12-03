@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
@@ -32,6 +32,12 @@ export default function FairnessPage() {
   const [heatmap, setHeatmap] = useState<Heatmap | null>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [loadingHeatmap, setLoadingHeatmap] = useState(false);
+  // Paginated fairness events/logs
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsLimit, setEventsLimit] = useState(10);
+  const [eventsTotal, setEventsTotal] = useState<number | null>(null);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   useEffect(() => {
     async function fetchMetrics() {
@@ -64,6 +70,35 @@ export default function FairnessPage() {
     }
     fetchHeatmap();
   }, [modelId]);
+
+  const fetchEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    try {
+      const q = new URLSearchParams();
+      q.set('page', String(eventsPage));
+      q.set('limit', String(eventsLimit));
+      if (modelId) q.set('modelId', modelId);
+      if (datasetId) q.set('datasetId', datasetId);
+      const res = await api.get(`/v1/fairness/events?${q.toString()}`);
+      const data = res?.data;
+      if (Array.isArray(data)) {
+        setEvents(data);
+        setEventsTotal(null);
+      } else {
+        setEvents(data?.items || []);
+        setEventsTotal(typeof data?.total === 'number' ? data.total : null);
+      }
+    } catch (e) {
+      console.error('Failed to load fairness events', e);
+      toast({ title: 'Failed to load events', variant: 'destructive' });
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [eventsPage, eventsLimit, modelId, datasetId, toast]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   return (
     <RoleProtected required={['analyst', 'admin']}>
@@ -162,6 +197,77 @@ export default function FairnessPage() {
               ) : (
                 <div className="text-sm text-muted-foreground">No bias metrics available. Provide modelId and datasetId in query to populate table.</div>
               )}
+            </div>
+          </div>
+
+          {/* Paginated events/logs section */}
+          <div className="rounded-lg border bg-white p-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Recent fairness events</h3>
+              <div className="flex gap-2 items-center">
+                <label htmlFor="analyst-fairness-page-size-select" className="text-sm">Page size:</label>
+                <select
+                  id="analyst-fairness-page-size-select"
+                  value={String(eventsLimit)}
+                  onChange={(e) => { setEventsLimit(Number(e.target.value)); setEventsPage(1); }}
+                  className="border p-1 rounded text-sm"
+                >
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {loadingEvents && <div className="text-sm text-muted-foreground">Loading…</div>}
+              {!loadingEvents && events.length === 0 && (
+                <div className="text-sm text-muted-foreground">No events</div>
+              )}
+              {!loadingEvents && events.length > 0 && (
+                <div className="overflow-auto">
+                  <table className="w-full text-sm table-auto">
+                    <thead className="text-xs text-muted-foreground border-b">
+                      <tr>
+                        <th className="py-2">Timestamp</th>
+                        <th className="py-2">Model</th>
+                        <th className="py-2">Dataset</th>
+                        <th className="py-2">Type</th>
+                        <th className="py-2">Severity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map((e, idx) => (
+                        <tr key={e.id || idx} className="border-b">
+                          <td className="py-2">{e.timestamp || e.createdAt || '—'}</td>
+                          <td className="py-2">{e.modelId || e.model || '—'}</td>
+                          <td className="py-2">{e.datasetId || e.dataset || '—'}</td>
+                          <td className="py-2">{e.type || '—'}</td>
+                          <td className="py-2">{e.severity || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {eventsTotal !== null ? `Showing page ${eventsPage} — ${events.length} of ${eventsTotal}` : `Showing page ${eventsPage} — ${events.length}`}
+              </div>
+              <div className="flex gap-2 items-center">
+                <button className="btn" disabled={eventsPage <= 1} onClick={() => setEventsPage((p) => Math.max(1, p - 1))}>Previous</button>
+                <button className="btn" disabled={eventsTotal !== null && eventsPage * eventsLimit >= (eventsTotal || 0)} onClick={() => setEventsPage((p) => p + 1)}>Next</button>
+                {eventsTotal !== null && (
+                  <div className="flex gap-1 items-center ml-2">
+                    {Array.from({ length: Math.max(1, Math.ceil((eventsTotal || 0) / eventsLimit)) }, (_, i) => i + 1).map((n) => (
+                      <button key={n} className={`btn ${n === eventsPage ? 'btn-active' : ''}`} onClick={() => setEventsPage(n)} disabled={n === eventsPage}>{String(n)}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>

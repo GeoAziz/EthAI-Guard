@@ -29,9 +29,9 @@ describe('Run Analysis flow', () => {
 
     render(<RunAnalysisPage />);
 
-    // fill form
-    fireEvent.change(screen.getByPlaceholderText('model-id'), { target: { value: 'm1' } });
-    fireEvent.change(screen.getByPlaceholderText('dataset-id'), { target: { value: 'd1' } });
+  // fill form (use labels to avoid ambiguity when multiple inputs share placeholders)
+  fireEvent.change(screen.getByLabelText('Model ID'), { target: { value: 'm1' } });
+  fireEvent.change(screen.getByLabelText('Dataset ID'), { target: { value: 'd1' } });
 
     const startBtn = screen.getByRole('button', { name: /Start run/i });
     fireEvent.click(startBtn);
@@ -56,9 +56,9 @@ describe('Run Analysis flow', () => {
     apiMod.default.post = vi.fn().mockResolvedValueOnce({ data: { runId: 'run-err' } });
     apiMod.default.get = vi.fn().mockResolvedValueOnce({ data: { status: 'failed' } });
 
-    render(<RunAnalysisPage />);
-    fireEvent.change(screen.getByPlaceholderText('model-id'), { target: { value: 'mX' } });
-    fireEvent.change(screen.getByPlaceholderText('dataset-id'), { target: { value: 'dY' } });
+  render(<RunAnalysisPage />);
+  fireEvent.change(screen.getByLabelText('Model ID'), { target: { value: 'mX' } });
+  fireEvent.change(screen.getByLabelText('Dataset ID'), { target: { value: 'dY' } });
     fireEvent.click(screen.getByRole('button', { name: /Start run/i }));
 
     await waitFor(() => expect(apiMod.default.post).toHaveBeenCalled());
