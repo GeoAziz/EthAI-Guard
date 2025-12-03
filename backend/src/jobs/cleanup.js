@@ -5,6 +5,8 @@
  * and enforces retention policies.
  */
 
+const logger = require('../utils/logger');
+
 /**
  * Aggregate 7-day snapshots into daily summaries
  * @param {Object} db - MongoDB database connection
@@ -17,7 +19,7 @@ async function aggregateDailySnapshots(db, targetDate) {
   const dayEnd = new Date(targetDate);
   dayEnd.setHours(23, 59, 59, 999);
 
-  console.log(`Aggregating snapshots for ${dayStart.toISOString().slice(0, 10)}`);
+  logger.info(`Aggregating snapshots for ${dayStart.toISOString().slice(0, 10)}`);
 
   // Get all snapshots for the day
   const snapshots = await db.collection('drift_snapshots').find({
@@ -28,7 +30,7 @@ async function aggregateDailySnapshots(db, targetDate) {
   }).toArray();
 
   if (snapshots.length === 0) {
-    console.log('No snapshots found for aggregation');
+    logger.info('No snapshots found for aggregation');
     return { success: true, aggregated: 0 };
   }
 
@@ -67,7 +69,7 @@ async function aggregateDailySnapshots(db, targetDate) {
   // Store summaries
   if (summaries.length > 0) {
     await db.collection('drift_daily_summaries').insertMany(summaries);
-    console.log(`Created ${summaries.length} daily summaries`);
+    logger.info(`Created ${summaries.length} daily summaries`);
   }
 
   // Delete old high-frequency snapshots (keep only last 7 days)
@@ -76,7 +78,7 @@ async function aggregateDailySnapshots(db, targetDate) {
     window_end: { $lt: sevenDaysAgo.toISOString() },
   });
 
-  console.log(`Deleted ${deleteResult.deletedCount} old snapshots`);
+  logger.info(`Deleted ${deleteResult.deletedCount} old snapshots`);
 
   return {
     success: true,
@@ -92,13 +94,13 @@ async function aggregateDailySnapshots(db, targetDate) {
 async function cleanupExpiredAlerts(db) {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
-  console.log(`Cleaning up alerts older than ${ninetyDaysAgo.toISOString()}`);
+  logger.info(`Cleaning up alerts older than ${ninetyDaysAgo.toISOString()}`);
 
   const result = await db.collection('drift_alerts').deleteMany({
     created_at: { $lt: ninetyDaysAgo.toISOString() },
   });
 
-  console.log(`Deleted ${result.deletedCount} expired alerts`);
+  logger.info(`Deleted ${result.deletedCount} expired alerts`);
 
   return {
     success: true,
@@ -114,7 +116,7 @@ async function archiveOldSummaries(db) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const targetDate = thirtyDaysAgo.toISOString().slice(0, 10);
 
-  console.log(`Archiving daily summaries older than ${targetDate}`);
+  logger.info(`Archiving daily summaries older than ${targetDate}`);
 
   // Optional: Export to archive collection or external storage
   const summaries = await db.collection('drift_daily_summaries').find({
@@ -123,14 +125,14 @@ async function archiveOldSummaries(db) {
 
   if (summaries.length > 0) {
     // Could export to S3, archive DB, etc.
-    console.log(`Found ${summaries.length} summaries to archive`);
+    logger.info(`Found ${summaries.length} summaries to archive`);
 
     // For now, just delete (in production, would export first)
     const result = await db.collection('drift_daily_summaries').deleteMany({
       date: { $lt: targetDate },
     });
 
-    console.log(`Deleted ${result.deletedCount} old summaries`);
+    logger.info(`Deleted ${result.deletedCount} old summaries`);
 
     return {
       success: true,
@@ -146,8 +148,8 @@ async function archiveOldSummaries(db) {
  * @param {Object} db - MongoDB database connection
  */
 async function runCleanupJob(db) {
-  console.log('=== Starting Data Retention Cleanup Job ===');
-  console.log(`Timestamp: ${new Date().toISOString()}`);
+  logger.info('=== Starting Data Retention Cleanup Job ===');
+  logger.info(`Timestamp: ${new Date().toISOString()}`);
 
   const results = {
     aggregation: null,
@@ -160,7 +162,7 @@ async function runCleanupJob(db) {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     results.aggregation = await aggregateDailySnapshots(db, yesterday);
   } catch (error) {
-    console.error('Error in aggregation:', error);
+    logger.error('Error in aggregation:', error);
     results.aggregation = { success: false, error: error.message };
   }
 
@@ -168,7 +170,7 @@ async function runCleanupJob(db) {
     // Cleanup expired alerts
     results.alertCleanup = await cleanupExpiredAlerts(db);
   } catch (error) {
-    console.error('Error in alert cleanup:', error);
+    logger.error('Error in alert cleanup:', error);
     results.alertCleanup = { success: false, error: error.message };
   }
 
@@ -176,15 +178,15 @@ async function runCleanupJob(db) {
     // Archive old summaries
     results.summaryArchive = await archiveOldSummaries(db);
   } catch (error) {
-    console.error('Error in summary archive:', error);
+    logger.error('Error in summary archive:', error);
     results.summaryArchive = { success: false, error: error.message };
   }
 
-  console.log('=== Cleanup Job Complete ===');
-  console.log(`Snapshots aggregated: ${results.aggregation?.aggregated || 0}`);
-  console.log(`Old snapshots deleted: ${results.aggregation?.deleted || 0}`);
-  console.log(`Alerts cleaned up: ${results.alertCleanup?.deleted || 0}`);
-  console.log(`Summaries archived: ${results.summaryArchive?.archived || 0}`);
+  logger.info('=== Cleanup Job Complete ===');
+  logger.info(`Snapshots aggregated: ${results.aggregation?.aggregated || 0}`);
+  logger.info(`Old snapshots deleted: ${results.aggregation?.deleted || 0}`);
+  logger.info(`Alerts cleaned up: ${results.alertCleanup?.deleted || 0}`);
+  logger.info(`Summaries archived: ${results.summaryArchive?.archived || 0}`);
 
   return results;
 }
@@ -195,7 +197,7 @@ async function runCleanupJob(db) {
  * @param {number} intervalHours - Hours between runs (default 24)
  */
 function scheduleCleanup(db, intervalHours = 24) {
-  console.log(`Scheduling cleanup job every ${intervalHours} hours`);
+  logger.info(`Scheduling cleanup job every ${intervalHours} hours`);
 
   // Run immediately
   runCleanupJob(db);
