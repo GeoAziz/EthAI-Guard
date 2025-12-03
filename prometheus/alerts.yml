@@ -1,7 +1,5 @@
-/**
- * Prometheus Alerting Rules
- * Defines alerting conditions for monitoring
- */
+# Prometheus Alerting Rules
+# Defines alerting conditions for monitoring
 
 groups:
   - name: ethixai_alerts

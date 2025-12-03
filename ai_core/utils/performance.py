@@ -13,15 +13,15 @@ from datetime import datetime, timedelta
 
 class PerformanceCache:
     """Simple in-memory cache for expensive computations"""
-    
+
     def __init__(self, ttl_seconds: int = 300):
         self._cache: Dict[str, tuple[Any, float]] = {}
         self.ttl_seconds = ttl_seconds
-    
+
     def _is_expired(self, timestamp: float) -> bool:
         """Check if cache entry is expired"""
         return time.time() - timestamp > self.ttl_seconds
-    
+
     def get(self, key: str) -> Any:
         """Get cached value if not expired"""
         if key in self._cache:
@@ -31,15 +31,15 @@ class PerformanceCache:
             else:
                 del self._cache[key]
         return None
-    
+
     def set(self, key: str, value: Any):
         """Set cache value with current timestamp"""
         self._cache[key] = (value, time.time())
-    
+
     def clear(self):
         """Clear all cache entries"""
         self._cache.clear()
-    
+
     def cleanup_expired(self):
         """Remove expired entries"""
         expired_keys = [
@@ -56,25 +56,25 @@ _analysis_cache = PerformanceCache(ttl_seconds=300)
 
 def cache_analysis_result(func: Callable) -> Callable:
     """Decorator to cache analysis results based on input hash"""
-    
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         # Create cache key from function args
         cache_key = _create_cache_key(func.__name__, args, kwargs)
-        
+
         # Check cache
         cached_result = _analysis_cache.get(cache_key)
         if cached_result is not None:
             return cached_result
-        
+
         # Compute result
         result = func(*args, **kwargs)
-        
+
         # Store in cache
         _analysis_cache.set(cache_key, result)
-        
+
         return result
-    
+
     return wrapper
 
 
@@ -106,15 +106,15 @@ def optimize_dataframe_memory(df):
     """Optimize pandas DataFrame memory usage"""
     try:
         import pandas as pd
-        
+
         for col in df.columns:
             col_type = df[col].dtype
-            
+
             if col_type != object:
                 # Optimize numeric columns
                 c_min = df[col].min()
                 c_max = df[col].max()
-                
+
                 if str(col_type)[:3] == 'int':
                     if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
                         df[col] = df[col].astype(np.int8)
@@ -125,7 +125,7 @@ def optimize_dataframe_memory(df):
                 else:
                     if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
                         df[col] = df[col].astype(np.float32)
-        
+
         return df
     except Exception as e:
         print(f"Warning: Could not optimize DataFrame: {e}")
@@ -134,16 +134,16 @@ def optimize_dataframe_memory(df):
 
 class PerformanceTimer:
     """Context manager for timing code execution"""
-    
+
     def __init__(self, name: str = "Operation"):
         self.name = name
         self.start_time = None
         self.end_time = None
-    
+
     def __enter__(self):
         self.start_time = time.time()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.time()
         # Do not suppress exceptions; return False so exceptions propagate.

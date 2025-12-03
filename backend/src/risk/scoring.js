@@ -18,9 +18,13 @@ function computeRisk(simulation, rules) {
   }
 
   let level;
-  if (base >= 67) level = 'high';
-  else if (base >= 34) level = 'medium';
-  else level = 'low';
+  if (base >= 67) {
+    level = 'high';
+  } else if (base >= 34) {
+    level = 'medium';
+  } else {
+    level = 'low';
+  }
 
   return { score: base, level, reasons };
 }

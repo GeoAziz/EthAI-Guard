@@ -197,6 +197,25 @@ jobs:
             --exit-code 1 \
             ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
 
+      - name: Scan ai_core image for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            ${{ env.AI_CORE_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
+      - name: Scan frontend image for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            ${{ env.FRONTEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
+
   # =========================
   # Job 2: Deploy to Staging
   # =========================

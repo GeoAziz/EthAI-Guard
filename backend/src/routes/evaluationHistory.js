@@ -7,7 +7,6 @@ const { authGuard } = require('../middleware/authGuard');
 // Conditional auth: use Firebase when configured, else fall back to local JWT
 // Use centralized auth guard which supports Firebase or JWT fallback and test-mode bypass
 
-
 // GET /v1/evaluations - List recent evaluations with filters
 router.get('/v1/evaluations', authGuard, async (req, res) => {
   try {
@@ -19,7 +18,7 @@ router.get('/v1/evaluations', authGuard, async (req, res) => {
       risk_level,
       model_id,
       limit: parseInt(limit) || 20,
-      offset: parseInt(offset) || 0
+      offset: parseInt(offset) || 0,
     };
 
     const evaluations = await getEvaluations(filters);

@@ -6,7 +6,7 @@ Features:
 - Automatic rotation and retention
 - Structured logging with context
 - Performance tracking
-- Compliance audit trail 
+- Compliance audit trail
 - Error tracking with full context
 """
 
@@ -92,11 +92,11 @@ logger.add(
 
 class AILogger:
     """Enhanced logger with specialized methods for AI operations"""
-    
+
     def __init__(self):
         self.logger = logger
         self._add_context()
-    
+
     def _add_context(self):
         """Add global context to all logs"""
         self.logger = self.logger.bind(
@@ -104,7 +104,7 @@ class AILogger:
             environment=ENVIRONMENT,
             version=os.getenv('VERSION', '1.0.0')
         )
-    
+
     def log_inference_request(
         self,
         model_type: str,
@@ -126,7 +126,7 @@ class AILogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-    
+
     def log_inference_response(
         self,
         model_type: str,
@@ -137,7 +137,7 @@ class AILogger:
     ):
         """Log model inference response"""
         log_level = "warning" if bias_detected else "info"
-        
+
         getattr(self.logger, log_level)(
             f"Model inference completed in {duration_ms:.2f}ms",
             extra={
@@ -150,7 +150,7 @@ class AILogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-    
+
     def log_bias_detection(
         self,
         protected_attribute: str,
@@ -162,7 +162,7 @@ class AILogger:
     ):
         """Log bias detection event"""
         log_level = "warning" if bias_detected else "info"
-        
+
         getattr(self.logger, log_level)(
             f"Bias detection: {protected_attribute} - {metric}={value:.4f} (threshold={threshold})",
             extra={
@@ -177,7 +177,7 @@ class AILogger:
                 "audit": True  # Mark as audit event
             }
         )
-    
+
     def log_shap_computation(
         self,
         duration_ms: float,
@@ -187,7 +187,7 @@ class AILogger:
     ):
         """Log SHAP value computation"""
         log_level = "warning" if duration_ms > 5000 else "info"
-        
+
         getattr(self.logger, log_level)(
             f"SHAP computation completed in {duration_ms:.2f}ms",
             extra={
@@ -200,7 +200,7 @@ class AILogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-    
+
     def log_model_cache(
         self,
         operation: str,
@@ -220,7 +220,7 @@ class AILogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-    
+
     def log_data_validation(
         self,
         validation_result: str,
@@ -230,7 +230,7 @@ class AILogger:
     ):
         """Log data validation results"""
         log_level = "warning" if issues_found > 0 else "info"
-        
+
         getattr(self.logger, log_level)(
             f"Data validation: {validation_result} ({issues_found} issues found)",
             extra={
@@ -242,7 +242,7 @@ class AILogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
-    
+
     def log_performance_metric(
         self,
         operation: str,
@@ -251,22 +251,22 @@ class AILogger:
     ):
         """Log performance metric"""
         log_level = "warning" if duration_ms > 1000 else "debug"
-        
+
         extra_data = {
             "event_type": "performance",
             "operation": operation,
             "duration_ms": duration_ms,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
         if metadata:
             extra_data.update(metadata)
-        
+
         getattr(self.logger, log_level)(
             f"Performance: {operation} took {duration_ms:.2f}ms",
             extra=extra_data
         )
-    
+
     def log_error(
         self,
         error: Exception,
@@ -279,15 +279,15 @@ class AILogger:
             "error_message": str(error),
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
         if context:
             extra_data.update(context)
-        
+
         self.logger.error(
             f"Error occurred: {str(error)}",
             extra=extra_data
         )
-    
+
     def log_audit_event(
         self,
         action: str,
@@ -304,10 +304,10 @@ class AILogger:
             "timestamp": datetime.utcnow().isoformat(),
             "audit": True  # Flag for audit log filter
         }
-        
+
         if details:
             extra_data.update(details)
-        
+
         self.logger.info(
             f"Audit: {action}",
             extra=extra_data

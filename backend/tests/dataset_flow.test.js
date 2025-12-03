@@ -34,7 +34,7 @@ describe('Datasets presign + ingest flow', () => {
     expect(ingest.body.status).toBe('ingested');
     expect(ingest.body.rows).toBe(2);
     expect(Array.isArray(ingest.body.header)).toBe(true);
-    expect(Array.isArray(ingest.body.rows_preview)).toBe(true);
-    expect(ingest.body.rows_preview.length).toBeGreaterThan(0);
+    expect(Array.isArray(ingest.body.rowsPreview)).toBe(true);
+    expect(ingest.body.rowsPreview.length).toBeGreaterThan(0);
   });
 });

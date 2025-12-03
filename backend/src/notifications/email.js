@@ -1,8 +1,11 @@
 /**
  * Email Notification Handler
- * 
+ *
  * Sends drift alerts via email using SMTP.
  */
+
+const logger = require('../utils/logger');
+
 /**
  * Notification Email Templates and Sender
  *
@@ -20,7 +23,7 @@ try {
 
 function createTransporter() {
   if (!nodemailer) {
-    console.warn('nodemailer not available; email notifications disabled');
+    logger.warn('nodemailer not available; email notifications disabled');
     return null;
   }
   const config = {
@@ -29,12 +32,12 @@ function createTransporter() {
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
+      pass: process.env.SMTP_PASS,
+    },
   };
 
   if (!config.auth.user || !config.auth.pass) {
-    console.warn('SMTP credentials not configured');
+    logger.warn('SMTP credentials not configured');
     return null;
   }
 
@@ -56,7 +59,7 @@ function renderEmailTemplate(alert) {
       ${alert.details && alert.details.notes ? `<p>Notes: ${String(alert.details.notes)}</p>` : ''}
       <p>Thanks,<br/>EthixAI-Guard</p>
     `;
-    const text = `Hello ${requester},\n\nYour access request has been APPROVED.\nRequest ID: ${alert._id}\nHandled at: ${now}\n` + (alert.details && alert.details.notes ? `Notes: ${String(alert.details.notes)}\n` : '') + '\nThanks,\nEthixAI-Guard';
+    const text = `Hello ${requester},\n\nYour access request has been APPROVED.\nRequest ID: ${alert._id}\nHandled at: ${now}\n${alert.details && alert.details.notes ? `Notes: ${String(alert.details.notes)}\n` : ''}\nThanks,\nEthixAI-Guard`;
     return { subject, html, text };
   }
 
@@ -71,12 +74,12 @@ function renderEmailTemplate(alert) {
       <p>If you have questions please contact your administrator.</p>
       <p>Thanks,<br/>EthixAI-Guard</p>
     `;
-    const text = `Hello ${requester},\n\nYour access request has been REJECTED.\nRequest ID: ${alert._id}\nHandled at: ${now}\n` + (alert.details && alert.details.notes ? `Notes: ${String(alert.details.notes)}\n` : '') + '\nIf you have questions please contact your administrator.\n\nThanks,\nEthixAI-Guard';
+    const text = `Hello ${requester},\n\nYour access request has been REJECTED.\nRequest ID: ${alert._id}\nHandled at: ${now}\n${alert.details && alert.details.notes ? `Notes: ${String(alert.details.notes)}\n` : ''}\nIf you have questions please contact your administrator.\n\nThanks,\nEthixAI-Guard`;
     return { subject, html, text };
   }
 
   // Default: generic alert rendering
-  const subject = `${alert.severity ? '[' + alert.severity.toUpperCase() + '] ' : ''}${(alert.type || 'Notification').replace(/_/g, ' ')}`;
+  const subject = `${alert.severity ? `[${alert.severity.toUpperCase()}] ` : ''}${(alert.type || 'Notification').replace(/_/g, ' ')}`;
   const html = `<p>${alert.details ? JSON.stringify(alert.details) : 'Notification'}</p>`;
   const text = alert.details ? JSON.stringify(alert.details) : 'Notification';
   return { subject, html, text };
@@ -89,7 +92,9 @@ function renderEmailTemplate(alert) {
  */
 async function sendAlertEmail(alert, to) {
   const transporter = createTransporter();
-  if (!transporter) return { success: false, error: 'SMTP not configured' };
+  if (!transporter) {
+    return { success: false, error: 'SMTP not configured' };
+  }
 
   const rendered = renderEmailTemplate(alert);
   const mailOptions = {
@@ -97,7 +102,7 @@ async function sendAlertEmail(alert, to) {
     to: to || process.env.ALERT_EMAIL || alert.email,
     subject: rendered.subject,
     text: rendered.text,
-    html: rendered.html
+    html: rendered.html,
   };
 
   try {
@@ -110,16 +115,21 @@ async function sendAlertEmail(alert, to) {
 
 async function sendDailySummaryEmail(summary, to) {
   const transporter = createTransporter();
-  if (!transporter) return { success: false, error: 'SMTP not configured' };
+  if (!transporter) {
+    return { success: false, error: 'SMTP not configured' };
+  }
   const subject = `📊 Daily Drift Summary - ${new Date(summary.date).toLocaleDateString()}`;
   const html = `<p>Daily summary for ${new Date(summary.date).toLocaleDateString()}</p>`;
   const mailOptions = { from: process.env.SMTP_FROM || process.env.SMTP_USER, to: to || process.env.ALERT_EMAIL, subject, html };
-  try { const info = await transporter.sendMail(mailOptions); return { success: true, messageId: info && info.messageId }; } catch (err) { return { success: false, error: err && err.message ? err.message : String(err) }; }
+  try {
+    const info = await transporter.sendMail(mailOptions); return { success: true, messageId: info && info.messageId };
+  } catch (err) {
+    return { success: false, error: err && err.message ? err.message : String(err) };
+  }
 }
 
 module.exports = {
   renderEmailTemplate,
   sendAlertEmail,
-  sendDailySummaryEmail
+  sendDailySummaryEmail,
 };
-

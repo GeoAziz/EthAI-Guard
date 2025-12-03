@@ -14,18 +14,24 @@ const baseLogger = pino({
   level: process.env.LOG_LEVEL || (isProd ? 'info' : 'debug'),
   transport: enablePretty
     ? {
-        target: 'pino-pretty',
-        options: { colorize: true, translateTime: 'SYS:standard' }
-      }
-    : undefined
+      target: 'pino-pretty',
+      options: { colorize: true, translateTime: 'SYS:standard' },
+    }
+    : undefined,
 });
 
 // helper to create child loggers with request context
 function loggerWithRequest(req) {
-  if (!req) return baseLogger;
+  if (!req) {
+    return baseLogger;
+  }
   const meta = {};
-  if (req.headers && req.headers['x-request-id']) meta.request_id = req.headers['x-request-id'];
-  if (req.user && req.user.sub) meta.user_id = req.user.sub;
+  if (req.headers && req.headers['x-request-id']) {
+    meta.request_id = req.headers['x-request-id'];
+  }
+  if (req.user && req.user.sub) {
+    meta.user_id = req.user.sub;
+  }
   return baseLogger.child(meta);
 }
 

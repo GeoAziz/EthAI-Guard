@@ -14,8 +14,8 @@ jest.mock('firebase-admin', () => ({
   credential: { cert: jest.fn() },
   auth: () => ({
     setCustomUserClaims: mockSetCustomUserClaims,
-    getUserByEmail: mockGetUserByEmail
-  })
+    getUserByEmail: mockGetUserByEmail,
+  }),
 }));
 
 describe('POST /v1/users/promote', () => {

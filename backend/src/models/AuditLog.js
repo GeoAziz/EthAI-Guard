@@ -1,6 +1,6 @@
 /**
  * Audit Log Mongoose Model
- * 
+ *
  * Immutable audit trail for all governance events.
  * TTL index automatically deletes logs after 7 years (regulatory requirement).
  */
@@ -12,9 +12,9 @@ const auditLogSchema = new mongoose.Schema({
     type: Date,
     required: true,
     index: true,
-    immutable: true  // Cannot be changed after creation
+    immutable: true,  // Cannot be changed after creation
   },
-  
+
   event_type: {
     type: String,
     required: true,
@@ -28,85 +28,85 @@ const auditLogSchema = new mongoose.Schema({
       'compliance_audit',
       'threshold_updated',
       'policy_updated',
-      'baseline_created'
+      'baseline_created',
     ],
-    index: true
+    index: true,
   },
-  
+
   // Model identification
   model_id: {
     type: String,
     required: true,
-    index: true
+    index: true,
   },
-  
+
   model_version: {
     type: String,
-    required: true
+    required: true,
   },
-  
+
   // Actor (who performed the action)
   actor: {
     type: String,
     required: true,
-    default: 'system'
+    default: 'system',
     // Values: 'system', user email, 'github-actions'
   },
-  
+
   actor_type: {
     type: String,
     enum: ['human', 'system', 'ci_cd'],
-    default: 'system'
+    default: 'system',
   },
-  
+
   // Action details
   action: {
     type: String,
-    required: true
+    required: true,
     // Human-readable description
   },
-  
+
   status: {
     type: String,
     required: true,
     enum: ['PASS', 'WARNING', 'FAIL', 'INFO'],
-    index: true
+    index: true,
   },
-  
+
   // Detailed event data
   details: {
     type: mongoose.Schema.Types.Mixed,
-    required: false
+    required: false,
     // Flexible schema for event-specific data
   },
-  
+
   // Compliance-specific fields
   compliance_status: {
     type: String,
     enum: ['COMPLIANT', 'NON_COMPLIANT', 'UNDER_REVIEW', null],
     required: false,
-    index: true
+    index: true,
   },
-  
+
   policy_violations: [{
     policy_name: {
       type: String,
-      required: true
+      required: true,
     },
     severity: {
       type: String,
       enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-      required: true
+      required: true,
     },
     message: {
       type: String,
-      required: true
+      required: true,
     },
     threshold_value: Number,
     actual_value: Number,
-    regulation: String  // e.g., "EU AI Act Article 10"
+    regulation: String,  // e.g., "EU AI Act Article 10"
   }],
-  
+
   // Metadata for traceability
   metadata: {
     ip_address: String,      // Hashed for privacy
@@ -118,21 +118,21 @@ const auditLogSchema = new mongoose.Schema({
     environment: {
       type: String,
       enum: ['development', 'staging', 'production'],
-      default: 'production'
-    }
+      default: 'production',
+    },
   },
-  
+
   // Related entities
   related_entities: [{
     entity_type: {
       type: String,
-      enum: ['model_card', 'compliance_report', 'drift_record', 'alert']
+      enum: ['model_card', 'compliance_report', 'drift_record', 'alert'],
     },
-    entity_id: String
-  }]
+    entity_id: String,
+  }],
 }, {
   timestamps: true,  // Adds createdAt, updatedAt
-  collection: 'audit_logs'
+  collection: 'audit_logs',
 });
 
 // Compound indexes for fast queries
@@ -145,11 +145,11 @@ auditLogSchema.index({ actor: 1, timestamp: -1 });
 // TTL index: Auto-delete after 7 years (220752000 seconds)
 auditLogSchema.index(
   { timestamp: 1 },
-  { expireAfterSeconds: 220752000 }  // 7 years (financial services requirement)
+  { expireAfterSeconds: 220752000 },  // 7 years (financial services requirement)
 );
 
 // Immutability enforcement: Prevent updates after creation
-auditLogSchema.pre('save', function(next) {
+auditLogSchema.pre('save', function (next) {
   if (!this.isNew) {
     return next(new Error('Audit logs are immutable and cannot be updated'));
   }
@@ -157,55 +157,57 @@ auditLogSchema.pre('save', function(next) {
 });
 
 // Prevent findOneAndUpdate, updateOne, updateMany
-auditLogSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function(next) {
+auditLogSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], (next) => {
   return next(new Error('Audit logs are immutable and cannot be updated'));
 });
 
 // Prevent deletion (except TTL automatic deletion)
-auditLogSchema.pre(['findOneAndDelete', 'deleteOne', 'deleteMany'], function(next) {
+auditLogSchema.pre(['findOneAndDelete', 'deleteOne', 'deleteMany'], (next) => {
   return next(new Error('Audit logs cannot be manually deleted (TTL auto-deletion only)'));
 });
 
 // Virtual for easier access to violation count
-auditLogSchema.virtual('violation_count').get(function() {
+auditLogSchema.virtual('violation_count').get(function () {
   return this.policy_violations ? this.policy_violations.length : 0;
 });
 
 // Virtual for critical violations only
-auditLogSchema.virtual('critical_violations').get(function() {
-  return this.policy_violations 
+auditLogSchema.virtual('critical_violations').get(function () {
+  return this.policy_violations
     ? this.policy_violations.filter(v => v.severity === 'CRITICAL')
     : [];
 });
 
 // Method to check if event is critical
-auditLogSchema.methods.isCritical = function() {
+auditLogSchema.methods.isCritical = function () {
   return this.status === 'FAIL' && this.critical_violations.length > 0;
 };
 
 // Static method to get recent violations
-auditLogSchema.statics.getRecentViolations = async function(days = 7) {
+auditLogSchema.statics.getRecentViolations = async function (days = 7) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   return this.find({
     event_type: 'policy_violation',
-    timestamp: { $gte: startDate }
+    timestamp: { $gte: startDate },
   }).sort({ timestamp: -1 });
 };
 
 // Static method to get compliance rate
-auditLogSchema.statics.getComplianceRate = async function(days = 30) {
+auditLogSchema.statics.getComplianceRate = async function (days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   const checks = await this.find({
     event_type: 'compliance_check',
-    timestamp: { $gte: startDate }
+    timestamp: { $gte: startDate },
   });
-  
-  if (checks.length === 0) return 1.0;
-  
+
+  if (checks.length === 0) {
+    return 1.0;
+  }
+
   const passed = checks.filter(c => c.status === 'PASS').length;
   return passed / checks.length;
 };

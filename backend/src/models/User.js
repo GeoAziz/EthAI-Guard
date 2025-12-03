@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema({
   password_hash: String,
   firebase_uid: { type: String, unique: true, sparse: true }, // Firebase UID
   role: { type: String, default: 'user' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -9,7 +9,9 @@ function evaluateFairness(inputFeatures, context) {
   if (!Array.isArray(data) || data.length === 0) {
     return { fairness_flag: false, reason: 'no_sensitive_data', ratio: null, threshold: 0.7 };
   }
-  const counts = data.reduce((acc, v) => { acc[v] = (acc[v] || 0) + 1; return acc; }, {});
+  const counts = data.reduce((acc, v) => {
+    acc[v] = (acc[v] || 0) + 1; return acc;
+  }, {});
   const maxRatio = Math.max(...Object.values(counts)) / data.length;
   const fairness_flag = maxRatio > 0.7;
   return { fairness_flag, reason: fairness_flag ? 'distribution_imbalanced' : 'distribution_ok', ratio: Number(maxRatio.toFixed(3)), threshold: 0.7 };

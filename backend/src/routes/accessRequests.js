@@ -32,7 +32,9 @@ async function findAccessRequestByIdInMemory(id) {
 
 async function listAccessRequestsInMemory(q = {}, skip = 0, limit = 100) {
   let items = _accessRequests.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  if (q.status) items = items.filter(i => i.status === q.status);
+  if (q.status) {
+    items = items.filter(i => i.status === q.status);
+  }
   return items.slice(skip, skip + limit);
 }
 const { authGuard } = require('../middleware/authGuard');
@@ -50,11 +52,13 @@ router.post(
   body('reason').isString().isLength({ min: 5 }),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+    }
     try {
       const name = req.body.name || (req.user && req.user.name) || null;
       const email = req.body.email || (req.user && req.user.email) || null;
-      const reason = req.body.reason;
+      const { reason } = req.body;
       const requesterId = req.user && req.user.sub ? String(req.user.sub) : null;
 
       let doc;
@@ -69,7 +73,7 @@ router.post(
       logger.error({ err: e }, 'access_request_create_failed');
       return res.status(500).json({ error: 'create_failed' });
     }
-  }
+  },
 );
 
 /**
@@ -81,7 +85,9 @@ router.get('/v1/access-requests', authGuard, requireRole('admin'), async (req, r
     // Support pagination for large orgs. Query params: page, limit
     const { status, limit = 50, page = 1 } = req.query;
     const q = {};
-    if (typeof status === 'string' && status.length > 0) q.status = { $eq: status };
+    if (typeof status === 'string' && status.length > 0) {
+      q.status = { $eq: status };
+    }
     const pageNum = Math.max(1, Number(page) || 1);
     const perPage = Math.max(1, Math.min(500, Number(limit) || 50));
     const skip = (pageNum - 1) * perPage;
@@ -112,20 +118,28 @@ router.get('/v1/access-requests', authGuard, requireRole('admin'), async (req, r
  */
 router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
     let ar;
     if (USE_IN_MEMORY) {
       ar = await findAccessRequestByIdInMemory(id);
-      if (!ar) return res.status(404).json({ error: 'not_found' });
-      if (ar.status === 'approved') return res.status(400).json({ error: 'already_approved' });
+      if (!ar) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      if (ar.status === 'approved') {
+        return res.status(400).json({ error: 'already_approved' });
+      }
       ar.status = 'approved';
       ar.handledBy = req.user.sub || 'admin';
       ar.handledAt = new Date().toISOString();
       ar.updatedAt = new Date().toISOString();
     } else {
       ar = await AccessRequest.findById(id);
-      if (!ar) return res.status(404).json({ error: 'not_found' });
-      if (ar.status === 'approved') return res.status(400).json({ error: 'already_approved' });
+      if (!ar) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      if (ar.status === 'approved') {
+        return res.status(400).json({ error: 'already_approved' });
+      }
       // set status
       ar.status = 'approved';
       ar.handledBy = req.user.sub || 'admin';
@@ -164,15 +178,27 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
                 await firebaseAdmin.setCustomUserClaims(uid, { role: 'admin' });
                 logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set');
                 claimsSync = { status: 'success', message: 'custom_claims_set' };
-                try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { /* ignore */ }
+                try {
+                  if (claimsSyncSuccessTotal) {
+                    claimsSyncSuccessTotal.inc();
+                  }
+                } catch (mErr) { /* ignore */ }
               } else {
                 claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
-                try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
+                try {
+                  if (claimsSyncFailureTotal) {
+                    claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' });
+                  }
+                } catch (mErr) { }
               }
             } catch (fbErr) {
               logger.warn({ err: fbErr, email: ar.email }, 'firebase_set_custom_claims_failed');
               claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
-              try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
+              try {
+                if (claimsSyncFailureTotal) {
+                  claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' });
+                }
+              } catch (mErr) { }
             }
           } catch (e) {
             logger.warn({ err: e }, 'firebase_custom_claims_best_effort_failed');
@@ -186,7 +212,11 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
       } catch (e) {
         logger.warn({ err: e }, 'assign_role_best_effort_failed');
         claimsSync = { status: 'failed', message: e.message || String(e) };
-        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'assign_role_failed' }); } catch (mErr) { }
+        try {
+          if (claimsSyncFailureTotal) {
+            claimsSyncFailureTotal.inc({ reason: 'assign_role_failed' });
+          }
+        } catch (mErr) { }
       }
     } else {
       await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, details: { requestId: ar._id } });
@@ -202,7 +232,7 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
             severity: 'stable',
             email: ar.email,
             details: { requestId: ar._id, claimsSync },
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           };
           await notifications.sendAlert(alert);
         }
@@ -222,7 +252,7 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
             severity: 'stable',
             email: ar.email,
             details: { requestId: ar._id, claimsSync },
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           };
           await notifications.sendAlertEmail(emailAlert, ar.email);
         }
@@ -243,7 +273,7 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
               severity: 'critical',
               email: ar.email,
               details: { requestId: ar._id, claimsSync },
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             };
             await notifications.sendAlert(alert);
           }
@@ -266,20 +296,28 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
  */
 router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
     let ar;
     if (USE_IN_MEMORY) {
       ar = await findAccessRequestByIdInMemory(id);
-      if (!ar) return res.status(404).json({ error: 'not_found' });
-      if (ar.status === 'rejected') return res.status(400).json({ error: 'already_rejected' });
+      if (!ar) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      if (ar.status === 'rejected') {
+        return res.status(400).json({ error: 'already_rejected' });
+      }
       ar.status = 'rejected';
       ar.handledBy = req.user.sub || 'admin';
       ar.handledAt = new Date().toISOString();
       ar.updatedAt = new Date().toISOString();
     } else {
       ar = await AccessRequest.findById(id);
-      if (!ar) return res.status(404).json({ error: 'not_found' });
-      if (ar.status === 'rejected') return res.status(400).json({ error: 'already_rejected' });
+      if (!ar) {
+        return res.status(404).json({ error: 'not_found' });
+      }
+      if (ar.status === 'rejected') {
+        return res.status(400).json({ error: 'already_rejected' });
+      }
       ar.status = 'rejected';
       ar.handledBy = req.user.sub || 'admin';
       ar.handledAt = new Date();
@@ -296,7 +334,7 @@ router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), a
             severity: 'warning',
             email: ar.email,
             details: { requestId: ar._id },
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           };
           await notifications.sendAlert(alert);
         }
@@ -315,7 +353,7 @@ router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), a
             severity: 'warning',
             email: ar.email,
             details: { requestId: ar._id },
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           };
           await notifications.sendAlertEmail(emailAlert, ar.email);
         }
@@ -336,12 +374,16 @@ router.post('/v1/access-requests/:id/reject', authGuard, requireRole('admin'), a
  */
 router.patch('/v1/users/:id/role', authGuard, requireRole('admin'), body('role').isString().isLength({ min: 1 }), async (req, res) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+  }
   try {
-    const role = req.body.role;
+    const { role } = req.body;
     const userId = req.params.id;
     const u = await User.findById(userId);
-    if (!u) return res.status(404).json({ error: 'user_not_found' });
+    if (!u) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
     u.role = role;
     await u.save();
     await auditLogger.log({ event_type: 'USER_ROLE_UPDATED', actor: req.user.sub, target_user: u._id, details: { role } });
@@ -363,9 +405,15 @@ router.get('/v1/users/me', authGuard, async (req, res) => {
     const User = require('../models/User');
     const id = req.user && req.user.sub ? String(req.user.sub) : null;
     let u = null;
-    if (id) u = await User.findById(id).select('name email role firebase_uid').lean();
-    if (!u && req.user && req.user.email) u = await User.findOne({ email: req.user.email }).select('name email role firebase_uid').lean();
-    if (!u) return res.status(404).json({ error: 'not_found' });
+    if (id) {
+      u = await User.findById(id).select('name email role firebase_uid').lean();
+    }
+    if (!u && req.user && req.user.email) {
+      u = await User.findOne({ email: req.user.email }).select('name email role firebase_uid').lean();
+    }
+    if (!u) {
+      return res.status(404).json({ error: 'not_found' });
+    }
     return res.json({ id: u._id || u.id, email: u.email, name: u.name, role: u.role });
   } catch (e) {
     logger.error({ err: e }, 'users_me_failed');
@@ -400,14 +448,20 @@ router.get('/v1/users', authGuard, requireRole('admin'), async (req, res) => {
 router.get('/v1/users/:id/history', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const userId = req.params.id;
-    if (!userId) return res.status(400).json({ error: 'user_id_required' });
-    if (USE_IN_MEMORY) return res.json({ logs: [] });
+    if (!userId) {
+      return res.status(400).json({ error: 'user_id_required' });
+    }
+    if (USE_IN_MEMORY) {
+      return res.json({ logs: [] });
+    }
     const u = await User.findById(userId).lean();
-    if (!u) return res.status(404).json({ error: 'user_not_found' });
+    if (!u) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
 
     const AuditLog = require('../models/AuditLog');
     // Look for audit logs where details.target_user equals the user id or actor equals the user's email
-    const logs = await AuditLog.find({ $or: [ { 'details.target_user': String(u._id) }, { actor: u.email } ] }).sort({ timestamp: -1 }).limit(200).lean();
+    const logs = await AuditLog.find({ $or: [{ 'details.target_user': String(u._id) }, { actor: u.email }] }).sort({ timestamp: -1 }).limit(200).lean();
     return res.json({ logs });
   } catch (e) {
     logger.error({ err: e }, 'user_history_failed');
@@ -425,7 +479,9 @@ module.exports = router;
 router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { email, role } = req.body || {};
-    if (!email || !role) return res.status(400).json({ error: 'email_and_role_required' });
+    if (!email || !role) {
+      return res.status(400).json({ error: 'email_and_role_required' });
+    }
 
     let u = null;
     if (!USE_IN_MEMORY) {
@@ -445,7 +501,13 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
     // Try to sync custom claims
     let claimsSync = { status: 'skipped', message: 'not_attempted' };
     try {
-      const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
+      const admin = (() => {
+        try {
+          return require('firebase-admin');
+        } catch (e) {
+          return null;
+        }
+      })();
       if (admin) {
         if (!admin.apps || admin.apps.length === 0) {
           const fs = require('fs');
@@ -468,10 +530,18 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
           if (uid) {
             await admin.auth().setCustomUserClaims(uid, { role });
             claimsSync = { status: 'success', message: 'custom_claims_set' };
-            try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { /* ignore */ }
+            try {
+              if (claimsSyncSuccessTotal) {
+                claimsSyncSuccessTotal.inc();
+              }
+            } catch (mErr) { /* ignore */ }
           } else {
             claimsSync = { status: 'failed', message: 'user_not_found_in_firebase' };
-            try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { /* ignore */ }
+            try {
+              if (claimsSyncFailureTotal) {
+                claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' });
+              }
+            } catch (mErr) { /* ignore */ }
             // best-effort notify about claims-sync failure for promotes
             (async () => {
               try {
@@ -482,7 +552,7 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
                     severity: 'critical',
                     email,
                     details: { reason: 'user_not_found_in_firebase', email, role },
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
                   };
                   await notifications.sendAlert(alert);
                 }
@@ -493,7 +563,11 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
           }
         } catch (fbErr) {
           claimsSync = { status: 'failed', message: fbErr.message || String(fbErr) };
-          try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { /* ignore */ }
+          try {
+            if (claimsSyncFailureTotal) {
+              claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' });
+            }
+          } catch (mErr) { /* ignore */ }
           (async () => {
             try {
               if (notifications && notifications.sendAlert) {
@@ -503,7 +577,7 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
                   severity: 'critical',
                   email,
                   details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), email, role },
-                  created_at: new Date().toISOString()
+                  created_at: new Date().toISOString(),
                 };
                 await notifications.sendAlert(alert);
               }
@@ -524,7 +598,7 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
                 severity: 'warning',
                 email,
                 details: { reason: 'firebase_admin_missing', email, role },
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
               };
               await notifications.sendAlert(alert);
             }
@@ -544,7 +618,6 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
   }
 });
 
-
 /**
  * Re-sync custom claims for a user by id
  * POST /v1/users/:id/sync-claims
@@ -552,18 +625,28 @@ router.post('/v1/users/promote', authGuard, requireRole('admin'), async (req, re
 router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const userId = req.params.id;
-    if (!userId) return res.status(400).json({ error: 'user_id_required' });
+    if (!userId) {
+      return res.status(400).json({ error: 'user_id_required' });
+    }
     if (USE_IN_MEMORY) {
       // in-memory demo mode — can't contact Firebase
       logger.info({ userId }, 'claims_sync_skipped_in_memory');
       return res.json({ status: 'skipped', message: 'in_memory_mode' });
     }
     const u = await User.findById(userId);
-    if (!u) return res.status(404).json({ error: 'user_not_found' });
+    if (!u) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
 
     const fs = require('fs');
     const path = require('path');
-    const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
+    const admin = (() => {
+      try {
+        return require('firebase-admin');
+      } catch (e) {
+        return null;
+      }
+    })();
     if (!admin) {
       logger.warn({ userId, email: u.email }, 'claims_sync_skipped_missing_firebase_admin');
       // notify that claims-sync could not run due to missing firebase admin
@@ -576,7 +659,7 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
               severity: 'warning',
               email: u.email,
               details: { reason: 'firebase_admin_missing', userId, email: u.email },
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             };
             await notifications.sendAlert(alert);
           }
@@ -607,7 +690,11 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
       }
       if (!uid) {
         logger.info({ userId, email: u.email }, 'claims_sync_user_not_found_in_firebase');
-        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
+        try {
+          if (claimsSyncFailureTotal) {
+            claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' });
+          }
+        } catch (mErr) { }
         (async () => {
           try {
             if (notifications && notifications.sendAlert) {
@@ -617,11 +704,13 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
                 severity: 'critical',
                 email: u.email,
                 details: { reason: 'user_not_found_in_firebase', userId, email: u.email },
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
               };
               await notifications.sendAlert(alert);
             }
-          } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+          } catch (nerr) {
+            logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed');
+          }
         })();
         return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
       }
@@ -629,11 +718,19 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
       await admin.auth().setCustomUserClaims(uid, { role: u.role });
       logger.info({ userId, uid, email: u.email, role: u.role }, 'claims_sync_success');
       await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email: u.email, role: u.role } });
-      try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { }
+      try {
+        if (claimsSyncSuccessTotal) {
+          claimsSyncSuccessTotal.inc();
+        }
+      } catch (mErr) { }
       return res.json({ status: 'success', message: 'custom_claims_set' });
     } catch (fbErr) {
       logger.warn({ err: fbErr, userId, email: u.email }, 'claims_sync_failed');
-      try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
+      try {
+        if (claimsSyncFailureTotal) {
+          claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' });
+        }
+      } catch (mErr) { }
       (async () => {
         try {
           if (notifications && notifications.sendAlert) {
@@ -643,11 +740,13 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
               severity: 'critical',
               email: u.email,
               details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), userId, email: u.email },
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             };
             await notifications.sendAlert(alert);
           }
-        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+        } catch (nerr) {
+          logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed');
+        }
       })();
       return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
     }
@@ -665,18 +764,28 @@ router.post('/v1/users/:id/sync-claims', authGuard, requireRole('admin'), async 
 router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { email } = req.body || {};
-    if (!email) return res.status(400).json({ error: 'email_required' });
+    if (!email) {
+      return res.status(400).json({ error: 'email_required' });
+    }
     if (USE_IN_MEMORY) {
       logger.info({ email }, 'claims_sync_skipped_in_memory');
       return res.json({ status: 'skipped', message: 'in_memory_mode' });
     }
     const u = await User.findOne({ email: { $eq: email } });
-    if (!u) return res.status(404).json({ error: 'user_not_found' });
+    if (!u) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
 
     // delegate to id endpoint logic by calling auth functions inline
     const fs = require('fs');
     const path = require('path');
-    const admin = (() => { try { return require('firebase-admin'); } catch (e) { return null; } })();
+    const admin = (() => {
+      try {
+        return require('firebase-admin');
+      } catch (e) {
+        return null;
+      }
+    })();
     if (!admin) {
       logger.warn({ email }, 'claims_sync_skipped_missing_firebase_admin');
       (async () => {
@@ -688,11 +797,13 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
               severity: 'warning',
               email,
               details: { reason: 'firebase_admin_missing', email },
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             };
             await notifications.sendAlert(alert);
           }
-        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_skipped_failed'); }
+        } catch (nerr) {
+          logger.warn({ err: nerr }, 'notify_claims_sync_skipped_failed');
+        }
       })();
       return res.json({ status: 'skipped', message: 'firebase_admin_missing' });
     }
@@ -715,7 +826,11 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
       }
       if (!uid) {
         logger.info({ email }, 'claims_sync_user_not_found_in_firebase');
-        try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' }); } catch (mErr) { }
+        try {
+          if (claimsSyncFailureTotal) {
+            claimsSyncFailureTotal.inc({ reason: 'user_not_found_in_firebase' });
+          }
+        } catch (mErr) { }
         (async () => {
           try {
             if (notifications && notifications.sendAlert) {
@@ -725,22 +840,32 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
                 severity: 'critical',
                 email,
                 details: { reason: 'user_not_found_in_firebase', email },
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
               };
               await notifications.sendAlert(alert);
             }
-          } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+          } catch (nerr) {
+            logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed');
+          }
         })();
         return res.json({ status: 'failed', message: 'user_not_found_in_firebase' });
       }
       await admin.auth().setCustomUserClaims(uid, { role: u.role });
       logger.info({ uid, email, role: u.role }, 'claims_sync_success');
       await auditLogger.log({ event_type: 'USER_CLAIMS_SYNCED', actor: req.user.sub, target_user: u._id, details: { uid, email, role: u.role } });
-      try { if (claimsSyncSuccessTotal) claimsSyncSuccessTotal.inc(); } catch (mErr) { }
+      try {
+        if (claimsSyncSuccessTotal) {
+          claimsSyncSuccessTotal.inc();
+        }
+      } catch (mErr) { }
       return res.json({ status: 'success', message: 'custom_claims_set' });
     } catch (fbErr) {
       logger.warn({ err: fbErr, email }, 'claims_sync_failed');
-      try { if (claimsSyncFailureTotal) claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' }); } catch (mErr) { }
+      try {
+        if (claimsSyncFailureTotal) {
+          claimsSyncFailureTotal.inc({ reason: 'firebase_set_claims_error' });
+        }
+      } catch (mErr) { }
       (async () => {
         try {
           if (notifications && notifications.sendAlert) {
@@ -750,11 +875,13 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
               severity: 'critical',
               email,
               details: { reason: 'firebase_set_claims_error', message: fbErr.message || String(fbErr), email },
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             };
             await notifications.sendAlert(alert);
           }
-        } catch (nerr) { logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed'); }
+        } catch (nerr) {
+          logger.warn({ err: nerr }, 'notify_claims_sync_failed_failed');
+        }
       })();
       return res.json({ status: 'failed', message: fbErr.message || String(fbErr) });
     }
@@ -763,4 +890,3 @@ router.post('/v1/users/sync-claims', authGuard, requireRole('admin'), async (req
     return res.status(500).json({ error: 'sync_failed' });
   }
 });
-

@@ -6,7 +6,7 @@ const ReportSchema = new mongoose.Schema({
   visualizationURL: String,
   complianceScore: Number,
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('Report', ReportSchema);

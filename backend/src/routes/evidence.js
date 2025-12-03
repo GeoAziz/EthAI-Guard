@@ -8,7 +8,9 @@ const { getEvaluations } = require('../storage/evaluations');
 const { listModelVersions, listAudits } = require('../storage/models');
 
 const BASE_DIR = process.env.EVIDENCE_DIR || path.join(process.cwd(), 'tmp', 'evidence');
-function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
+function ensureDir(p) {
+  fs.mkdirSync(p, { recursive: true });
+}
 
 async function collectData(alertId, req) {
   const out = {
@@ -119,18 +121,20 @@ router.post('/v1/alerts/:id/export', authGuard, requireRole('admin'), async (req
   const alertId = req.params.id;
   try {
     ensureDir(BASE_DIR);
-    const dir = path.join(BASE_DIR, alertId + '-' + Date.now());
+    const dir = path.join(BASE_DIR, `${alertId}-${Date.now()}`);
     ensureDir(dir);
     const data = await collectData(alertId, req);
     const jsonPath = writeJSONBundle(dir, data);
 
     let bundlePath = jsonPath;
     const maybeTar = await tryCreateTarGz(dir);
-    if (maybeTar) bundlePath = maybeTar;
+    if (maybeTar) {
+      bundlePath = maybeTar;
+    }
 
     const buf = fs.readFileSync(bundlePath);
     const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
-    const size = fs.statSync(bundlePath).size;
+    const { size } = fs.statSync(bundlePath);
 
     const result = { status: 'exported', path: bundlePath, size, sha256, publish: { target: 'none', url: null } };
     // Optional: publishing stubs can be added here (S3, GitHub Releases, GridFS)

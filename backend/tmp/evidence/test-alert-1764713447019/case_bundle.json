@@ -1,0 +1,41 @@
+{
+  "alert_id": "test-alert",
+  "collected_at": "2025-12-02T22:10:47.067Z",
+  "model": {
+    "id": "demo",
+    "version": "unknown",
+    "sha": null,
+    "versions": []
+  },
+  "drift_snapshot": {
+    "window_start": "2025-12-01T22:10:47.067Z",
+    "window_end": "2025-12-02T22:10:47.067Z",
+    "overall_status": "unknown",
+    "metrics": {
+      "psi": null,
+      "kl_divergence": null,
+      "wasserstein": null
+    }
+  },
+  "fairness_metrics": {
+    "demographic_parity_diff": null,
+    "equal_opportunity_diff": null,
+    "groups": {}
+  },
+  "evaluations": [],
+  "logs": [],
+  "ci": {
+    "provider": "none",
+    "run_id": null,
+    "run_number": null,
+    "actor": null,
+    "sha": null,
+    "ref": null
+  },
+  "validation_comparison": {
+    "active_version": null,
+    "candidate_version": null,
+    "active_overall": null,
+    "candidate_overall": null
+  }
+}

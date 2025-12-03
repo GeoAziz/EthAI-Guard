@@ -20,34 +20,34 @@ router.get('/', async (req, res) => {
       compliance_status,
       page = 1,
       limit = 20,
-      sort = '-model_metadata.created_date'
+      sort = '-model_metadata.created_date',
     } = req.query;
 
     // Build filter query
     const filter = {};
-    
+
     if (status) {
       filter.status = status;
     }
-    
+
     if (model_id) {
       filter['model_metadata.model_id'] = model_id;
     }
-    
+
     if (compliance_status) {
       filter['compliance_report.overall_status'] = compliance_status;
     }
 
     // Execute query with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     const [modelCards, total] = await Promise.all([
       ModelCard.find(filter)
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit))
         .select('-__v'),
-      ModelCard.countDocuments(filter)
+      ModelCard.countDocuments(filter),
     ]);
 
     res.json({
@@ -57,16 +57,16 @@ router.get('/', async (req, res) => {
         current_page: parseInt(page),
         total_pages: Math.ceil(total / parseInt(limit)),
         total_records: total,
-        per_page: parseInt(limit)
-      }
+        per_page: parseInt(limit),
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching Model Cards:', error);
+    logger.error('Error fetching Model Cards:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Model Cards',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -79,14 +79,14 @@ router.get('/', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const stats = await ModelCard.getComplianceStats();
-    
+
     const statusBreakdown = await ModelCard.aggregate([
       {
         $group: {
           _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     res.json({
@@ -96,16 +96,16 @@ router.get('/stats', async (req, res) => {
         status: statusBreakdown.reduce((acc, item) => {
           acc[item._id] = item.count;
           return acc;
-        }, {})
-      }
+        }, {}),
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    logger.error('Error fetching stats:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -118,33 +118,33 @@ router.get('/stats', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const modelCard = await ModelCard.findById(req.params.id).select('-__v');
-    
+
     if (!modelCard) {
       return res.status(404).json({
         success: false,
-        error: 'Model Card not found'
+        error: 'Model Card not found',
       });
     }
 
     res.json({
       success: true,
-      data: modelCard
+      data: modelCard,
     });
 
   } catch (error) {
-    console.error('Error fetching Model Card:', error);
-    
+    logger.error('Error fetching Model Card:', error);
+
     if (error.name === 'CastError') {
       return res.status(400).json({
         success: false,
-        error: 'Invalid Model Card ID'
+        error: 'Invalid Model Card ID',
       });
     }
 
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Model Card',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -157,9 +157,9 @@ router.get('/:id', async (req, res) => {
 router.get('/:model_id/versions', async (req, res) => {
   try {
     const { model_id } = req.params;
-    
+
     const versions = await ModelCard.find({
-      'model_metadata.model_id': model_id
+      'model_metadata.model_id': model_id,
     })
       .sort({ 'model_metadata.version': -1 })
       .select('model_metadata.version model_metadata.created_date status compliance_report.overall_status')
@@ -168,7 +168,7 @@ router.get('/:model_id/versions', async (req, res) => {
     if (versions.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'No versions found for this model'
+        error: 'No versions found for this model',
       });
     }
 
@@ -181,17 +181,17 @@ router.get('/:model_id/versions', async (req, res) => {
           version: v.model_metadata.version,
           created_date: v.model_metadata.created_date,
           status: v.status,
-          compliance_status: v.compliance_report?.overall_status || 'UNKNOWN'
-        }))
-      }
+          compliance_status: v.compliance_report?.overall_status || 'UNKNOWN',
+        })),
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching model versions:', error);
+    logger.error('Error fetching model versions:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch model versions',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -204,19 +204,19 @@ router.get('/:model_id/versions', async (req, res) => {
 router.post('/', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const modelCardData = req.body;
-    
+
     // Validate required fields
     if (!modelCardData.model_metadata?.model_id || !modelCardData.model_metadata?.version) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: model_metadata.model_id and model_metadata.version'
+        error: 'Missing required fields: model_metadata.model_id and model_metadata.version',
       });
     }
 
     // Check if Model Card already exists
     const existing = await ModelCard.findOne({
       'model_metadata.model_id': modelCardData.model_metadata.model_id,
-      'model_metadata.version': modelCardData.model_metadata.version
+      'model_metadata.version': modelCardData.model_metadata.version,
     });
 
     let modelCard;
@@ -245,34 +245,34 @@ router.post('/', authGuard, requireRole('admin'), async (req, res) => {
       details: {
         document_id: modelCard._id,
         status: modelCard.status,
-        compliance_status: modelCard.compliance_report?.overall_status
-      }
+        compliance_status: modelCard.compliance_report?.overall_status,
+      },
     });
 
     res.status(existing ? 200 : 201).json({
       success: true,
       message: `Model Card ${action} successfully`,
-      data: modelCard
+      data: modelCard,
     });
 
   } catch (error) {
-    console.error('Error creating/updating Model Card:', error);
-    
+    logger.error('Error creating/updating Model Card:', error);
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
         details: Object.keys(error.errors).map(key => ({
           field: key,
-          message: error.errors[key].message
-        }))
+          message: error.errors[key].message,
+        })),
       });
     }
 
     res.status(500).json({
       success: false,
       error: 'Failed to create/update Model Card',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -285,21 +285,21 @@ router.post('/', authGuard, requireRole('admin'), async (req, res) => {
 router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     const validStatuses = ['DRAFT', 'REVIEW', 'APPROVED', 'PRODUCTION', 'DEPRECATED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
       });
     }
 
     const modelCard = await ModelCard.findById(req.params.id);
-    
+
     if (!modelCard) {
       return res.status(404).json({
         success: false,
-        error: 'Model Card not found'
+        error: 'Model Card not found',
       });
     }
 
@@ -318,8 +318,8 @@ router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) =>
       details: {
         document_id: modelCard._id,
         old_status: oldStatus,
-        new_status: status
-      }
+        new_status: status,
+      },
     });
 
     res.json({
@@ -329,16 +329,16 @@ router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) =>
         model_id: modelCard.model_metadata.model_id,
         version: modelCard.model_metadata.version,
         old_status: oldStatus,
-        new_status: status
-      }
+        new_status: status,
+      },
     });
 
   } catch (error) {
-    console.error('Error updating status:', error);
+    logger.error('Error updating status:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to update status',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -351,11 +351,11 @@ router.patch('/:id/status', authGuard, requireRole('admin'), async (req, res) =>
 router.delete('/:id', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const modelCard = await ModelCard.findById(req.params.id);
-    
+
     if (!modelCard) {
       return res.status(404).json({
         success: false,
-        error: 'Model Card not found'
+        error: 'Model Card not found',
       });
     }
 
@@ -372,8 +372,8 @@ router.delete('/:id', authGuard, requireRole('admin'), async (req, res) => {
       result: 'success',
       details: {
         document_id: modelCard._id,
-        deprecated_at: new Date()
-      }
+        deprecated_at: new Date(),
+      },
     });
 
     res.json({
@@ -382,16 +382,16 @@ router.delete('/:id', authGuard, requireRole('admin'), async (req, res) => {
       data: {
         model_id: modelCard.model_metadata.model_id,
         version: modelCard.model_metadata.version,
-        status: 'DEPRECATED'
-      }
+        status: 'DEPRECATED',
+      },
     });
 
   } catch (error) {
-    console.error('Error deprecating Model Card:', error);
+    logger.error('Error deprecating Model Card:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to deprecate Model Card',
-      message: error.message
+      message: error.message,
     });
   }
 });

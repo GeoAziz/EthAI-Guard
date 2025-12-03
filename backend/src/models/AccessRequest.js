@@ -9,7 +9,7 @@ const AccessRequestSchema = new mongoose.Schema({
   handledBy: { type: String, default: null },
   handledAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
 });
 
 AccessRequestSchema.pre('save', function (next) {

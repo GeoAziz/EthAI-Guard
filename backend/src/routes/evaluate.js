@@ -26,14 +26,16 @@ const validationChain = [
   body('model_id').isString().isLength({ min: 1, max: 128 }),
   body('input_features').isObject(),
   body('context').optional().isObject(),
-  body('decision_timestamp').optional().isISO8601()
+  body('decision_timestamp').optional().isISO8601(),
 ];
 
 const { authGuard } = require('../middleware/authGuard');
 
 router.post('/v1/evaluate', authGuard, validationChain, async (req, res) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'validation_failed', details: errors.array() });
+  }
 
   try {
     const { user_id, model_id, input_features, context = {}, decision_timestamp } = req.body;
@@ -53,7 +55,9 @@ router.post('/v1/evaluate', authGuard, validationChain, async (req, res) => {
 
     // Metrics & logging
     evalCounter.inc();
-    if (risk.level === 'high') highRiskCounter.inc();
+    if (risk.level === 'high') {
+      highRiskCounter.inc();
+    }
     logger.info({ route: '/v1/evaluate', user_id, model_id, risk_score: risk.score, risk_level: risk.level }, 'evaluation_completed');
 
     // 5. Package response
@@ -67,7 +71,7 @@ router.post('/v1/evaluate', authGuard, validationChain, async (req, res) => {
       rules,
       risk,
       explanation,
-      context: augmentedContext
+      context: augmentedContext,
     };
 
     // 6. Persist to Firestore (non-blocking, graceful failure)

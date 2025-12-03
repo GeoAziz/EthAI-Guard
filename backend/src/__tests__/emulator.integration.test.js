@@ -9,11 +9,12 @@
 
 const request = require('supertest');
 const admin = require('firebase-admin');
+const logger = require('../utils/logger');
 
 const FIREBASE_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST;
 
 if (!FIREBASE_HOST) {
-  console.warn('Skipping emulator.integration tests — FIREBASE_AUTH_EMULATOR_HOST not set');
+  logger.warn('Skipping emulator.integration tests — FIREBASE_AUTH_EMULATOR_HOST not set');
   // Create a dummy test suite that passes to avoid CI failure when not configured
   describe('emulator.integration (skipped)', () => {
     test('skipped', () => {
@@ -24,7 +25,6 @@ if (!FIREBASE_HOST) {
   describe('Firebase Emulator integration tests', () => {
     let app;
     const AUTH_EMULATOR_URL = `http://${FIREBASE_HOST}`;
-    const API_BASE = process.env.TEST_API_BASE || 'http://localhost:5000';
 
     beforeAll(async () => {
       // Ensure admin SDK talks to emulator
@@ -33,7 +33,7 @@ if (!FIREBASE_HOST) {
       // initialize admin SDK (our firebaseAdmin wrapper also supports emulator)
       try {
         admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
-      } catch (e) {
+      } catch (_e) {
         // ignore if already initialized
       }
 
@@ -51,7 +51,7 @@ if (!FIREBASE_HOST) {
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, returnSecureToken: true })
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
       });
       if (!resp.ok) {
         const body = await resp.text();
@@ -70,7 +70,7 @@ if (!FIREBASE_HOST) {
       // Sign-in via REST to get idToken
       const signIn = await signInWithPassword(testEmail, testPass);
       expect(signIn).toHaveProperty('idToken');
-      const idToken = signIn.idToken;
+      const { idToken } = signIn;
 
       // Try exchange: should be rejected with 403 email_not_verified
       const exch = await request(app).post('/auth/firebase/exchange').send({ idToken });
@@ -101,7 +101,7 @@ if (!FIREBASE_HOST) {
       await admin.auth().setCustomUserClaims(adminUser.uid, { role: 'admin' });
 
       // Create target user verified
-      const tUser = await admin.auth().createUser({ email: targetEmail, password: targetPass, emailVerified: true });
+      await admin.auth().createUser({ email: targetEmail, password: targetPass, emailVerified: true });
 
       // Admin sign-in and exchange to get backend tokens
       const adminSignIn = await signInWithPassword(adminEmail, adminPass);
@@ -129,18 +129,18 @@ if (!FIREBASE_HOST) {
       const userEmail = `emulator-req-${Date.now()}@example.com`;
       const userPass = 'userpass123';
 
-      const user = await admin.auth().createUser({ email: userEmail, password: userPass, emailVerified: true });
+      await admin.auth().createUser({ email: userEmail, password: userPass, emailVerified: true });
 
       // Sign-in as user and get backend token
       const signIn = await signInWithPassword(userEmail, userPass);
-      const idToken = signIn.idToken;
+      const { idToken } = signIn;
       const exchange = await request(app).post('/auth/firebase/exchange').send({ idToken });
       expect(exchange.status).toBe(200);
       const userBackendAccess = exchange.body.accessToken;
 
       // Create access request as user
       const createReq = await request(app).post('/v1/access-requests').set('Authorization', `Bearer ${userBackendAccess}`).send({ reason: 'Need admin for testing' });
-      expect([200,201]).toContain(createReq.status);
+      expect([200, 201]).toContain(createReq.status);
       const reqId = createReq.body.id || createReq.body._id || (createReq.body.items && createReq.body.items[0] && createReq.body.items[0]._id);
       expect(reqId).toBeTruthy();
 

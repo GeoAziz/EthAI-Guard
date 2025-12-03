@@ -12,7 +12,9 @@ const {
 
 const BASE_DIR = process.env.RETRAIN_DIR || path.join(process.cwd(), 'tmp', 'retrain');
 
-function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
+function ensureDir(p) {
+  fs.mkdirSync(p, { recursive: true });
+}
 
 function makeDataset(requestId) {
   const dir = path.join(BASE_DIR, requestId);
@@ -21,8 +23,8 @@ function makeDataset(requestId) {
   const rows = [];
   for (let i = 0; i < 500; i++) {
     rows.push(JSON.stringify({
-      features: { income: Math.floor(Math.random()*100000), credit_score: 500 + Math.floor(Math.random()*350) },
-      target: i % 2
+      features: { income: Math.floor(Math.random() * 100000), credit_score: 500 + Math.floor(Math.random() * 350) },
+      target: i % 2,
     }));
   }
   fs.writeFileSync(file, rows.join('\n'));
@@ -30,13 +32,13 @@ function makeDataset(requestId) {
 }
 
 function simulateTraining(datasetPath) {
-  const version = 'v' + new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 12);
+  const version = `v${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 12)}`;
   const model = { version, trained_on: path.basename(datasetPath), created_at: new Date().toISOString(), params: { type: 'demo' } };
   return model;
 }
 
 async function runValidation(modelName, modelVersion) {
-  const url = (process.env.AI_CORE_URL || 'http://ai-core:8000') + '/validation/validate-model';
+  const url = `${process.env.AI_CORE_URL || 'http://ai-core:8000'}/validation/validate-model`;
   try {
     const resp = await axios.post(url, {
       model_name: modelName,

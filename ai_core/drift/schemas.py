@@ -55,7 +55,7 @@ DRIFT_BASELINES_INDEXES = [
 def setup_collections(db):
     """
     Create drift detection collections with indexes.
-    
+
     Args:
         db: MongoDB database connection
     """
@@ -65,15 +65,15 @@ def setup_collections(db):
         'drift_alerts': DRIFT_ALERTS_INDEXES,
         'drift_baselines': DRIFT_BASELINES_INDEXES
     }
-    
+
     for collection_name, indexes in collections.items():
         # Create collection if it doesn't exist
         if collection_name not in db.list_collection_names():
             db.create_collection(collection_name)
             print(f"Created collection: {collection_name}")
-        
+
         collection = db[collection_name]
-        
+
         # Create indexes
         for index_spec in indexes:
             keys = index_spec.pop('keys')

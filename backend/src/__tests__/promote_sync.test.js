@@ -7,11 +7,11 @@ jest.mock('firebase-admin', () => {
   return {
     auth: () => ({
       getUserByEmail: jest.fn().mockResolvedValue({ uid: 'fb-uid-2', email: 'promote@local' }),
-      setCustomUserClaims: jest.fn().mockResolvedValue(true)
+      setCustomUserClaims: jest.fn().mockResolvedValue(true),
     }),
     credential: { cert: jest.fn() },
     initializeApp: jest.fn(),
-    apps: []
+    apps: [],
   };
 });
 
@@ -20,8 +20,10 @@ jest.mock('../models/User', () => {
   const users = [];
   return {
     findOne: jest.fn(async (q) => users.find(u => (q.email && u.email === q.email)) || null),
-    create: jest.fn(async (obj) => { const u = { _id: 'u-promote', ...obj }; users.push(u); return u; }),
-    findById: jest.fn(async (id) => users.find(u => u._id === id) || null)
+    create: jest.fn(async (obj) => {
+      const u = { _id: 'u-promote', ...obj }; users.push(u); return u;
+    }),
+    findById: jest.fn(async (id) => users.find(u => u._id === id) || null),
   };
 });
 

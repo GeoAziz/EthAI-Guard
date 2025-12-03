@@ -57,7 +57,7 @@ FAIRNESS_THRESHOLDS = {
 try:
     from prometheus_client import Histogram, Counter
 
-    ai_requests = Counter("ai_core_requests_total", "Total ai_core analyze requests", ["status"]) 
+    ai_requests = Counter("ai_core_requests_total", "Total ai_core analyze requests", ["status"])
     ai_duration = Histogram("ai_core_analyze_seconds", "ai_core analyze duration seconds")
     ai_errors = Counter("ai_core_errors_total", "ai_core analyze errors")
 except Exception:
@@ -84,14 +84,14 @@ def _call_store_analysis(db, dataset_name: str, doc: Dict[str, Any]) -> Optional
             analyze_mod = importlib.import_module("ai_core.routers.analyze")
         except Exception:
             analyze_mod = importlib.import_module("routers.analyze")
-        
+
         if hasattr(analyze_mod, "store_analysis"):
             aid = analyze_mod.store_analysis(db, dataset_name, doc)
             if aid is not None:
                 return aid
     except Exception:
         pass
-    
+
     # Fallback to persistence module
     try:
         try:
@@ -171,26 +171,26 @@ def analyze(req: AnalyzeRequest, request: Request):  # type: ignore
         ds_mod = importlib.import_module("utils.dataset")
 
     import pandas as pd
-    
+
     MAX_ROWS = 100000
-    
+
     if req.data:
         ok, msg = validate_dataset_mapping(req.data)
         if not ok:
             raise HTTPException(status_code=400, detail=f"Invalid data payload: {msg}")
-        
+
         # Check for mismatched column lengths
         if req.data:
             col_lengths = {col: len(values) for col, values in req.data.items()}
             lengths = set(col_lengths.values())
             if len(lengths) > 1:
                 raise HTTPException(status_code=400, detail=f"Mismatched column lengths: {col_lengths}")
-            
+
             # Check for oversized payloads
             max_len = max(col_lengths.values()) if col_lengths else 0
             if max_len > MAX_ROWS:
                 raise HTTPException(status_code=400, detail=f"Dataset exceeds maximum rows ({MAX_ROWS}): {max_len} rows provided")
-        
+
         X = pd.DataFrame(req.data)
         y = X.pop("target") if "target" in X.columns else None
     else:

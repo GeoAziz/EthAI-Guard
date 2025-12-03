@@ -18,8 +18,10 @@ jest.mock('../models/User', () => {
   const users = [];
   return {
     findOne: jest.fn(async (q) => users.find(u => (q.firebase_uid && u.firebase_uid === q.firebase_uid) || (q.email && u.email === q.email)) || null),
-    create: jest.fn(async (obj) => { const u = { _id: 'u1', ...obj }; users.push(u); return u; }),
-    findById: jest.fn(async (id) => users.find(u => String(u._id) === String(id)) || null)
+    create: jest.fn(async (obj) => {
+      const u = { _id: 'u1', ...obj }; users.push(u); return u;
+    }),
+    findById: jest.fn(async (id) => users.find(u => String(u._id) === String(id)) || null),
   };
 });
 
@@ -30,7 +32,7 @@ describe('POST /auth/firebase/exchange', () => {
   beforeEach(() => {
     // Reset mocks
     admin.auth = () => ({
-      verifyIdToken: jest.fn().mockResolvedValue({ uid: 'fb-uid-1', email: 'test@local', name: 'Test User', claims: { role: 'admin' } })
+      verifyIdToken: jest.fn().mockResolvedValue({ uid: 'fb-uid-1', email: 'test@local', name: 'Test User', claims: { role: 'admin' } }),
     });
   });
 

@@ -4,10 +4,11 @@ const app = require('../../src/server');
 describe('v1 dataset ingest validation', () => {
   let accessToken;
   let datasetId;
+  const testPassword = 'pass';
 
   beforeAll(async () => {
-    await request(app).post('/auth/register').send({ name: 'V1 Val', email: 'v1val@example.com', password: 'pass' });
-    const login = await request(app).post('/auth/login').send({ email: 'v1val@example.com', password: 'pass' });
+    await request(app).post('/auth/register').send({ name: 'V1 Val', email: 'v1val@example.com', password: testPassword });
+    const login = await request(app).post('/auth/login').send({ email: 'v1val@example.com', password: testPassword });
     accessToken = login.body.accessToken;
     const up = await request(app).post('/v1/datasets').set('Authorization', `Bearer ${accessToken}`).send({ name: 'v1-validate-csv', type: 'csv' });
     datasetId = up.body.datasetId;

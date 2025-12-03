@@ -29,7 +29,9 @@ router.post(
   body('notes').optional().isString(),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const modelId = req.params.id;
     const actor = req.headers['x-user'] || 'system';
     try {
@@ -50,14 +52,16 @@ router.post(
       logger.error({ err: e }, 'trigger_retrain_failed');
       return res.status(500).json({ error: 'Failed to trigger retrain' });
     }
-  }
+  },
 );
 
 // Retrain status (admin only)
 router.get('/v1/retrain/:requestId', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const doc = await getRetrainRequest(req.params.requestId);
-    if (!doc) return res.status(404).json({ error: 'not_found' });
+    if (!doc) {
+      return res.status(404).json({ error: 'not_found' });
+    }
     return res.json(doc);
   } catch (e) {
     return res.status(500).json({ error: 'status_failed' });
@@ -83,25 +87,33 @@ router.post(
   body('requestId').optional().isString(),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const { version, requestId } = req.body;
     const actor = req.headers['x-user'] || 'system';
     try {
       // Gate: must reference a validated retrain request if provided
       if (requestId) {
         const r = await getRetrainRequest(requestId);
-        if (!r) return res.status(400).json({ error: 'invalid_request' });
-        if (r.status !== 'validated_pass') return res.status(400).json({ error: 'not_validated' });
+        if (!r) {
+          return res.status(400).json({ error: 'invalid_request' });
+        }
+        if (r.status !== 'validated_pass') {
+          return res.status(400).json({ error: 'not_validated' });
+        }
       }
       const promoted = await promoteModel(req.params.id, version, (requestId ? (await getRetrainRequest(requestId))?.artifacts?.validation_report : {}), actor);
-      if (!promoted) return res.status(404).json({ error: 'version_not_found' });
+      if (!promoted) {
+        return res.status(404).json({ error: 'version_not_found' });
+      }
       await writeAudit('model_promoted', { version }, actor, req.params.id, requestId || null);
       return res.json({ status: 'promoted', version: promoted.version });
     } catch (e) {
       logger.error({ err: e }, 'promote_failed');
       return res.status(500).json({ error: 'promote_failed' });
     }
-  }
+  },
 );
 
 module.exports = router;

@@ -11,7 +11,9 @@ async function firebaseAuth(req, res, next) {
     // We attempt to call verifyIdToken and let errors bubble as 401/500 as appropriate
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'No token' });
+    if (!token) {
+      return res.status(401).json({ error: 'No token' });
+    }
 
     const decoded = await firebaseAdmin.verifyIdToken(token);
     // Enforce that the Firebase user's email is verified. If not, reject with 403.
@@ -39,7 +41,7 @@ async function firebaseAuth(req, res, next) {
               email: decoded.email,
               password_hash: null,
               firebase_uid: decoded.uid,
-              role: 'user'
+              role: 'user',
             });
           } catch (createErr) {
             // Race: if another request created it first, fetch again by firebase_uid

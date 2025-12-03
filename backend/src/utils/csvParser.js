@@ -7,7 +7,7 @@ const { parse } = require('csv-parse/sync');
  * @param {Buffer|string} input
  * @param {object} options
  * @param {number} options.previewRows - number of preview rows to return
- * @returns {{ header: string[], rows_preview: string[][], totalRows: number }}
+ * @returns {{ header: string[], rowsPreview: string[][], totalRows: number }}
  */
 function parseCsv(input, options = {}) {
   const previewRows = Number(options.previewRows || 10);
@@ -15,7 +15,9 @@ function parseCsv(input, options = {}) {
   if (Buffer.isBuffer(input)) {
     text = input.toString('utf8');
   }
-  if (typeof text !== 'string') throw new Error('input_must_be_string_or_buffer');
+  if (typeof text !== 'string') {
+    throw new Error('input_must_be_string_or_buffer');
+  }
 
   // Use csv-parse sync parser which handles quoted fields and embedded newlines
   // skip_empty_lines avoids blank trailing lines
@@ -24,7 +26,7 @@ function parseCsv(input, options = {}) {
     records = parse(text, {
       skip_empty_lines: true,
       trim: true,
-      relax_column_count: false // enforce consistent column count
+      relax_column_count: false, // enforce consistent column count
     });
   } catch (e) {
     // Map common parse errors to a small set of upstream-friendly codes
@@ -52,10 +54,12 @@ function parseCsv(input, options = {}) {
   }
 
   const header = records[0].map(h => (h === null || h === undefined ? '' : String(h).trim()));
-  if (header.length === 0) throw new Error('invalid_csv_header');
+  if (header.length === 0) {
+    throw new Error('invalid_csv_header');
+  }
 
   // Validate consistent column counts and build preview
-  const rows_preview = [];
+  const rowsPreview = [];
   let malformed = false;
   for (let i = 1; i < records.length; i++) {
     const row = records[i];
@@ -63,8 +67,8 @@ function parseCsv(input, options = {}) {
       malformed = true;
       break;
     }
-    if (rows_preview.length < previewRows) {
-      rows_preview.push(row.map(c => (c === null || c === undefined ? '' : String(c))));
+    if (rowsPreview.length < previewRows) {
+      rowsPreview.push(row.map(c => (c === null || c === undefined ? '' : String(c))));
     }
   }
   if (malformed) {
@@ -73,7 +77,7 @@ function parseCsv(input, options = {}) {
   }
 
   const totalRows = Math.max(0, records.length - 1);
-  return { header, rows_preview, totalRows };
+  return { header, rowsPreview, totalRows };
 }
 
 module.exports = { parseCsv };

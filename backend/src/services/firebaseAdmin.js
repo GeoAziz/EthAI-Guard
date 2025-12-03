@@ -5,7 +5,9 @@ const logger = require('../logger');
 let initialized = false;
 
 function initFirebase() {
-  if (initialized) return;
+  if (initialized) {
+    return;
+  }
   try {
     // Support Firebase Auth emulator in CI/test by allowing initialization
     // when FIREBASE_AUTH_EMULATOR_HOST is set. This avoids requiring a
@@ -44,14 +46,16 @@ function initFirebase() {
     }
 
     if (!projectId || !clientEmail || !privateKey) {
-      logger.warn({ hasProjectId: !!projectId, hasClientEmail: !!clientEmail, hasKey: !!privateKey }, 'firebase_admin_missing_config');
+      logger.warn({ hasProjectId: Boolean(projectId), hasClientEmail: Boolean(clientEmail), hasKey: Boolean(privateKey) }, 'firebase_admin_missing_config');
       return;
     }
 
-    if (typeof privateKey === 'string') privateKey = privateKey.replace(/\\n/g, '\n');
+    if (typeof privateKey === 'string') {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
 
     admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey })
+      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
     });
     initialized = true;
     logger.info('firebase_admin_initialized');
@@ -71,12 +75,16 @@ async function verifyIdToken(idToken) {
       // If running tests, let mocked admin errors surface so tests can assert
       // failure behavior (e.g., invalid token). For non-test environments,
       // continue to init fallback below.
-      if (process.env.NODE_ENV === 'test') throw err;
+      if (process.env.NODE_ENV === 'test') {
+        throw err;
+      }
       // otherwise fall through to try initializing
     }
   }
 
-  if (!initialized) initFirebase();
+  if (!initialized) {
+    initFirebase();
+  }
   if (!initialized) {
     // In test mode, provide a lightweight fake decoded token so tests that hit
     // the /auth/firebase/exchange endpoint don't require real credentials.
@@ -90,26 +98,42 @@ async function verifyIdToken(idToken) {
 }
 
 async function getUser(uid) {
-  if (!initialized) initFirebase();
-  if (!initialized) throw new Error('Firebase admin not initialized');
+  if (!initialized) {
+    initFirebase();
+  }
+  if (!initialized) {
+    throw new Error('Firebase admin not initialized');
+  }
   return admin.auth().getUser(uid);
 }
 
 async function getUserByEmail(email) {
-  if (!initialized) initFirebase();
-  if (!initialized) throw new Error('Firebase admin not initialized');
+  if (!initialized) {
+    initFirebase();
+  }
+  if (!initialized) {
+    throw new Error('Firebase admin not initialized');
+  }
   return admin.auth().getUserByEmail(email);
 }
 
 async function setCustomUserClaims(uid, claims) {
-  if (!initialized) initFirebase();
-  if (!initialized) throw new Error('Firebase admin not initialized');
+  if (!initialized) {
+    initFirebase();
+  }
+  if (!initialized) {
+    throw new Error('Firebase admin not initialized');
+  }
   return admin.auth().setCustomUserClaims(uid, claims);
 }
 
 async function createUser({ email, password, uid, displayName }) {
-  if (!initialized) initFirebase();
-  if (!initialized) throw new Error('Firebase admin not initialized');
+  if (!initialized) {
+    initFirebase();
+  }
+  if (!initialized) {
+    throw new Error('Firebase admin not initialized');
+  }
   // createUser accepts {email, password, uid, displayName}
   return admin.auth().createUser({ email, password, uid, displayName });
 }

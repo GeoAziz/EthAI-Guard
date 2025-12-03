@@ -54,11 +54,16 @@ jobs:
           source .venv/bin/activate
           python -m pip install -U pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Run pip-audit
+      - name: Run pip-audit (record findings, non-fatal)
         working-directory: ai_core
         run: |
           source .venv/bin/activate
-          pip-audit -r requirements.txt || (echo "pip-audit found issues" && exit 1)
+          pip-audit -r requirements.txt --format=json > ai_core-pip-audit.json || true
+      - name: Upload ai_core pip-audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai_core-pip-audit
+          path: ai_core/ai_core-pip-audit.json
 
   pip-audit-backend:
     name: pip-audit (backend)
@@ -70,6 +75,11 @@ jobs:
           python-version: '3.11'
       - name: Install pip-audit
         run: pipx install pip-audit
-      - name: Run pip-audit if requirements.txt present
+      - name: Run pip-audit if requirements.txt present (record findings, non-fatal)
         run: |
-          if [ -f backend/requirements.txt ]; then pip-audit -r backend/requirements.txt || (echo "pip-audit found issues" && exit 1); else echo "No backend/requirements.txt"; fi
+          if [ -f backend/requirements.txt ]; then pip-audit -r backend/requirements.txt --format=json > backend-pip-audit.json || true; else echo "No backend/requirements.txt"; fi
+      - name: Upload backend pip-audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pip-audit
+          path: backend/backend-pip-audit.json

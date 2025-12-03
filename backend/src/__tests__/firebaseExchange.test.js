@@ -8,13 +8,13 @@ const request = require('supertest');
 // Mock firebase-admin before loading the app
 const mockVerify = jest.fn();
 const mockAuth = {
-  verifyIdToken: mockVerify
+  verifyIdToken: mockVerify,
 };
 
 jest.mock('firebase-admin', () => ({
   auth: () => mockAuth,
   initializeApp: jest.fn(),
-  credential: { cert: jest.fn() }
+  credential: { cert: jest.fn() },
 }));
 
 describe('POST /auth/firebase/exchange', () => {

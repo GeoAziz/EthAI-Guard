@@ -37,7 +37,7 @@ async function main() {
         found.role = u.role || found.role;
         found.name = u.name || found.name;
         await found.save();
-        console.log('Updated password for', u.email);
+        console.log('Updated user:', u.email);
       } else {
         // Create user but populate both naming variants of the firebase uid field to
         // avoid duplicate-null unique-index collisions arising from previous schema/indexes.

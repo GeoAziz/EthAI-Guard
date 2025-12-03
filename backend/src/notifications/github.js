@@ -1,8 +1,10 @@
 /**
  * GitHub Issues Notification Handler
- * 
+ *
  * Creates GitHub Issues for critical drift alerts.
  */
+
+const logger = require('../utils/logger');
 
 /**
  * Create GitHub issue for critical alert
@@ -12,7 +14,7 @@
  */
 async function createGitHubIssue(alert, token, repo) {
   if (!token || !repo) {
-    console.warn('GitHub integration not configured');
+    logger.warn('GitHub integration not configured');
     return { success: false, error: 'GitHub not configured' };
   }
 
@@ -75,7 +77,7 @@ ${alert.severity === 'critical' ? `
     title: `[${severityLabel.toUpperCase()}] ${alert.type.replace(/_/g, ' ')}: ${alert.metric_name} (${alert.model_id})`,
     body: issueBody,
     labels: ['drift-alert', severityLabel, typeLabel, 'automated'],
-    assignees: process.env.GITHUB_ASSIGNEES ? process.env.GITHUB_ASSIGNEES.split(',') : []
+    assignees: process.env.GITHUB_ASSIGNEES ? process.env.GITHUB_ASSIGNEES.split(',') : [],
   };
 
   try {
@@ -86,23 +88,23 @@ ${alert.severity === 'critical' ? `
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(issueData)
-      }
+        body: JSON.stringify(issueData),
+      },
     );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('GitHub API error:', errorData);
+      logger.error('GitHub API error:', errorData);
       return { success: false, error: errorData.message };
     }
 
     const issue = await response.json();
-    console.log(`GitHub issue created for alert ${alert._id}: ${issue.html_url}`);
+    logger.info(`GitHub issue created for alert ${alert._id}: ${issue.html_url}`);
     return { success: true, issueUrl: issue.html_url, issueNumber: issue.number };
   } catch (error) {
-    console.error('Failed to create GitHub issue:', error);
+    logger.error('Failed to create GitHub issue:', error);
     return { success: false, error: error.message };
   }
 }
@@ -129,10 +131,10 @@ async function addIssueComment(issueNumber, comment, token, repo) {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ body: comment })
-      }
+        body: JSON.stringify({ body: comment }),
+      },
     );
 
     if (!response.ok) {
@@ -143,7 +145,7 @@ async function addIssueComment(issueNumber, comment, token, repo) {
     const commentData = await response.json();
     return { success: true, commentUrl: commentData.html_url };
   } catch (error) {
-    console.error('Failed to add comment:', error);
+    logger.error('Failed to add comment:', error);
     return { success: false, error: error.message };
   }
 }
@@ -180,10 +182,10 @@ ${resolution}
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ state: 'closed' })
-      }
+        body: JSON.stringify({ state: 'closed' }),
+      },
     );
 
     if (!response.ok) {
@@ -193,7 +195,7 @@ ${resolution}
 
     return { success: true };
   } catch (error) {
-    console.error('Failed to close issue:', error);
+    logger.error('Failed to close issue:', error);
     return { success: false, error: error.message };
   }
 }
@@ -201,5 +203,5 @@ ${resolution}
 module.exports = {
   createGitHubIssue,
   addIssueComment,
-  closeIssue
+  closeIssue,
 };

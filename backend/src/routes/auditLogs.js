@@ -26,29 +26,43 @@ router.get('/logs', async (req, res) => {
       end_date,
       page = 1,
       limit = 50,
-      sort = '-timestamp'
+      sort = '-timestamp',
     } = req.query;
 
     // Build filter object
     const filter = {};
-    
-    if (model_id) filter.model_id = model_id;
-    if (event_type) filter.event_type = event_type;
-    if (actor) filter.actor = actor;
-    if (result) filter.result = result;
-    if (compliance_status) filter.compliance_status = compliance_status;
-    
+
+    if (model_id) {
+      filter.model_id = model_id;
+    }
+    if (event_type) {
+      filter.event_type = event_type;
+    }
+    if (actor) {
+      filter.actor = actor;
+    }
+    if (result) {
+      filter.result = result;
+    }
+    if (compliance_status) {
+      filter.compliance_status = compliance_status;
+    }
+
     if (start_date || end_date) {
       filter.timestamp = {};
-      if (start_date) filter.timestamp.$gte = new Date(start_date);
-      if (end_date) filter.timestamp.$lte = new Date(end_date);
+      if (start_date) {
+        filter.timestamp.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        filter.timestamp.$lte = new Date(end_date);
+      }
     }
 
     // Execute query with pagination
     const logs = await auditLogger.query(filter, {
       skip: (parseInt(page) - 1) * parseInt(limit),
       limit: parseInt(limit),
-      sort
+      sort,
     });
 
     const total = await AuditLog.countDocuments(filter);
@@ -60,16 +74,16 @@ router.get('/logs', async (req, res) => {
         current_page: parseInt(page),
         total_pages: Math.ceil(total / parseInt(limit)),
         total_records: total,
-        per_page: parseInt(limit)
-      }
+        per_page: parseInt(limit),
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching audit logs:', error);
+    logger.error('Error fetching audit logs:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit logs',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -89,7 +103,7 @@ router.get('/logs/:model_id/trail', async (req, res) => {
     if (trail.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'No audit trail found for this model'
+        error: 'No audit trail found for this model',
       });
     }
 
@@ -99,16 +113,16 @@ router.get('/logs/:model_id/trail', async (req, res) => {
         model_id,
         model_version: model_version || 'all versions',
         total_events: trail.length,
-        trail
-      }
+        trail,
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching audit trail:', error);
+    logger.error('Error fetching audit trail:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit trail',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -121,20 +135,20 @@ router.get('/logs/:model_id/trail', async (req, res) => {
 router.get('/summary', async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    
+
     const summary = await auditLogger.getSummary(parseInt(days));
 
     res.json({
       success: true,
-      data: summary
+      data: summary,
     });
 
   } catch (error) {
-    console.error('Error fetching audit summary:', error);
+    logger.error('Error fetching audit summary:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit summary',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -155,14 +169,14 @@ router.post('/log', async (req, res) => {
       result,
       details,
       compliance_status,
-      metadata
+      metadata,
     } = req.body;
 
     // Validate required fields
     if (!event_type || !model_id || !actor || !action || !result) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: event_type, model_id, actor, action, result'
+        error: 'Missing required fields: event_type, model_id, actor, action, result',
       });
     }
 
@@ -175,33 +189,33 @@ router.post('/log', async (req, res) => {
       result,
       details,
       compliance_status,
-      metadata
+      metadata,
     });
 
     res.status(201).json({
       success: true,
       message: 'Audit log created successfully',
-      data: logEntry
+      data: logEntry,
     });
 
   } catch (error) {
-    console.error('Error creating audit log:', error);
-    
+    logger.error('Error creating audit log:', error);
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
         details: Object.keys(error.errors).map(key => ({
           field: key,
-          message: error.errors[key].message
-        }))
+          message: error.errors[key].message,
+        })),
       });
     }
 
     res.status(500).json({
       success: false,
       error: 'Failed to create audit log',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -222,16 +236,16 @@ router.get('/violations', async (req, res) => {
       data: {
         period_days: parseInt(days),
         total_violations: violations.length,
-        violations
-      }
+        violations,
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching violations:', error);
+    logger.error('Error fetching violations:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch violations',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -251,16 +265,16 @@ router.get('/compliance-rate', async (req, res) => {
       success: true,
       data: {
         period_days: parseInt(days),
-        ...complianceRate
-      }
+        ...complianceRate,
+      },
     });
 
   } catch (error) {
-    console.error('Error calculating compliance rate:', error);
+    logger.error('Error calculating compliance rate:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to calculate compliance rate',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -276,15 +290,15 @@ router.get('/event-types', async (req, res) => {
 
     res.json({
       success: true,
-      data: eventTypes.sort()
+      data: eventTypes.sort(),
     });
 
   } catch (error) {
-    console.error('Error fetching event types:', error);
+    logger.error('Error fetching event types:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch event types',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -300,15 +314,15 @@ router.get('/actors', async (req, res) => {
 
     res.json({
       success: true,
-      data: actors.sort()
+      data: actors.sort(),
     });
 
   } catch (error) {
-    console.error('Error fetching actors:', error);
+    logger.error('Error fetching actors:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch actors',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -321,44 +335,44 @@ router.get('/actors', async (req, res) => {
 router.get('/timeline', async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    
+
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
 
     const timeline = await AuditLog.aggregate([
       {
         $match: {
-          timestamp: { $gte: startDate }
-        }
+          timestamp: { $gte: startDate },
+        },
       },
       {
         $group: {
           _id: {
             date: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
-            event_type: '$event_type'
+            event_type: '$event_type',
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
       {
-        $sort: { '_id.date': 1 }
-      }
+        $sort: { '_id.date': 1 },
+      },
     ]);
 
     res.json({
       success: true,
       data: {
         period_days: parseInt(days),
-        timeline
-      }
+        timeline,
+      },
     });
 
   } catch (error) {
-    console.error('Error fetching timeline:', error);
+    logger.error('Error fetching timeline:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit timeline',
-      message: error.message
+      message: error.message,
     });
   }
 });

@@ -1,15 +1,25 @@
-# Minimal, conservative pins to address pip-audit findings (Dec 2025)
-# Upgrades: fastapi, pydantic, pymongo, h11, starlette where possible.
-fastapi==0.109.1
-uvicorn[standard]==0.22.0
+fastapi==0.123.1
+uvicorn[standard]==0.38.0
 pymongo==4.6.3
 python-dotenv==1.0.0
-# pydantic: upgrade to a patched 2.x release compatible with FastAPI
-pydantic==2.4.0
+# pydantic pinned to a patched 2.x release
+pydantic==2.12.5
 pytest==7.4.0
-httpx==0.24.0
+httpx==0.28.1
 pytest-asyncio==0.22.0
 
-# Explicit pins for transitive fixes
+# HTTP stack transitive fixes
 h11==0.16.0
-starlette==0.40.0
+httpcore==1.0.9
+starlette==0.50.0
+
+# Optional / development
+httptools==0.7.1
+dnspython==2.8.0
+anyio==4.12.0
+watchfiles==1.1.1
+websockets==15.0.1
+certifi==2025.11.12
+pyyaml==6.0.3
+typing-extensions==4.15.0
+packaging==25.0

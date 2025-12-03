@@ -40,10 +40,15 @@ function authGuard(req, res, next) {
   // JWT fallback: accept Authorization: Bearer <token> or cookie accessToken
   let token = null;
   const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ')) token = auth.slice(7);
-  else if (req.cookies && req.cookies.accessToken) token = req.cookies.accessToken;
+  if (auth && auth.startsWith('Bearer ')) {
+    token = auth.slice(7);
+  } else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
 
-  if (!token) return res.status(401).json({ error: 'No token' });
+  if (!token) {
+    return res.status(401).json({ error: 'No token' });
+  }
 
   try {
     const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
@@ -61,7 +66,9 @@ function authGuard(req, res, next) {
 function requireRole(role) {
   return (req, res, next) => {
     const userRole = (req.user && req.user.role) || req.role || 'user';
-    if (userRole !== role) return res.status(403).json({ error: 'forbidden' });
+    if (userRole !== role) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
     return next();
   };
 }

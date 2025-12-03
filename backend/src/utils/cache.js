@@ -6,9 +6,15 @@ let usingRedis = false;
 function _createLRU(opts = {}) {
   // lru-cache versions export different shapes (function or { default: fn })
   try {
-    if (typeof LRUModule === 'function') return new LRUModule(opts);
-    if (LRUModule && typeof LRUModule.default === 'function') return new LRUModule.default(opts);
-    if (LRUModule && typeof LRUModule.LRU === 'function') return new LRUModule.LRU(opts);
+    if (typeof LRUModule === 'function') {
+      return new LRUModule(opts);
+    }
+    if (LRUModule && typeof LRUModule.default === 'function') {
+      return new LRUModule.default(opts);
+    }
+    if (LRUModule && typeof LRUModule.LRU === 'function') {
+      return new LRUModule.LRU(opts);
+    }
   } catch (e) {
     // fallthrough to fallback implementation
   }
@@ -18,7 +24,9 @@ function _createLRU(opts = {}) {
   return {
     get(k) {
       const e = fallback.get(k);
-      if (!e) return undefined;
+      if (!e) {
+        return undefined;
+      }
       if (e.expires && Date.now() > e.expires) {
         fallback.delete(k);
         return undefined;
@@ -29,7 +37,9 @@ function _createLRU(opts = {}) {
       const entry = { v, expires: ttl ? Date.now() + ttl : undefined };
       fallback.set(k, entry);
     },
-    delete(k) { return fallback.delete(k); }
+    delete(k) {
+      return fallback.delete(k);
+    },
   };
 }
 
@@ -38,10 +48,16 @@ function init(redisUrl) {
     // fallback to LRU in-memory cache
     const cache = _createLRU({ max: 500, ttl: 1000 * 60 * 5 });
     client = {
-      async get(k) { return cache.get(k); },
-      async set(k, v, ttlMs) { 
+      async get(k) {
+        return cache.get(k);
+      },
+      async set(k, v, ttlMs) {
         // older LRU versions accept (key, value, { ttl }) while our fallback accepts same shape
-        try { cache.set(k, v, { ttl: ttlMs }); } catch (_) { cache.set(k, v, ttlMs); }
+        try {
+          cache.set(k, v, { ttl: ttlMs });
+        } catch (_) {
+          cache.set(k, v, ttlMs);
+        }
       },
     };
     usingRedis = false;
@@ -60,8 +76,12 @@ function init(redisUrl) {
     // cannot load redis client, fallback to LRU
     const cache = new LRU({ max: 500, ttl: 1000 * 60 * 5 });
     client = {
-      async get(k) { return cache.get(k); },
-      async set(k, v, ttlMs) { cache.set(k, v, { ttl: ttlMs }); },
+      async get(k) {
+        return cache.get(k);
+      },
+      async set(k, v, ttlMs) {
+        cache.set(k, v, { ttl: ttlMs });
+      },
     };
     usingRedis = false;
     return client;
@@ -69,22 +89,38 @@ function init(redisUrl) {
 }
 
 async function get(key) {
-  if (!client) throw new Error('cache not initialized');
-  if (usingRedis) return await client.get(key).then(v => v ? JSON.parse(v) : null);
+  if (!client) {
+    throw new Error('cache not initialized');
+  }
+  if (usingRedis) {
+    return await client.get(key).then(v => v ? JSON.parse(v) : null);
+  }
   return client.get(key);
 }
 
 async function set(key, value, ttlMs = 60000) {
-  if (!client) throw new Error('cache not initialized');
-  if (usingRedis) return await client.set(key, JSON.stringify(value), { PX: ttlMs }).catch(() => {});
+  if (!client) {
+    throw new Error('cache not initialized');
+  }
+  if (usingRedis) {
+    return await client.set(key, JSON.stringify(value), { PX: ttlMs }).catch(() => {});
+  }
   return client.set(key, value, ttlMs);
 }
 
 async function del(key) {
-  if (!client) throw new Error('cache not initialized');
-  if (usingRedis) return await client.del(key).catch(() => {});
+  if (!client) {
+    throw new Error('cache not initialized');
+  }
+  if (usingRedis) {
+    return await client.del(key).catch(() => {});
+  }
   // LRU instance uses .delete()
-  try { return client.delete(key); } catch (e) { return undefined; }
+  try {
+    return client.delete(key);
+  } catch (e) {
+    return undefined;
+  }
 }
 
 module.exports = { init, get, set, del };
