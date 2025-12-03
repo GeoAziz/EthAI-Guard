@@ -47,16 +47,43 @@ export default function LoginPage() {
       // Perform login (this may return a Firebase credential when using Firebase)
       const cred = await login(values.email, values.password);
 
-      // If using Firebase, enforce email verification before allowing access to protected pages.
+      // If using Firebase, enforce email verification only for non-privileged users.
       try {
         const current = auth.currentUser || (cred && (cred as any).user);
         if (current && !current.emailVerified) {
-          // Best-effort: send a verification email and redirect user to a friendly
-          // verification page with a resend button and instructions.
-          try { await sendEmailVerification(current); } catch (_) {}
-          router.push('/verify-email');
-          setIsSubmitting(false);
-          return;
+          // Try to get roles from backend (authoritative)
+          let privileged = false;
+          try {
+            const me = await api.get('/v1/users/me');
+            const roleFromBackend = me?.data?.role;
+            let backendRoles: string[] | undefined;
+            if (Array.isArray(roleFromBackend)) {backendRoles = roleFromBackend;}
+            else if (typeof roleFromBackend === 'string') {backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);}
+            if (backendRoles && backendRoles.some(r => ['admin','analyst','reviewer'].includes(r))) {
+              privileged = true;
+            }
+          } catch (_) {}
+          // Fallback: try token claims
+          if (!privileged) {
+            try {
+              const idTokenResult = await current.getIdTokenResult(true);
+              const claims = idTokenResult?.claims || {};
+              let effectiveRoles: string[] | undefined;
+              if (Array.isArray(claims.roles)) {effectiveRoles = claims.roles as string[];}
+              else if (typeof claims.role === 'string') {effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);}
+              if (effectiveRoles && effectiveRoles.some(r => ['admin','analyst','reviewer'].includes(r))) {
+                privileged = true;
+              }
+            } catch (_) {}
+          }
+          if (!privileged) {
+            // Best-effort: send a verification email and redirect user to a friendly
+            // verification page with a resend button and instructions.
+            try { await sendEmailVerification(current); } catch (_) {}
+            router.push('/verify-email');
+            setIsSubmitting(false);
+            return;
+          }
         }
       } catch (e) {
         // ignore verification-check errors and proceed (server-side may still gate access)

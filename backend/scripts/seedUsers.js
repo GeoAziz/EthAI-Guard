@@ -101,6 +101,19 @@ async function main() {
     }
   }
 
+  // Aggressive cleanup: drop the users collection before seeding
+  try {
+    await mongoose.connection.dropCollection('users');
+    console.log('Dropped users collection for a full reset.');
+  } catch (dropErr) {
+    if (dropErr.code === 26) {
+      // NamespaceNotFound: collection does not exist, safe to ignore
+      console.log('Users collection did not exist, nothing to drop.');
+    } else {
+      console.error('Error dropping users collection:', dropErr.message || dropErr);
+    }
+  }
+
   for (const u of users) {
     try {
       const existing = await User.findOne({ email: u.email });
@@ -111,10 +124,18 @@ async function main() {
         existing.role = u.role;
         if (u.firebase_uid) existing.firebase_uid = u.firebase_uid;
         await existing.save();
-        console.log('Updated user:', u.email, 'role=', u.role);
+        console.log('Updated user:', u.email, 'role=', u.role, 'firebase_uid=', existing.firebase_uid);
       } else {
-        await User.create({ name: u.name, email: u.email, password_hash: hash, role: u.role, firebase_uid: u.firebase_uid });
-        console.log('Created user:', u.email, 'role=', u.role);
+        try {
+          await User.create({ name: u.name, email: u.email, password_hash: hash, role: u.role, firebase_uid: u.firebase_uid });
+          console.log('Created user:', u.email, 'role=', u.role, 'firebase_uid=', u.firebase_uid);
+        } catch (createErr) {
+          if (createErr.code === 11000 && String(createErr.message).includes('firebase_uid')) {
+            console.error('Duplicate firebase_uid for', u.email, '— skipping.');
+          } else {
+            console.error('Error creating user', u.email, createErr.message || createErr);
+          }
+        }
       }
 
       if (firebaseAdmin) {
@@ -128,7 +149,9 @@ async function main() {
                 await firebaseAdmin.getUser(fbUid);
               } catch (notFoundErr) {
                 // create with provided uid
-                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, uid: fbUid, displayName: u.name });
+                // Mark privileged roles as emailVerified
+                const isPrivileged = ['admin', 'analyst', 'reviewer'].includes(u.role);
+                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, uid: fbUid, displayName: u.name, emailVerified: isPrivileged });
                 fbUid = created.uid;
                 console.log('Created firebase user (by uid) for', u.email, fbUid);
               }
@@ -139,7 +162,9 @@ async function main() {
                 fbUid = found.uid;
               } catch (byEmailErr) {
                 // Not found by email — create a Firebase user
-                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, displayName: u.name });
+                // Mark privileged roles as emailVerified
+                const isPrivileged = ['admin', 'analyst', 'reviewer'].includes(u.role);
+                const created = await firebaseAdmin.createUser({ email: u.email, password: u.password, displayName: u.name, emailVerified: isPrivileged });
                 fbUid = created.uid;
                 console.log('Created firebase user (by email) for', u.email, fbUid);
               }
