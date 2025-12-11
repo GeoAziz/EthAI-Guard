@@ -114,57 +114,59 @@ export default function UsersAdminPage() {
 
   return (
     <RoleProtected required={['admin']}>
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 sm:p-6 lg:p-8 w-full">
         <Breadcrumbs />
         <PageHeader title="Users administration" subtitle="Manage users, promote roles, and sync claims" />
         <Card>
           <CardHeader>
             <CardTitle>Search / Promote / Retry claims</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" />
-              <Button onClick={promote} disabled={loading}>Promote</Button>
-              <Button variant="outline" onClick={retry} disabled={loading}>Retry claims-sync</Button>
-              <Button variant="ghost" onClick={() => loadUsers()}>Refresh list</Button>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" className="flex-1" />
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <Button onClick={promote} disabled={loading} className="flex-1 sm:flex-none">Promote</Button>
+                <Button variant="outline" onClick={retry} disabled={loading} className="flex-1 sm:flex-none">Sync</Button>
+                <Button variant="ghost" onClick={() => loadUsers()} className="flex-1 sm:flex-none">Refresh</Button>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-3">Promote will create or update a user in the DB and attempt to set Firebase custom claims. Retry will attempt to sync existing user's custom claims by email.</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Promote will create or update a user in the DB and attempt to set Firebase custom claims. Retry will attempt to sync existing user's custom claims by email.</p>
           </CardContent>
         </Card>
 
         <div className="mt-6">
           <h2 className="text-lg font-medium mb-3">Users</h2>
-          {loading && <div>Loading…</div>}
-          {!loading && users && users.length === 0 && <div className="text-sm text-muted-foreground">No users found.</div>}
+          {loading && <div className="py-8 text-center text-muted-foreground">Loading…</div>}
+          {!loading && users && users.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No users found.</div>}
           <div className="space-y-2">
             {users && users.map(u => (
               <Card key={u._id}>
-                <CardContent className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{u.email}</div>
-                    <div className="text-sm text-muted-foreground">{u.name} • role: {u.role} • uid: {u.firebase_uid || '—'}</div>
+                <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{u.email}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground overflow-hidden text-ellipsis">{u.name} • role: {u.role} • uid: {u.firebase_uid || '—'}</div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => { setEmail(u.email); }}>Use</Button>
-                    <Button size="sm" variant="secondary" onClick={async () => { try { await api.patch(`/v1/users/${u._id}/role`, { role: 'admin' }); toast({ title: 'Role updated' }); loadUsers(); } catch(e){ toast({ title: 'Update failed', variant: 'destructive' }); } }}>Promote</Button>
-                    <Button size="sm" variant="outline" onClick={async () => { try { const res = await api.post('/v1/users/sync-claims', { email: u.email }); if (res?.data?.status === 'success') {toast({ title: 'Claims synced' });} else {toast({ title: res?.data?.message || 'Failed', variant: 'destructive' });} } catch(e){ toast({ title: 'Sync failed', variant: 'destructive' }); } }}>Retry claims-sync</Button>
-                    <Button size="sm" variant="ghost" onClick={() => loadHistory(u._id)}>History</Button>
+                  <div className="flex gap-1 flex-wrap">
+                    <Button size="sm" onClick={() => { setEmail(u.email); }} className="min-h-9 text-xs">Use</Button>
+                    <Button size="sm" variant="secondary" onClick={async () => { try { await api.patch(`/v1/users/${u._id}/role`, { role: 'admin' }); toast({ title: 'Role updated' }); loadUsers(); } catch(e){ toast({ title: 'Update failed', variant: 'destructive' }); } }} className="min-h-9 text-xs">Promote</Button>
+                    <Button size="sm" variant="outline" onClick={async () => { try { const res = await api.post('/v1/users/sync-claims', { email: u.email }); if (res?.data?.status === 'success') {toast({ title: 'Claims synced' });} else {toast({ title: res?.data?.message || 'Failed', variant: 'destructive' });} } catch(e){ toast({ title: 'Sync failed', variant: 'destructive' }); } }} className="min-h-9 text-xs">Sync</Button>
+                    <Button size="sm" variant="ghost" onClick={() => loadHistory(u._id)} className="min-h-9 text-xs">History</Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
           {/* Pagination controls */}
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Showing {users ? users.length : 0} of {totalCount} users</div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.max(1, page - 1))} disabled={loading || page <= 1}>Previous</Button>
-              <div className="text-sm">Page {page} / {totalPages}</div>
-              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages}>Next</Button>
-              {totalPages > 1 && (
-                <div className="flex gap-1 items-center ml-2">
+          <div className="mt-4 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between text-xs sm:text-sm">
+            <div className="text-muted-foreground">Showing {users ? users.length : 0} of {totalCount} users</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.max(1, page - 1))} disabled={loading || page <= 1} className="min-h-8">Prev</Button>
+              <div className="text-xs sm:text-sm whitespace-nowrap">Page {page} / {totalPages}</div>
+              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages} className="min-h-8">Next</Button>
+              {totalPages > 1 && totalPages <= 10 && (
+                <div className="flex gap-1 items-center flex-wrap ml-2">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                    <Button key={n} size="sm" variant={n === page ? 'default' : 'ghost'} onClick={() => loadUsers(n)} disabled={n === page || loading}>{String(n)}</Button>
+                    <Button key={n} size="sm" variant={n === page ? 'default' : 'ghost'} onClick={() => loadUsers(n)} disabled={n === page || loading} className="min-h-8 px-2">{String(n)}</Button>
                   ))}
                 </div>
               )}
@@ -174,22 +176,21 @@ export default function UsersAdminPage() {
 
         {/* History modal */}
         {selectedHistory && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4">
-            <div className="bg-card p-4 rounded shadow max-h-[80vh] w-full max-w-3xl overflow-auto">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold">User history</h3>
-                <div className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setSelectedHistory(null)}>Close</Button>
-                </div>
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-12 sm:pt-8">
+            <div className="bg-card p-4 sm:p-6 rounded-lg shadow-lg max-h-[80vh] w-full max-w-2xl overflow-auto border">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+                <h3 className="font-semibold text-sm sm:text-base">User history</h3>
+                <Button variant="ghost" onClick={() => setSelectedHistory(null)} size="sm">Close</Button>
               </div>
-              {historyLoading && <div>Loading…</div>}
-              {!historyLoading && selectedHistory && selectedHistory.length === 0 && <div className="text-sm text-muted-foreground">No history found.</div>}
-              <div className="space-y-2">
+              {historyLoading && <div className="py-8 text-center text-muted-foreground">Loading…</div>}
+              {!historyLoading && selectedHistory && selectedHistory.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No history found.</div>}
+              <div className="space-y-3">
                 {selectedHistory && selectedHistory.map((l:any) => (
-                  <div key={l._id} className="border-b pb-2">
-                    <div className="text-sm"><strong>{l.event_type}</strong> • {new Date(l.timestamp).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">{l.actor} — {l.action}</div>
-                    <pre className="text-xs mt-1 bg-muted p-2 rounded">{JSON.stringify(l.details || {}, null, 2)}</pre>
+                  <div key={l._id} className="border-b pb-3 last:border-b-0">
+                    <div className="text-xs sm:text-sm font-medium">{l.event_type}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{new Date(l.timestamp).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{l.actor} — {l.action}</div>
+                    <pre className="text-xs mt-2 bg-muted p-2 rounded overflow-auto max-h-40">{JSON.stringify(l.details || {}, null, 2)}</pre>
                   </div>
                 ))}
               </div>

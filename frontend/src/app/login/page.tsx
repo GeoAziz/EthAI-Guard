@@ -45,7 +45,9 @@ export default function LoginPage() {
 
     try {
       // Perform login (this may return a Firebase credential when using Firebase)
+      console.log('[LoginPage] Starting login with:', values.email);
       const cred = await login(values.email, values.password);
+      console.log('[LoginPage] Login returned:', cred);
 
       // If using Firebase, enforce email verification only for non-privileged users.
       try {
@@ -100,7 +102,9 @@ export default function LoginPage() {
 
       // 1) Try backend authoritative role
       try {
+        console.log('[LoginPage] Fetching /v1/users/me...');
         const me = await api.get('/v1/users/me');
+        console.log('[LoginPage] /v1/users/me response:', me?.data);
         const roleFromBackend = me?.data?.role;
         let backendRoles: string[] | undefined;
         if (Array.isArray(roleFromBackend)) {backendRoles = roleFromBackend;}
@@ -136,13 +140,37 @@ export default function LoginPage() {
       else {router.push('/dashboard');}
     } catch (error: any) {
       console.error('Login error:', error);
+      console.error('Login error details:', {
+        code: error.code,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
 
       // Improved error handling with specific messages
       let errorTitle = 'Authentication Failed';
       let errorMessage = 'Please check your email and password.';
 
+      // Check for backend API errors first (Axios response)
+      if (error.response) {
+        if (error.response.status === 401) {
+          errorTitle = 'Invalid Credentials';
+          errorMessage = error.response.data?.error || 'Email or password is incorrect.';
+        } else if (error.response.status === 400) {
+          errorTitle = 'Invalid Input';
+          errorMessage = error.response.data?.error || 'Please check your email and password format.';
+        } else if (error.response.status === 429) {
+          errorTitle = 'Too Many Attempts';
+          errorMessage = 'Too many failed login attempts. Please try again later.';
+        } else if (error.response.status >= 500) {
+          errorTitle = 'Server Error';
+          errorMessage = 'The server is temporarily unavailable. Please try again later.';
+        } else {
+          errorMessage = error.response.data?.error || error.message;
+        }
+      }
       // Firebase error codes with enhanced messaging
-      if (error.code === 'auth/user-not-found') {
+      else if (error.code === 'auth/user-not-found') {
         errorTitle = 'Account Not Found';
         errorMessage = 'No account exists with this email address. Please check your email or sign up.';
       } else if (error.code === 'auth/wrong-password') {

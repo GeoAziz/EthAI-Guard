@@ -22,21 +22,24 @@ import {
   Settings,
   ShieldCheck,
   Puzzle,
+  Home,
+  Users,
+  FileSearch,
+  CreditCard,
+  Database,
+  Layers,
+  Archive,
+  Play,
+  FileText,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { UserNav } from '@/components/layout/user-nav';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/contexts/AuthContext';
+import rbac from '@/lib/rbac';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-const menuItems = [
-  { href: '/dashboard', label: 'Upload Dataset', icon: FileUp },
-  { href: '/dashboard/fairlens', label: 'FairLens', icon: BarChart2 },
-  { href: '/dashboard/explainboard', label: 'ExplainBoard', icon: Puzzle },
-  { href: '/dashboard/compliance', label: 'Compliance', icon: ShieldCheck },
-];
 
 export default function DashboardLayout({
   children,
@@ -44,8 +47,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, loading, hasRole } = useAuth();
+  const { user, loading, roles } = useAuth();
   const router = useRouter();
+  const primaryRole = rbac.pickPrimaryRole(roles) ?? 'guest';
 
   useEffect(() => {
     // Redirect unauthenticated users to login
@@ -53,6 +57,59 @@ export default function DashboardLayout({
       router.replace('/login');
     }
   }, [user, loading, router]);
+
+  const isActive = (path: string) => pathname?.startsWith(path) ?? false;
+
+  // Default menu for all users
+  const baseMenuItems = [
+    { href: '/dashboard', label: 'Upload Dataset', icon: FileUp },
+    { href: '/dashboard/fairlens', label: 'FairLens', icon: BarChart2 },
+    { href: '/dashboard/explainboard', label: 'ExplainBoard', icon: Puzzle },
+    { href: '/dashboard/compliance', label: 'Compliance', icon: ShieldCheck },
+  ];
+
+  // Admin-specific menu items
+  const adminMenuItems = [
+    { href: '/dashboard/admin', label: 'Admin Dashboard', icon: Home },
+    { href: '/dashboard/admin/users', label: 'User Management', icon: Users },
+    { href: '/dashboard/admin/access-requests', label: 'Access Requests', icon: FileSearch },
+    { href: '/dashboard/admin/settings', label: 'Org Settings', icon: Settings },
+    { href: '/dashboard/admin/fairness', label: 'Fairness Thresholds', icon: ShieldCheck },
+    { href: '/dashboard/admin/billing', label: 'Billing', icon: CreditCard },
+    { href: '/dashboard/admin/datasets', label: 'Datasets', icon: Database },
+    { href: '/dashboard/admin/models', label: 'Models', icon: Layers },
+    { href: '/dashboard/admin/audit', label: 'Audit Logs', icon: Archive },
+  ];
+
+  // Analyst-specific menu items
+        // Analyst-specific menu items (trimmed for analyst UX)
+        // Keep analyst navigation focused on analyst workflows. Datasets, Models
+        // and Explainability are intentionally not exposed here to reduce
+        // cognitive load; they remain reachable via the Analyst dashboard UI.
+        const analystMenuItems = [
+          { href: '/dashboard/analyst', label: 'Analyst Dashboard', icon: Home },
+          { href: '/dashboard/analyst/run', label: 'Run Analysis', icon: Play },
+          { href: '/dashboard/analyst/reports', label: 'Reports', icon: FileText },
+        ];
+
+  // Reviewer-specific menu items
+  const reviewerMenuItems = [
+    { href: '/dashboard/reviewer', label: 'Reviewer Dashboard', icon: Home },
+    { href: '/dashboard/compliance', label: 'Compliance Reports', icon: FileText },
+    { href: '/dashboard/reviewer/review', label: 'Review Queue', icon: FileSearch },
+    { href: '/dashboard/reviewer/fairness', label: 'Fairness Thresholds', icon: ShieldCheck },
+    { href: '/dashboard/reviewer/audit', label: 'Audit Logs', icon: Archive },
+  ];
+
+  // Select menu based on role
+  let menuItems = baseMenuItems;
+  if (primaryRole === 'admin') {
+    menuItems = adminMenuItems;
+  } else if (primaryRole === 'analyst') {
+    menuItems = analystMenuItems;
+  } else if (primaryRole === 'reviewer') {
+    menuItems = reviewerMenuItems;
+  }
 
   return (
     <SidebarProvider>
@@ -68,7 +125,7 @@ export default function DashboardLayout({
               <SidebarMenuItem key={item.href}>
                 <Link href={item.href}>
                   <SidebarMenuButton
-                    isActive={pathname === item.href}
+                    isActive={isActive(item.href)}
                     icon={<item.icon />}
                     tooltip={item.label}
                   >
@@ -77,47 +134,6 @@ export default function DashboardLayout({
                 </Link>
               </SidebarMenuItem>
             ))}
-            {hasRole && hasRole('admin') && (
-              <SidebarMenuItem>
-                <Link href="/dashboard/admin/access-requests">
-                  <SidebarMenuButton
-                    isActive={pathname === '/dashboard/admin/access-requests'}
-                    icon={<LifeBuoy />}
-                    tooltip="Access Requests"
-                  >
-                    Admin
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            )}
-            {/* Analyst-only link */}
-            {hasRole && hasRole('analyst') && (
-              <SidebarMenuItem>
-                <Link href="/decision-analysis">
-                  <SidebarMenuButton
-                    isActive={pathname === '/decision-analysis'}
-                    icon={<BarChart2 />}
-                    tooltip="Decision Analysis"
-                  >
-                    Analysis
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            )}
-            {/* Reviewer link */}
-            {hasRole && hasRole('reviewer') && (
-              <SidebarMenuItem>
-                <Link href="/report">
-                  <SidebarMenuButton
-                    isActive={pathname === '/report'}
-                    icon={<LayoutGrid />}
-                    tooltip="Reports"
-                  >
-                    Reports
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
@@ -145,7 +161,7 @@ export default function DashboardLayout({
           </div>
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
-              {menuItems.find(item => item.href === pathname)?.label || 'Dashboard'}
+              {menuItems.find(item => isActive(item.href))?.label || 'Dashboard'}
             </h1>
           </div>
           <div className="flex items-center gap-2">

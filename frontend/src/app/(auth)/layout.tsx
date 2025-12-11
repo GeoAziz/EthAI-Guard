@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import rbac from '@/lib/rbac';
 import { usePathname } from 'next/navigation';
 import {
   Sidebar,
@@ -23,17 +24,27 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   const { roles, user } = useAuth();
   const pathname = usePathname();
 
-  const primaryRole = roles?.includes('admin')
-    ? 'admin'
-    : roles?.includes('reviewer')
-      ? 'reviewer'
-      : roles?.includes('analyst')
-        ? 'analyst'
-        : roles?.includes('user')
-          ? 'user'
-          : 'guest';
+  React.useEffect(() => {
+    try { console.debug('[AppShellLayout] roles changed:', roles, 'user:', !!user); } catch (e) {}
+  }, [roles, user]);
+
+  // Compute primary role using RBAC priority (fixes relying on array order)
+  const primaryRole = rbac.pickPrimaryRole(roles) ?? 'guest';
+  
+  React.useEffect(() => {
+    console.log('[AppShellLayout] LAYOUT STATE:', { roles, user: user?.email, primaryRole });
+  }, [primaryRole, roles, user]);
 
   const isActive = (path: string) => pathname?.startsWith(path) ?? false;
+  
+  // Check if we're in a dashboard route (which has its own layout)
+  const isDashboardRoute = pathname?.startsWith('/dashboard');
+
+  // For dashboard routes, let the dashboard/layout.tsx handle the sidebar.
+  // Just render children directly without the (auth) sidebar/header wrapper.
+  if (isDashboardRoute) {
+    return children;
+  }
 
   return (
     <SidebarProvider>
@@ -58,26 +69,28 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
 
             <SidebarContent>
               <SidebarMenu>
+                {primaryRole === 'analyst' && (
+                  <>
+                    {/*
+                      Analyst role: show only items relevant to analyst workflows.
+                      Datasets, Models and Explainability were removed from the
+                      analyst sidebar to simplify the workspace — these tools
+                      remain accessible via the Analyst dashboard pages and CTAs.
+                    */}
+                    <SidebarMenuButton isActive={isActive('/dashboard/analyst')} icon={<Home />} asChild>
+                      <Link href="/dashboard/analyst">Analyst Dashboard</Link>
+                    </SidebarMenuButton>
+                    <SidebarMenuButton isActive={isActive('/dashboard/analyst/run')} icon={<Play />} asChild>
+                      <Link href="/dashboard/analyst/run">Run Analysis</Link>
+                    </SidebarMenuButton>
+                    <SidebarMenuButton isActive={isActive('/dashboard/analyst/reports')} icon={<FileText />} asChild>
+                      <Link href="/dashboard/analyst/reports">Reports</Link>
+                    </SidebarMenuButton>
+                  </>
+                )}
+
                 {primaryRole === 'admin' && (
                   <>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin')} icon={<Home />} asChild>
-                      <Link href="/dashboard/admin">Admin Dashboard</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin/users')} icon={<Users />} asChild>
-                      <Link href="/dashboard/admin/users">User Management</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin/access-requests')} icon={<FileSearch />} asChild>
-                      <Link href="/dashboard/admin/access-requests">Access Requests</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin/settings')} icon={<Settings />} asChild>
-                      <Link href="/dashboard/admin/settings">Org Settings</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin/fairness')} icon={<ShieldCheck />} asChild>
-                      <Link href="/dashboard/admin/fairness">Fairness Thresholds</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/admin/billing')} icon={<CreditCard />} asChild>
-                      <Link href="/dashboard/admin/billing">Billing</Link>
-                    </SidebarMenuButton>
                     <SidebarMenuButton isActive={isActive('/dashboard/admin/datasets')} icon={<Database />} asChild>
                       <Link href="/dashboard/admin/datasets">Datasets</Link>
                     </SidebarMenuButton>
@@ -86,32 +99,6 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
                     </SidebarMenuButton>
                     <SidebarMenuButton isActive={isActive('/dashboard/admin/audit')} icon={<Archive />} asChild>
                       <Link href="/dashboard/admin/audit">Audit Logs</Link>
-                    </SidebarMenuButton>
-                  </>
-                )}
-
-                {primaryRole === 'analyst' && (
-                  <>
-                    <SidebarMenuButton isActive={isActive('/dashboard/analyst')} icon={<Home />} asChild>
-                      <Link href="/dashboard/analyst">Analyst Dashboard</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/analyst/run')} icon={<Play />} asChild>
-                      <Link href="/dashboard/analyst/run">Run Analysis</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/datasets')} icon={<Database />} asChild>
-                      <Link href="/datasets">Datasets</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/models')} icon={<Layers />} asChild>
-                      <Link href="/models">Models</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/explainability')} icon={<FileText />} asChild>
-                      <Link href="/explainability">Explainability</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/fairness')} icon={<ShieldCheck />} asChild>
-                      <Link href="/fairness">Fairness</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton isActive={isActive('/dashboard/analyst/reports')} icon={<FileText />} asChild>
-                      <Link href="/dashboard/analyst/reports">Reports</Link>
                     </SidebarMenuButton>
                   </>
                 )}

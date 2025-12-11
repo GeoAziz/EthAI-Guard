@@ -11,7 +11,7 @@ describe('rbac utilities', () => {
 
   it('returns sensible default routes', () => {
     expect(defaultRouteForRoles(['admin'])).toBe('/dashboard/admin/access-requests');
-    expect(defaultRouteForRoles(['analyst'])).toBe('/decision-analysis');
+    expect(defaultRouteForRoles(['analyst'])).toBe('/dashboard/analyst');
     expect(defaultRouteForRoles(undefined)).toBe('/');
   });
 

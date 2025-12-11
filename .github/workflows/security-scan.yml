@@ -227,7 +227,7 @@ jobs:
             --include="*.js" --include="*.ts" --include="*.py" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.next \
             --exclude-dir=coverage --exclude-dir=__pycache__ --exclude-dir=.venv --exclude-dir=venv \
-            --exclude-dir=test --exclude-dir=tests \
+            --exclude-dir=test --exclude-dir=tests --exclude-dir=__tests__ --exclude-dir=__mocks__ \
             -E "(sql\s*.*\+|\bexec\s*\(|\beval\s*\(|cursor\.execute\s*\(.*format\s*\()" backend/ ai_core/ \
             || (echo "⚠️ Potential SQL injection found" && exit 1)
 
@@ -238,7 +238,7 @@ jobs:
             --include="*.js" --include="*.ts" --include="*.py" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.next \
             --exclude-dir=coverage --exclude-dir=__pycache__ --exclude-dir=.venv --exclude-dir=venv \
-            --exclude-dir=test --exclude-dir=tests \
+            --exclude-dir=test --exclude-dir=tests --exclude-dir=__tests__ --exclude-dir=__mocks__ \
             -E "(console\\.log.*token|print.*token|logger.*token.*\=)" backend/ ai_core/ \
             || (echo "⚠️ Potential token leakage in logs" && exit 1)
 
@@ -249,7 +249,7 @@ jobs:
             --include="*.js" --include="*.ts" --include="*.py" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.next \
             --exclude-dir=coverage --exclude-dir=__pycache__ --exclude-dir=.venv --exclude-dir=venv \
-            --exclude-dir=test --exclude-dir=tests \
+            --exclude-dir=test --exclude-dir=tests --exclude-dir=__tests__ --exclude-dir=__mocks__ \
             -E "(log.*password|log.*ssn|log.*credit_card)" backend/ ai_core/ \
             || (echo "⚠️ Sensitive data in logs" && exit 1)
 
@@ -260,7 +260,7 @@ jobs:
             --include="*.js" --include="*.ts" --include="*.py" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.next \
             --exclude-dir=coverage --exclude-dir=__pycache__ --exclude-dir=.venv --exclude-dir=venv \
-            --exclude-dir=test --exclude-dir=tests \
+            --exclude-dir=test --exclude-dir=tests --exclude-dir=__tests__ --exclude-dir=__mocks__ \
             -E "(password.*=.*['\"][^'\"]{8,}|api_key.*=.*['\"]|secret.*=.*['\"])" backend/ ai_core/ \
             || (echo "⚠️ Hardcoded secrets found" && exit 1)
 

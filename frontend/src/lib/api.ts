@@ -29,8 +29,10 @@ export function setBackendAccessToken(token: string | null) {
 
   if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    try { console.debug('[api] setBackendAccessToken -> Authorization header set'); } catch (e) {}
   } else {
     delete api.defaults.headers.common['Authorization'];
+    try { console.debug('[api] setBackendAccessToken -> Authorization header cleared'); } catch (e) {}
   }
 }
 
@@ -50,6 +52,12 @@ export function setBackendRefreshToken(token: string | null) {
 
 // Attach backend JWT if present, otherwise attach Firebase ID token
 api.interceptors.request.use((config) => {
+  try {
+    // Lightweight request tracing to help debug missing Authorization headers
+    const method = config?.method?.toUpperCase() || 'GET';
+    const url = config?.url || config?.baseURL || '<unknown>';
+    try { console.debug('[api] request:', method, url); } catch (e) {}
+  } catch (e) {}
   // If not using cookie mode, prefer stored backend token then fallback to
   // Firebase ID token. When using cookie-based sessions we do not attach
   // a backend Authorization header (cookies are sent automatically). We
@@ -61,12 +69,16 @@ api.interceptors.request.use((config) => {
       if (typeof window !== 'undefined') {
         const backend = localStorage.getItem('backend_access_token');
         if (backend) {
-          if (config?.headers) {config.headers.Authorization = `Bearer ${backend}`;}
+          if (config?.headers) {
+            config.headers.Authorization = `Bearer ${backend}`;
+            try { console.debug('[api] request -> using backend_access_token from localStorage'); } catch (e) {}
+          }
           return config;
         }
       }
     } catch (e) {
       // ignore localStorage errors
+      try { console.debug('[api] localStorage error:', e); } catch (de) {}
     }
   }
 
@@ -78,6 +90,7 @@ api.interceptors.request.use((config) => {
           if (config?.headers && token) {
             // Only set ID token if there's not already an Authorization header
             if (!config.headers.Authorization) {config.headers.Authorization = `Bearer ${token}`;}
+              try { console.debug('[api] request -> using Firebase ID token (fallback)'); } catch (e) {}
           }
           resolve(config);
         })
@@ -107,8 +120,12 @@ function processQueue(error: any, token: string | null = null) {
 }
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    try { console.debug('[api] response:', res.config?.method?.toUpperCase(), res.config?.url, res.status); } catch (e) {}
+    return res;
+  },
   async (err) => {
+    try { console.error('[api] error response:', err.config?.method?.toUpperCase(), err.config?.url, err.response?.status, err.response?.data); } catch (e) {}
     const originalConfig = err.config;
     if (!originalConfig) {return Promise.reject(err);}
 

@@ -48,21 +48,42 @@ export default function AdminSettingsPage() {
 
   return (
     <RoleProtected required={['admin']}>
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-4xl">
         <Breadcrumbs />
         <PageHeader title="Organization settings" subtitle="Manage organization-wide defaults and integrations" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4">
-          <form onSubmit={handleSave} className="space-y-3">
-            <div>
-              <label htmlFor="default-timeout" className="text-sm">Default analysis timeout (minutes)</label>
-              <input id="default-timeout" className="border rounded px-2 py-1 mt-2" value={timeout ?? ''} onChange={e => setTimeoutVal(e.target.value === '' ? '' : Number(e.target.value))} />
+        <div className="mt-6 rounded-lg border bg-white p-4 sm:p-6">
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="default-timeout" className="text-sm font-medium">Default analysis timeout (minutes)</label>
+              <input 
+                id="default-timeout" 
+                type="number"
+                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={timeout ?? ''} 
+                onChange={e => setTimeoutVal(e.target.value === '' ? '' : Number(e.target.value))} 
+                disabled={loading}
+              />
             </div>
-            {error && <div className="text-sm text-red-600">{error}</div>}
-            <div className="flex justify-end">
-              <button type="submit" disabled={saving || loading} className="px-3 py-1 bg-primary text-white rounded">{saving ? 'Saving…' : 'Save'}</button>
+            {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{error}</div>}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+              <button 
+                type="button" 
+                onClick={() => setTimeoutVal(60)}
+                disabled={saving || loading}
+                className="px-4 py-2 text-sm border rounded hover:bg-muted disabled:opacity-50"
+              >
+                Reset
+              </button>
+              <button 
+                type="submit" 
+                disabled={saving || loading} 
+                className="px-4 py-2 text-sm bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
             </div>
-            <p className="text-sm text-muted-foreground mt-3">Integration keys and data retention policies can be managed here.</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-4">Integration keys and data retention policies can be managed here.</p>
           </form>
         </div>
       </div>
