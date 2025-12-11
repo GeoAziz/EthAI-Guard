@@ -8,7 +8,7 @@
  * 3. Core analyst items (Dashboard, Run, Reports) are present
  */
 
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test } from 'vitest';
 
 describe('Analyst Navigation Simplification', () => {
   /**
