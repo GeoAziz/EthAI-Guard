@@ -282,6 +282,7 @@ async function seedDemoData() {
         theme: 'dark',
         notifications: true,
       },
+      apiKey: 'demo_api_key_' + crypto.randomBytes(18).toString('hex'),
       apiKey: generateApiKey(),
     };
     await usersCollection.updateOne(
