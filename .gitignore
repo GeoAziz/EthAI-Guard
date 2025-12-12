@@ -7,6 +7,12 @@ node_modules/
 .env
 .env.*
 
+# Credentials and secret baselines
+credentials*
+.secrets.baseline
+*.secret
+*.secrets
+
 # OS
 .DS_Store
 Thumbs.db
@@ -33,3 +39,11 @@ __pycache__/
 # Temporary
 *.tmp
 serviceAccountKey.json
+creds.md
+PRE_DEMO_CHECKLIST.md
+STATIC_TO_DYNAMIC_TRANSFORMATION.md
+docs/monitoring/monitoring_infrastructure.md
+diagnose-firebase.sh
+docs/deploy/secrets-management.md
+docs/SECRETS_MANAGEMENT.md
+docs/SECRET_MANAGEMENT_QUICK_REF.md

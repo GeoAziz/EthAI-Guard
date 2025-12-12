@@ -38,9 +38,9 @@ on:
 env:
   GCP_PROJECT_ID: ethixai-production
   GCP_REGION: us-east1
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-backend
-  AI_CORE_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-ai-core
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/ethixai-frontend
+  # BACKEND_IMAGE, AI_CORE_IMAGE and FRONTEND_IMAGE are set at runtime in the
+  # "Set variables" step below after lower-casing the repository owner so
+  # registry references are valid (ghcr requires lowercase repository names).
 
 jobs:
   # =========================
@@ -66,8 +66,19 @@ jobs:
       - name: Set variables
         id: vars
         run: |
+          # Short SHA and release version (used as step outputs)
           echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "release_version=v$(date +%Y%m%d)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+          # Compute lowercase repository owner to ensure GHCR references are valid
+          # (ghcr requires lowercase repository/owner names). Use the github
+          # context value and convert to lowercase in-shell, then export images
+          # to GITHUB_ENV so they are available as env.BACKEND_IMAGE etc. later.
+          owner="${{ github.repository_owner }}"
+          owner_lower=$(echo "${owner}" | tr '[:upper:]' '[:lower:]')
+          echo "BACKEND_IMAGE=ghcr.io/${owner_lower}/ethixai-backend" >> $GITHUB_ENV
+          echo "AI_CORE_IMAGE=ghcr.io/${owner_lower}/ethixai-ai-core" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=ghcr.io/${owner_lower}/ethixai-frontend" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -185,6 +196,25 @@ jobs:
             --severity HIGH,CRITICAL \
             --exit-code 1 \
             ${{ env.BACKEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
+      - name: Scan ai_core image for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            ${{ env.AI_CORE_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
+      - name: Scan frontend image for vulnerabilities (Trivy)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            ${{ env.FRONTEND_IMAGE }}:sha-${{ steps.vars.outputs.short_sha }}
+
 
   # =========================
   # Job 2: Deploy to Staging

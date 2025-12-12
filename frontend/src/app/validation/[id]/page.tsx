@@ -72,7 +72,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
       setLoading(true);
       const token = localStorage.getItem('token') || '';
       const res = await axios.get(`${BACKEND_URL}/v1/validation-reports/${resolvedParams.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       setReport(res.data);
       setError('');
@@ -89,7 +89,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
   };
 
   const exportJSON = () => {
-    if (!report) return;
+    if (!report) {return;}
     const dataStr = JSON.stringify(report.report_json, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const exportFileDefaultName = `validation-report-${report.report_id}.json`;
@@ -100,26 +100,26 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'pass') return 'bg-green-100 text-green-800 border-green-300';
-    if (status === 'conditional_pass') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (status === 'pass') {return 'bg-green-100 text-green-800 border-green-300';}
+    if (status === 'conditional_pass') {return 'bg-yellow-100 text-yellow-800 border-yellow-300';}
     return 'bg-red-100 text-red-800 border-red-300';
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
+    if (score >= 80) {return 'text-green-600';}
+    if (score >= 60) {return 'text-yellow-600';}
     return 'text-red-600';
   };
 
   const getLevelColor = (level: string) => {
-    if (level === 'acceptable') return 'bg-green-100 text-green-800';
-    if (level === 'warning') return 'bg-yellow-100 text-yellow-800';
+    if (level === 'acceptable') {return 'bg-green-100 text-green-800';}
+    if (level === 'warning') {return 'bg-yellow-100 text-yellow-800';}
     return 'bg-red-100 text-red-800';
   };
 
   const getLevelIcon = (level: string) => {
-    if (level === 'acceptable') return '✓';
-    if (level === 'warning') return '⚠';
+    if (level === 'acceptable') {return '✓';}
+    if (level === 'warning') {return '⚠';}
     return '✗';
   };
 
@@ -127,7 +127,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
           <p className="text-gray-600 mt-4">Loading validation report...</p>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
             </span>
           </div>
           <p className="text-gray-700 mb-6">{report.report_json.status_reason}</p>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
               <p className="text-xs text-blue-700 mb-1 font-medium">Fairness Score</p>
@@ -267,7 +267,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
                           className="h-full transition-all"
                           style={{
                             width: `${Math.min(100, metric.score)}%`,
-                            backgroundColor: metric.score >= 80 ? '#10b981' : metric.score >= 60 ? '#f59e0b' : '#ef4444'
+                            backgroundColor: metric.score >= 80 ? '#10b981' : metric.score >= 60 ? '#f59e0b' : '#ef4444',
                           }}
                         />
                       </div>
@@ -310,7 +310,7 @@ export default function ValidationDetailPage({ params }: { params: Promise<{ id:
                   const isWarning = rec.includes('WARNING');
                   const borderColor = isCritical ? 'border-red-500' : isWarning ? 'border-yellow-500' : 'border-green-500';
                   const bgColor = isCritical ? 'bg-red-50' : isWarning ? 'bg-yellow-50' : 'bg-green-50';
-                  
+
                   return (
                     <motion.li
                       key={idx}

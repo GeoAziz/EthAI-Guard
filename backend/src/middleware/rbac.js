@@ -3,7 +3,7 @@ const { withRequest } = require('../logger');
 
 /**
  * Require specific roles for route access.
- * 
+ *
  * Usage:
  *   app.get('/admin/users', authMiddleware, requireRole('admin'), handler);
  *   app.get('/reports', authMiddleware, requireRole('admin', 'analyst', 'auditor'), handler);
@@ -13,7 +13,7 @@ function requireRole(...allowedRoles) {
     if (!req.role) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    
+
     if (!allowedRoles.includes(req.role)) {
       const log = withRequest(req);
       log.warn({
@@ -22,23 +22,23 @@ function requireRole(...allowedRoles) {
         actual_role: req.role,
         endpoint: req.path,
         method: req.method,
-        action: 'authz_denied'
+        action: 'authz_denied',
       }, 'authorization_failed');
-      
-      return res.status(403).json({ 
+
+      return res.status(403).json({
         error: 'Insufficient permissions',
         required: allowedRoles,
-        actual: req.role
+        actual: req.role,
       });
     }
-    
+
     next();
   };
 }
 
 /**
  * Require specific permissions (granular).
- * 
+ *
  * Usage:
  *   app.delete('/datasets/:id', authMiddleware, requirePermission('datasets:delete'), handler);
  */
@@ -47,10 +47,10 @@ function requirePermission(...permissions) {
     if (!req.user || !req.user.permissions) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    
+
     const userPerms = req.user.permissions || [];
     const hasPermission = permissions.some(p => userPerms.includes(p));
-    
+
     if (!hasPermission) {
       const log = withRequest(req);
       log.warn({
@@ -59,22 +59,22 @@ function requirePermission(...permissions) {
         user_permissions: userPerms,
         endpoint: req.path,
         method: req.method,
-        action: 'authz_denied'
+        action: 'authz_denied',
       }, 'permission_denied');
-      
-      return res.status(403).json({ 
+
+      return res.status(403).json({
         error: 'Insufficient permissions',
-        required: permissions
+        required: permissions,
       });
     }
-    
+
     next();
   };
 }
 
 /**
  * Require user to be owner of resource or have specific role.
- * 
+ *
  * Usage:
  *   app.delete('/reports/:id', authMiddleware, requireOwnerOrRole('userId', 'admin'), handler);
  */
@@ -83,25 +83,25 @@ function requireOwnerOrRole(ownerField, ...allowedRoles) {
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    
+
     // Check if user has allowed role
     if (allowedRoles.includes(req.role)) {
       return next();
     }
-    
+
     // Check ownership (resource must be loaded in handler or prior middleware)
-    const resource = req.resource;  // Populated by prior middleware
+    const { resource } = req;  // Populated by prior middleware
     if (resource && String(resource[ownerField]) === String(req.userId)) {
       return next();
     }
-    
+
     const log = withRequest(req);
     log.warn({
       user_id: req.userId,
       role: req.role,
-      action: 'ownership_check_failed'
+      action: 'ownership_check_failed',
     }, 'not_owner_and_insufficient_role');
-    
+
     return res.status(403).json({ error: 'Not authorized' });
   };
 }
@@ -109,5 +109,5 @@ function requireOwnerOrRole(ownerField, ...allowedRoles) {
 module.exports = {
   requireRole,
   requirePermission,
-  requireOwnerOrRole
+  requireOwnerOrRole,
 };

@@ -42,44 +42,44 @@ class ComplianceReport:
     violations: List[Dict[str, Any]]
     warnings: List[Dict[str, Any]]
     summary: Dict[str, int]
-    
+
     def to_dict(self) -> Dict:
         return asdict(self)
 
 
 class ComplianceChecker:
     """Validate Model Cards against policies"""
-    
+
     def __init__(self, policy_config_path: str):
         """
         Initialize Compliance Checker
-        
+
         Args:
             policy_config_path: Path to policies YAML file
         """
         self.policies = self._load_policies(policy_config_path)
-    
+
     def _load_policies(self, path: str) -> Dict:
         """Load policy configuration from YAML"""
         with open(path, 'r') as f:
             return yaml.safe_load(f)
-    
+
     def check_compliance(self, model_card_path: str) -> ComplianceReport:
         """
         Validate Model Card against all policies
-        
+
         Args:
             model_card_path: Path to Model Card JSON file
-        
+
         Returns:
             ComplianceReport with overall status and violations
         """
         # Load Model Card
         with open(model_card_path, 'r') as f:
             model_card = json.load(f)
-        
+
         model_id = model_card.get('model_metadata', {}).get('model_id', 'unknown')
-        
+
         # Run all checks
         results = []
         results.append(self._check_fairness_thresholds(model_card))
@@ -88,17 +88,17 @@ class ComplianceChecker:
         results.append(self._check_protected_attribute_leakage(model_card))
         results.append(self._check_data_quality(model_card))
         results.extend(self._check_regulatory_requirements(model_card))
-        
+
         # Filter out None results
         results = [r for r in results if r is not None]
-        
+
         # Aggregate status
         overall_status = self._aggregate_status(results)
-        
+
         # Extract violations and warnings
         violations = [r for r in results if r.status == "FAIL"]
         warnings = [r for r in results if r.status == "WARNING"]
-        
+
         # Build summary
         summary = {
             "total_checks": len(results),
@@ -106,7 +106,7 @@ class ComplianceChecker:
             "warnings": len(warnings),
             "failures": len(violations)
         }
-        
+
         return ComplianceReport(
             model_id=model_id,
             check_timestamp=datetime.now().isoformat() + "Z",
@@ -116,7 +116,7 @@ class ComplianceChecker:
             warnings=[asdict(w) for w in warnings],
             summary=summary
         )
-    
+
     def _aggregate_status(self, results: List[CheckResult]) -> str:
         """Determine overall status from individual check results"""
         if any(r.status == "FAIL" for r in results):
@@ -125,7 +125,7 @@ class ComplianceChecker:
             return "WARNING"
         else:
             return "PASS"
-    
+
     def _check_fairness_thresholds(self, model_card: Dict) -> CheckResult:
         """
         Check fairness metrics against policy thresholds:
@@ -134,7 +134,7 @@ class ComplianceChecker:
         - Equal opportunity difference < 0.05
         """
         fairness_metrics = model_card.get('fairness_metrics', {})
-        
+
         if not fairness_metrics:
             return CheckResult(
                 check_name="Fairness Thresholds",
@@ -143,15 +143,15 @@ class ComplianceChecker:
                 severity="MEDIUM",
                 message="Fairness metrics missing - cannot validate"
             )
-        
+
         policies = self.policies.get('fairness_policies', {})
         violations = []
-        
+
         # Check demographic parity
         dp_policy = policies.get('demographic_parity', {})
         dp_max_diff = dp_policy.get('max_difference', 0.10)
         dp_data = fairness_metrics.get('demographic_parity', {})
-        
+
         max_dp_diff = 0.0
         for attr, groups in dp_data.items():
             if isinstance(groups, dict) and 'difference' in groups:
@@ -165,12 +165,12 @@ class ComplianceChecker:
                         "threshold": dp_max_diff,
                         "regulation": dp_policy.get('regulation', 'Internal Policy')
                     })
-        
+
         # Check disparate impact
         di_policy = policies.get('disparate_impact', {})
         di_min_ratio = di_policy.get('min_ratio', 0.80)
         di_data = fairness_metrics.get('disparate_impact', {})
-        
+
         min_di_ratio = 1.0
         for attr, groups in di_data.items():
             if isinstance(groups, dict) and 'ratio' in groups:
@@ -184,12 +184,12 @@ class ComplianceChecker:
                         "threshold": di_min_ratio,
                         "regulation": di_policy.get('regulation', 'Internal Policy')
                     })
-        
+
         # Check equal opportunity
         eo_policy = policies.get('equal_opportunity', {})
         eo_max_diff = eo_policy.get('max_difference', 0.05)
         eo_data = fairness_metrics.get('equal_opportunity', {})
-        
+
         for attr, groups in eo_data.items():
             if isinstance(groups, dict) and 'difference' in groups:
                 diff = groups['difference']
@@ -201,7 +201,7 @@ class ComplianceChecker:
                         "threshold": eo_max_diff,
                         "regulation": eo_policy.get('regulation', 'Internal Policy')
                     })
-        
+
         if violations:
             return CheckResult(
                 check_name="Fairness Thresholds",
@@ -226,7 +226,7 @@ class ComplianceChecker:
                     "passed": True
                 }
             )
-    
+
     def _check_performance_thresholds(self, model_card: Dict) -> CheckResult:
         """
         Check performance metrics against minimum thresholds:
@@ -235,29 +235,29 @@ class ComplianceChecker:
         """
         performance = model_card.get('performance', {})
         policies = self.policies.get('performance_policies', {})
-        
+
         accuracy = performance.get('overall_accuracy', 0.0)
         auc_roc = performance.get('auc_roc', 0.0)
-        
+
         min_accuracy = policies.get('minimum_accuracy', {}).get('threshold', 0.75)
         min_auc = policies.get('minimum_auc_roc', {}).get('threshold', 0.70)
-        
+
         violations = []
-        
+
         if accuracy < min_accuracy:
             violations.append({
                 "metric": "accuracy",
                 "value": accuracy,
                 "threshold": min_accuracy
             })
-        
+
         if auc_roc < min_auc:
             violations.append({
                 "metric": "auc_roc",
                 "value": auc_roc,
                 "threshold": min_auc
             })
-        
+
         if violations:
             return CheckResult(
                 check_name="Performance Thresholds",
@@ -282,7 +282,7 @@ class ComplianceChecker:
                     "passed": True
                 }
             )
-    
+
     def _check_explainability(self, model_card: Dict) -> CheckResult:
         """
         Check explainability requirements:
@@ -291,7 +291,7 @@ class ComplianceChecker:
         """
         explainability = model_card.get('explainability', {})
         policies = self.policies.get('explainability_policies', {})
-        
+
         if not explainability:
             return CheckResult(
                 check_name="Explainability",
@@ -300,10 +300,10 @@ class ComplianceChecker:
                 severity="MEDIUM",
                 message="Explainability data missing"
             )
-        
+
         min_score = policies.get('interpretability_score', {}).get('min_score', 0.70)
         interpretability_score = explainability.get('interpretability_score', 0.0)
-        
+
         if interpretability_score < min_score:
             return CheckResult(
                 check_name="Explainability",
@@ -326,14 +326,14 @@ class ComplianceChecker:
                     "passed": True
                 }
             )
-    
+
     def _check_protected_attribute_leakage(self, model_card: Dict) -> Optional[CheckResult]:
         """
         Check that protected attributes are NOT in top 5 features
         """
         explainability = model_card.get('explainability', {})
         fairness_metrics = model_card.get('fairness_metrics', {})
-        
+
         if not explainability or not fairness_metrics:
             return CheckResult(
                 check_name="Protected Attribute Leakage",
@@ -342,17 +342,17 @@ class ComplianceChecker:
                 severity="LOW",
                 message="Cannot verify protected attribute leakage - missing data"
             )
-        
+
         protected_attrs = fairness_metrics.get('protected_attributes', [])
         global_importance = explainability.get('global_importance', {})
         top_features = global_importance.get('top_features', [])
-        
+
         if not top_features:
             return None  # Skip if no feature importance data
-        
+
         # Extract feature names from top 5
         top_5_names = [f.get('feature', '') for f in top_features[:5]]
-        
+
         # Check for protected attributes in top 5
         leakage = []
         for attr in protected_attrs:
@@ -362,7 +362,7 @@ class ComplianceChecker:
                     "attribute": attr,
                     "rank": rank
                 })
-        
+
         if leakage:
             # If protected attribute in top 5, it's a warning (not necessarily failure)
             # because some attributes like age might be legitimate business factors
@@ -386,18 +386,18 @@ class ComplianceChecker:
                     "passed": True
                 }
             )
-    
+
     def _check_data_quality(self, model_card: Dict) -> Optional[CheckResult]:
         """Check training data quality metrics"""
         training_data = model_card.get('training_data', {})
         data_quality = training_data.get('data_quality', {})
-        
+
         if not data_quality:
             return None  # Skip if no data quality info
-        
+
         completeness = data_quality.get('completeness', 1.0)
         min_completeness = self.policies.get('data_quality_policies', {}).get('completeness', {}).get('min_score', 0.90)
-        
+
         if completeness < min_completeness:
             return CheckResult(
                 check_name="Data Quality",
@@ -419,13 +419,13 @@ class ComplianceChecker:
                     "passed": True
                 }
             )
-    
+
     def _check_regulatory_requirements(self, model_card: Dict) -> List[CheckResult]:
         """Check regulatory compliance requirements"""
         results = []
         compliance = model_card.get('compliance', {})
         regulations = compliance.get('regulations', [])
-        
+
         # Check EU AI Act
         eu_reg = next((r for r in regulations if 'EU AI Act' in r.get('regulation', '')), None)
         if eu_reg:
@@ -447,7 +447,7 @@ class ComplianceChecker:
                     message="Model not compliant with EU AI Act",
                     regulation="EU AI Act"
                 ))
-        
+
         # Check Kenya Data Protection Act
         kenya_reg = next((r for r in regulations if 'Kenya' in r.get('regulation', '')), None)
         if kenya_reg:
@@ -459,7 +459,7 @@ class ComplianceChecker:
                         "requirements_met": kenya_reg.get('requirements_met', [])
                     }
                 ))
-        
+
         return results
 
 
@@ -469,13 +469,13 @@ def main():
     parser.add_argument("--model-card", required=True, help="Path to Model Card JSON file")
     parser.add_argument("--policies", required=True, help="Path to policies YAML file")
     parser.add_argument("--output", help="Output path for compliance report JSON (optional)")
-    
+
     args = parser.parse_args()
-    
+
     # Check compliance
     checker = ComplianceChecker(args.policies)
     report = checker.check_compliance(args.model_card)
-    
+
     # Print summary
     print(f"\n{'='*60}")
     print(f"COMPLIANCE CHECK REPORT")
@@ -490,7 +490,7 @@ def main():
     print(f"✅ Passed: {report.summary['passed']}")
     print(f"⚠️  Warnings: {report.summary['warnings']}")
     print(f"❌ Failures: {report.summary['failures']}")
-    
+
     # Print violations
     if report.violations:
         print(f"\n{'='*60}")
@@ -502,7 +502,7 @@ def main():
             print(f"   Message: {violation.get('message', 'No message')}")
             if violation.get('regulation'):
                 print(f"   Regulation: {violation['regulation']}")
-    
+
     # Print warnings
     if report.warnings:
         print(f"\n{'='*60}")
@@ -512,19 +512,19 @@ def main():
             print(f"\n⚠️  {warning['check_name']}")
             print(f"   Severity: {warning.get('severity', 'UNKNOWN')}")
             print(f"   Message: {warning.get('message', 'No message')}")
-    
+
     print(f"\n{'='*60}\n")
-    
+
     # Save report if output specified
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(output_path, 'w') as f:
             json.dump(report.to_dict(), f, indent=2)
-        
+
         print(f"✅ Compliance report saved to: {args.output}")
-    
+
     # Exit with appropriate code
     if report.overall_status == "FAIL":
         sys.exit(1)

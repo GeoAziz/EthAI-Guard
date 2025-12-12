@@ -1,8 +1,10 @@
 /**
  * Slack Notification Handler
- * 
+ *
  * Sends drift alerts to Slack via webhook.
  */
+
+const logger = require('../utils/logger');
 
 /**
  * Send alert to Slack
@@ -11,20 +13,20 @@
  */
 async function sendSlackAlert(alert, webhookUrl) {
   if (!webhookUrl) {
-    console.warn('Slack webhook URL not configured');
+    logger.warn('Slack webhook URL not configured');
     return { success: false, error: 'No webhook URL' };
   }
 
   const severityEmoji = {
     critical: '🚨',
     warning: '⚠️',
-    stable: '✅'
+    stable: '✅',
   };
 
   const severityColor = {
     critical: '#FF0000',
     warning: '#FFA500',
-    stable: '#00FF00'
+    stable: '#00FF00',
   };
 
   const emoji = severityEmoji[alert.severity] || '📊';
@@ -41,38 +43,38 @@ async function sendSlackAlert(alert, webhookUrl) {
           {
             title: 'Model ID',
             value: alert.model_id,
-            short: true
+            short: true,
           },
           {
             title: 'Metric',
             value: alert.metric_name,
-            short: true
+            short: true,
           },
           {
             title: 'Current Value',
             value: alert.metric_value.toFixed(4),
-            short: true
+            short: true,
           },
           {
             title: 'Threshold',
             value: alert.threshold.toFixed(4),
-            short: true
+            short: true,
           },
           {
             title: 'Window',
             value: `${new Date(alert.window_start).toISOString().slice(0, 16)} - ${new Date(alert.window_end).toISOString().slice(0, 16)}`,
-            short: false
+            short: false,
           },
           {
             title: 'Occurrences',
             value: `${alert.occurrence_count || 1} time(s)`,
-            short: true
-          }
+            short: true,
+          },
         ],
         footer: 'EthixAI-Guard Drift Detection',
-        ts: Math.floor(new Date(alert.created_at).getTime() / 1000)
-      }
-    ]
+        ts: Math.floor(new Date(alert.created_at).getTime() / 1000),
+      },
+    ],
   };
 
   // Add action buttons if critical
@@ -81,14 +83,14 @@ async function sendSlackAlert(alert, webhookUrl) {
       {
         type: 'button',
         text: '🔍 View Details',
-        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/monitor/drift?alert_id=${alert._id}`
+        url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/monitor/drift?alert_id=${alert._id}`,
       },
       {
         type: 'button',
         text: '🔄 Trigger Retrain',
         url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/models/${alert.model_id}/retrain`,
-        style: 'danger'
-      }
+        style: 'danger',
+      },
     ];
   }
 
@@ -96,19 +98,19 @@ async function sendSlackAlert(alert, webhookUrl) {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message)
+      body: JSON.stringify(message),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Slack webhook error:', errorText);
+      logger.error('Slack webhook error:', errorText);
       return { success: false, error: errorText };
     }
 
-    console.log(`Slack notification sent for alert ${alert._id}`);
+    logger.info(`Slack notification sent for alert ${alert._id}`);
     return { success: true };
   } catch (error) {
-    console.error('Failed to send Slack notification:', error);
+    logger.error('Failed to send Slack notification:', error);
     return { success: false, error: error.message };
   }
 }
@@ -120,7 +122,7 @@ async function sendSlackAlert(alert, webhookUrl) {
  */
 async function sendDailySummary(summary, webhookUrl) {
   if (!webhookUrl) {
-    console.warn('Slack webhook URL not configured');
+    logger.warn('Slack webhook URL not configured');
     return { success: false, error: 'No webhook URL' };
   }
 
@@ -135,62 +137,62 @@ async function sendDailySummary(summary, webhookUrl) {
           {
             title: 'Date',
             value: new Date(summary.date).toLocaleDateString(),
-            short: false
+            short: false,
           },
           {
             title: 'Critical Alerts',
             value: summary.critical_count.toString(),
-            short: true
+            short: true,
           },
           {
             title: 'Warnings',
             value: summary.warning_count.toString(),
-            short: true
+            short: true,
           },
           {
             title: 'Models Monitored',
             value: summary.models_monitored.toString(),
-            short: true
+            short: true,
           },
           {
             title: 'Total Snapshots',
             value: summary.total_snapshots.toString(),
-            short: true
+            short: true,
           },
           {
             title: 'Models Needing Retrain',
             value: summary.models_needing_retrain.join(', ') || 'None',
-            short: false
-          }
+            short: false,
+          },
         ],
         footer: 'EthixAI-Guard Drift Detection',
-        ts: Math.floor(Date.now() / 1000)
-      }
-    ]
+        ts: Math.floor(Date.now() / 1000),
+      },
+    ],
   };
 
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message)
+      body: JSON.stringify(message),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Slack webhook error:', errorText);
+      logger.error('Slack webhook error:', errorText);
       return { success: false, error: errorText };
     }
 
-    console.log('Daily summary sent to Slack');
+    logger.info('Daily summary sent to Slack');
     return { success: true };
   } catch (error) {
-    console.error('Failed to send Slack summary:', error);
+    logger.error('Failed to send Slack summary:', error);
     return { success: false, error: error.message };
   }
 }
 
 module.exports = {
   sendSlackAlert,
-  sendDailySummary
+  sendDailySummary,
 };

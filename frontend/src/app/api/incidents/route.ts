@@ -12,7 +12,7 @@ async function readDemoIncidents() {
 async function readIncidentsFromMongo(limit = 20) {
   const { MongoClient } = await import('mongodb');
   const uri = process.env.MONGO_URI;
-  if (!uri) throw new Error('MONGO_URI not configured');
+  if (!uri) {throw new Error('MONGO_URI not configured');}
   const client = new MongoClient(uri as string);
   await client.connect();
   const db = client.db(process.env.MONGO_DB || 'ethai');

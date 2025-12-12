@@ -15,8 +15,11 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 
-if (typeof window !== 'undefined') {
-  // Only initialize on client side
+// Only initialize Firebase in a real browser environment and not during tests.
+// Many test environments (jsdom) expose `window` but don't provide real
+// Firebase credentials — avoid initializing Firebase there to prevent errors
+// like `auth/invalid-api-key` during unit tests.
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test' && firebaseConfig.apiKey) {
   if (!getApps().length) {
     app = initializeApp(firebaseConfig);
   } else {

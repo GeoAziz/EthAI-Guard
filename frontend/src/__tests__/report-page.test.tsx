@@ -6,9 +6,12 @@ import { describe, it, expect, vi } from 'vitest';
 import ReportPage from '@/app/report/[id]/page';
 
 // Mock the api module used by the page
+import { makeReportResponse } from './utils/reportFactory';
+
 vi.mock('@/lib/api', () => ({
   default: {
-    get: vi.fn(() => Promise.resolve({ data: { report: { summary: { n_rows: 10 }, explanation_plot: null } } })),
+    // Use factory to produce a report response with bias metrics
+    get: vi.fn(() => Promise.resolve(makeReportResponse({ withBias: true }))),
   },
 }));
 

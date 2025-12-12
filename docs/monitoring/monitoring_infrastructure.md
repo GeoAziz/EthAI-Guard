@@ -267,7 +267,7 @@ jobs:
       
       - name: Upload analysis report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: drift-report
           path: drift_report.json

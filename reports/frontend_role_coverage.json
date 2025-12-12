@@ -1,0 +1,811 @@
+{
+  "generatedAt": "2025-11-29T16:00:04.682Z",
+  "summary": {
+    "totalPages": 67,
+    "roleCounts": {
+      "admin": 32,
+      "analyst": 9,
+      "reviewer": 8,
+      "user": 5,
+      "guest": 1,
+      "unknown": 32
+    }
+  },
+  "pages": [
+    {
+      "route": "/about",
+      "file": "frontend/src/app/about/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/api-reference",
+      "file": "frontend/src/app/api-reference/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/blog",
+      "file": "frontend/src/app/blog/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/careers",
+      "file": "frontend/src/app/careers/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/community/discord",
+      "file": "frontend/src/app/community/discord/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/access-requests",
+      "file": "frontend/src/app/dashboard/admin/access-requests/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": [
+        "/v1/users/promote",
+        "/v1/users/sync-claims",
+        "/v1/access-requests"
+      ]
+    },
+    {
+      "route": "/dashboard/admin/audit",
+      "file": "frontend/src/app/dashboard/admin/audit/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/billing",
+      "file": "frontend/src/app/dashboard/admin/billing/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/datasets",
+      "file": "frontend/src/app/dashboard/admin/datasets/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/fairness",
+      "file": "frontend/src/app/dashboard/admin/fairness/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/models",
+      "file": "frontend/src/app/dashboard/admin/models/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin",
+      "file": "frontend/src/app/dashboard/admin/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/reports",
+      "file": "frontend/src/app/dashboard/admin/reports/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/settings",
+      "file": "frontend/src/app/dashboard/admin/settings/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/admin/users",
+      "file": "frontend/src/app/dashboard/admin/users/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": [
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": [
+        "/v1/users/promote",
+        "/v1/users/sync-claims"
+      ]
+    },
+    {
+      "route": "/dashboard/analyst",
+      "file": "frontend/src/app/dashboard/analyst/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/analyst/reports/[id]",
+      "file": "frontend/src/app/dashboard/analyst/reports/[id]/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/analyst/reports",
+      "file": "frontend/src/app/dashboard/analyst/reports/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/analyst/run",
+      "file": "frontend/src/app/dashboard/analyst/run/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/compliance",
+      "file": "frontend/src/app/dashboard/compliance/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/explainboard",
+      "file": "frontend/src/app/dashboard/explainboard/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/fairlens",
+      "file": "frontend/src/app/dashboard/fairlens/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard",
+      "file": "frontend/src/app/dashboard/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/request-access",
+      "file": "frontend/src/app/dashboard/request-access/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": true,
+      "backendCalls": [
+        "/v1/access-requests"
+      ]
+    },
+    {
+      "route": "/dashboard/reviewer/audit",
+      "file": "frontend/src/app/dashboard/reviewer/audit/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/reviewer/fairness",
+      "file": "frontend/src/app/dashboard/reviewer/fairness/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/reviewer",
+      "file": "frontend/src/app/dashboard/reviewer/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/reviewer/profile",
+      "file": "frontend/src/app/dashboard/reviewer/profile/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/reviewer/review/[id]",
+      "file": "frontend/src/app/dashboard/reviewer/review/[id]/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/reviewer/thresholds",
+      "file": "frontend/src/app/dashboard/reviewer/thresholds/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "reviewer",
+      "requiredRolesArray": [
+        "reviewer",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/settings",
+      "file": "frontend/src/app/dashboard/settings/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/user",
+      "file": "frontend/src/app/dashboard/user/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "user",
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/user/profile",
+      "file": "frontend/src/app/dashboard/user/profile/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "user",
+      "requiredRolesArray": [
+        "user",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/user/reports",
+      "file": "frontend/src/app/dashboard/user/reports/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "user",
+      "requiredRolesArray": [
+        "user",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/dashboard/user/run",
+      "file": "frontend/src/app/dashboard/user/run/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "user",
+      "requiredRolesArray": [
+        "user",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/datasets",
+      "file": "frontend/src/app/datasets/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/decision-analysis",
+      "file": "frontend/src/app/decision-analysis/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/demo/firebase-exchange",
+      "file": "frontend/src/app/demo/firebase-exchange/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/authentication",
+      "file": "frontend/src/app/docs/authentication/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/compliance",
+      "file": "frontend/src/app/docs/compliance/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/contributing",
+      "file": "frontend/src/app/docs/contributing/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/data-format",
+      "file": "frontend/src/app/docs/data-format/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/explainability",
+      "file": "frontend/src/app/docs/explainability/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/fairness-metrics",
+      "file": "frontend/src/app/docs/fairness-metrics/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/installation",
+      "file": "frontend/src/app/docs/installation/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs",
+      "file": "frontend/src/app/docs/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/docs/quick-start",
+      "file": "frontend/src/app/docs/quick-start/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/explainability",
+      "file": "frontend/src/app/explainability/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/fairness",
+      "file": "frontend/src/app/fairness/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/firebase-exchange-demo",
+      "file": "frontend/src/app/firebase-exchange-demo/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/guest",
+      "file": "frontend/src/app/guest/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "guest",
+      "requiredRolesArray": [
+        "guest",
+        "user",
+        "reviewer",
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/history/[id]",
+      "file": "frontend/src/app/history/[id]/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/history",
+      "file": "frontend/src/app/history/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/login",
+      "file": "frontend/src/app/login/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": true,
+      "backendCalls": []
+    },
+    {
+      "route": "/models/[id]/promote",
+      "file": "frontend/src/app/models/[id]/promote/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": null,
+      "hasHasRole": true,
+      "backendCalls": [
+        "models_promote"
+      ]
+    },
+    {
+      "route": "/models/[id]/retrain",
+      "file": "frontend/src/app/models/[id]/retrain/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "admin",
+      "requiredRolesArray": null,
+      "hasHasRole": true,
+      "backendCalls": [
+        "models_trigger_retrain"
+      ]
+    },
+    {
+      "route": "/models",
+      "file": "frontend/src/app/models/page.tsx",
+      "roleProtected": true,
+      "requiredRole": "analyst",
+      "requiredRolesArray": [
+        "analyst",
+        "admin"
+      ],
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/monitor/drift",
+      "file": "frontend/src/app/monitor/drift/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": [
+        "models_trigger_retrain"
+      ]
+    },
+    {
+      "route": "/",
+      "file": "frontend/src/app/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/post-login",
+      "file": "frontend/src/app/post-login/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/register",
+      "file": "frontend/src/app/register/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/report/[id]",
+      "file": "frontend/src/app/report/[id]/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/report",
+      "file": "frontend/src/app/report/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/status",
+      "file": "frontend/src/app/status/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/unauthorized",
+      "file": "frontend/src/app/unauthorized/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/validation/[id]",
+      "file": "frontend/src/app/validation/[id]/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    },
+    {
+      "route": "/validation",
+      "file": "frontend/src/app/validation/page.tsx",
+      "roleProtected": false,
+      "requiredRole": null,
+      "requiredRolesArray": null,
+      "hasHasRole": false,
+      "backendCalls": []
+    }
+  ],
+  "rolePages": {
+    "admin": [
+      "/dashboard/admin/access-requests",
+      "/dashboard/admin/audit",
+      "/dashboard/admin/billing",
+      "/dashboard/admin/datasets",
+      "/dashboard/admin/fairness",
+      "/dashboard/admin/models",
+      "/dashboard/admin",
+      "/dashboard/admin/reports",
+      "/dashboard/admin/settings",
+      "/dashboard/admin/users",
+      "/dashboard/analyst/reports/[id]",
+      "/dashboard/analyst/reports",
+      "/dashboard/analyst/run",
+      "/dashboard/compliance",
+      "/dashboard/request-access",
+      "/dashboard/reviewer/audit",
+      "/dashboard/reviewer/fairness",
+      "/dashboard/reviewer/profile",
+      "/dashboard/reviewer/review/[id]",
+      "/dashboard/reviewer/thresholds",
+      "/dashboard/user/profile",
+      "/dashboard/user/reports",
+      "/dashboard/user/run",
+      "/datasets",
+      "/explainability",
+      "/fairness",
+      "/guest",
+      "/login",
+      "/models/[id]/promote",
+      "/models/[id]/retrain",
+      "/models",
+      "/monitor/drift"
+    ],
+    "analyst": [
+      "/dashboard/analyst",
+      "/dashboard/analyst/reports/[id]",
+      "/dashboard/analyst/reports",
+      "/dashboard/analyst/run",
+      "/datasets",
+      "/explainability",
+      "/fairness",
+      "/guest",
+      "/models"
+    ],
+    "reviewer": [
+      "/dashboard/compliance",
+      "/dashboard/reviewer/audit",
+      "/dashboard/reviewer/fairness",
+      "/dashboard/reviewer",
+      "/dashboard/reviewer/profile",
+      "/dashboard/reviewer/review/[id]",
+      "/dashboard/reviewer/thresholds",
+      "/guest"
+    ],
+    "user": [
+      "/dashboard/user",
+      "/dashboard/user/profile",
+      "/dashboard/user/reports",
+      "/dashboard/user/run",
+      "/guest"
+    ],
+    "guest": [
+      "/guest"
+    ],
+    "unknown": [
+      "/about",
+      "/api-reference",
+      "/blog",
+      "/careers",
+      "/community/discord",
+      "/dashboard/explainboard",
+      "/dashboard/fairlens",
+      "/dashboard",
+      "/dashboard/settings",
+      "/decision-analysis",
+      "/demo/firebase-exchange",
+      "/docs/authentication",
+      "/docs/compliance",
+      "/docs/contributing",
+      "/docs/data-format",
+      "/docs/explainability",
+      "/docs/fairness-metrics",
+      "/docs/installation",
+      "/docs",
+      "/docs/quick-start",
+      "/firebase-exchange-demo",
+      "/history/[id]",
+      "/history",
+      "/",
+      "/post-login",
+      "/register",
+      "/report/[id]",
+      "/report",
+      "/status",
+      "/unauthorized",
+      "/validation/[id]",
+      "/validation"
+    ]
+  }
+}

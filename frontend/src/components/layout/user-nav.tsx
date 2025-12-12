@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,20 +10,23 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CreditCard, LogOut, Settings, User } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CreditCard, LogOut, Settings, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const { user, logout } = useAuth();
+  const { roles } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { refreshRoles } = useAuth();
 
   const email = user?.email || 'Guest';
   const initials = (email?.[0] || 'U').toUpperCase();
+  const hasRole = (role: string) => (roles?.includes(role) ?? false);
 
   const handleLogout = async () => {
     try {
@@ -50,6 +53,13 @@ export function UserNav() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{email ? 'Account' : 'Guest'}</p>
             <p className="text-xs leading-none text-muted-foreground">{email}</p>
+            {roles && roles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {roles.map(r => (
+                  <span key={r} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{r}</span>
+                ))}
+              </div>
+            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -72,6 +82,29 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {user && !hasRole('admin') && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/request-access">
+              <User className="mr-2 h-4 w-4" />
+              <span>Request admin access</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {user && (
+          <DropdownMenuItem onClick={async () => {
+            try {
+              const ok = await refreshRoles();
+              if (ok) {toast({ title: 'Roles refreshed' });}
+              else {toast({ title: 'Refresh failed', variant: 'destructive' });}
+            } catch (e) {
+              toast({ title: 'Refresh failed', variant: 'destructive' });
+            }
+          }}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Refresh roles</span>
+          </DropdownMenuItem>
+        )}
         {user ? (
           <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />

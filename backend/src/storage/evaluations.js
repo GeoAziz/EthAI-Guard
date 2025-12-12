@@ -46,7 +46,7 @@ async function saveEvaluation(evaluation) {
       full_risk: evaluation.risk,
       input_features: evaluation.input_features,
       context: evaluation.context || {},
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await db.collection(COLLECTION).doc(evaluation_id).set(doc);
@@ -107,7 +107,7 @@ async function getEvaluations(filters = {}) {
         risk_level: data.risk_level,
         triggered_rules: data.triggered_rules,
         explanation_summary: data.explanation?.summary,
-        timestamp: data.timestamp
+        timestamp: data.timestamp,
       });
     });
 
@@ -154,16 +154,24 @@ function summarizeInput(input_features) {
       summary[k] = v;
     }
   }
-  if (keys.length > 5) summary['...'] = `+${keys.length - 5} more`;
+  if (keys.length > 5) {
+    summary['...'] = `+${keys.length - 5} more`;
+  }
   return summary;
 }
 
 // Helper: extract triggered rule names/flags
 function extractTriggeredRules(rules) {
   const triggered = [];
-  if (rules.fairness?.fairness_flag) triggered.push('fairness_imbalance');
-  if (rules.bias?.bias_flag) triggered.push('extreme_output_bias');
-  if (rules.compliance?.compliance_flag) triggered.push('compliance_missing_fields');
+  if (rules.fairness?.fairness_flag) {
+    triggered.push('fairness_imbalance');
+  }
+  if (rules.bias?.bias_flag) {
+    triggered.push('extreme_output_bias');
+  }
+  if (rules.compliance?.compliance_flag) {
+    triggered.push('compliance_missing_fields');
+  }
   return triggered;
 }
 

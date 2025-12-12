@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Users, Target, Lightbulb, Award, Globe } from "lucide-react";
+import { Card, CardContent } from '@/components/ui/card';
+import { Shield, Users, Target, Lightbulb, Award, Globe } from 'lucide-react';
 
 export default function AboutPage() {
   return (
@@ -21,8 +21,8 @@ export default function AboutPage() {
               <div>
                 <h2 className="text-2xl font-bold mb-3">Our Mission</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  EthixAI was founded with a singular purpose: to eliminate bias and ensure fairness in AI-driven 
-                  financial decisions. We believe that everyone deserves equal access to financial opportunities, 
+                  EthixAI was founded with a singular purpose: to eliminate bias and ensure fairness in AI-driven
+                  financial decisions. We believe that everyone deserves equal access to financial opportunities,
                   and AI systems should empower—not hinder—this goal.
                 </p>
               </div>
@@ -97,18 +97,18 @@ export default function AboutPage() {
           <h2 className="text-2xl md:text-3xl font-bold mb-6">Our Story</h2>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
             <p>
-              EthixAI was born from a simple observation: as AI became more prevalent in financial services, 
-              the need for fairness and explainability grew exponentially. Traditional bias detection methods 
+              EthixAI was born from a simple observation: as AI became more prevalent in financial services,
+              the need for fairness and explainability grew exponentially. Traditional bias detection methods
               were insufficient for modern machine learning systems.
             </p>
             <p>
-              Our founding team—comprising AI researchers, financial industry veterans, and ethics experts—came 
-              together to build a solution that addresses the unique challenges of AI governance in finance. 
-              We spent years researching fairness metrics, developing SHAP-based explanations, and working with 
+              Our founding team—comprising AI researchers, financial industry veterans, and ethics experts—came
+              together to build a solution that addresses the unique challenges of AI governance in finance.
+              We spent years researching fairness metrics, developing SHAP-based explanations, and working with
               regulatory bodies to ensure compliance.
             </p>
             <p>
-              Today, EthixAI serves financial institutions worldwide, helping them deploy AI responsibly while 
+              Today, EthixAI serves financial institutions worldwide, helping them deploy AI responsibly while
               maintaining regulatory compliance and building customer trust.
             </p>
           </div>
@@ -140,8 +140,8 @@ export default function AboutPage() {
             Get in touch with our team to see how EthixAI can help your organization.
           </p>
           <div className="flex gap-4 justify-center">
-            <a 
-              href="mailto:hello@ethixai.com" 
+            <a
+              href="mailto:hello@ethixai.com"
               className="text-primary hover:underline font-semibold"
             >
               hello@ethixai.com

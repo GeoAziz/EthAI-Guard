@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Moon, Sun } from "lucide-react";
+import * as React from 'react';
+import { Moon, Sun } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export function ThemeToggle() {
   const [isDarkMode, setIsDarkMode] = React.useState(true);
@@ -16,12 +16,12 @@ export function ThemeToggle() {
   }, []);
 
   const toggleTheme = () => {
-    const isDark = document.documentElement.classList.toggle("dark");
+    const isDark = document.documentElement.classList.toggle('dark');
     setIsDarkMode(isDark);
     toast({
-      title: "Theme Changed",
+      title: 'Theme Changed',
       description: `Switched to ${isDark ? 'Dark' : 'Light'} Mode.`,
-    })
+    });
   };
 
   return (

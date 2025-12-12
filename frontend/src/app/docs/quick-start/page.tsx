@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -59,11 +59,11 @@ export default function QuickStartPage() {
           <Card className="bg-muted">
             <CardContent className="pt-6">
               <pre className="text-sm">
-Analysis complete in 1.8s
-  
-✓ Fairness metrics calculated
-✓ SHAP explanations generated  
-✓ Compliance report ready
+                Analysis complete in 1.8s
+
+                ✓ Fairness metrics calculated
+                ✓ SHAP explanations generated
+                ✓ Compliance report ready
               </pre>
             </CardContent>
           </Card>

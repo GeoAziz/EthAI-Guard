@@ -6,6 +6,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles --forceExit",
+    "test:emulator": "./backend/scripts/run_emulator_and_tests.sh",
     "lint": "eslint src/ --ext .js",
     "lint:fix": "eslint src/ --ext .js --fix",
     "test:coverage": "jest --coverage --watchAll=false",
@@ -18,15 +19,17 @@
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "cookie-parser": "^1.4.6",
-    "express": "^4.18.2",
+  "express": "^4.22.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^6.7.0",
     "express-validator": "^7.0.1",
+  "redis": "^4.6.7",
     "firebase-admin": "^12.0.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.0",
     "lru-cache": "^10.4.3",
     "mongoose": "^7.3.4",
+  "csv-parse": "^6.0.7",
     "pino": "^8.17.0",
     "pino-pretty": "^9.1.1",
     "prom-client": "^13.2.0",
@@ -34,7 +37,8 @@
     "xss-clean": "^0.1.4",
     "uuid": "^9.0.0",
     "winston": "^3.18.3",
-    "winston-mongodb": "^7.0.1"
+    "winston-mongodb": "^7.0.1",
+    "escape-html": "^1.0.3"
   },
   "devDependencies": {
     "eslint": "^8.50.0",
@@ -42,5 +46,9 @@
     "nodemon": "^2.0.22",
     "supertest": "^6.3.3",
     "eslint-plugin-security": "^2.1.0"
+  }
+  ,
+  "overrides": {
+    "semver": "7.5.2"
   }
 }

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -20,7 +20,7 @@ const initialRow: FeatureRow = { key: 'feature_a', value: '1,2,3' };
 function parseFeatures(rows: FeatureRow[]): Record<string, any> {
   const out: Record<string, any> = {};
   rows.forEach((r: FeatureRow) => {
-    if (!r.key) return;
+    if (!r.key) {return;}
     if (r.value.includes(',')) {
       out[r.key] = r.value
         .split(',')

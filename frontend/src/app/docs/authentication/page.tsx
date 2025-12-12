@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -65,7 +65,7 @@ export default function AuthenticationPage() {
             </CardHeader>
             <CardContent>
               <pre className="text-sm overflow-x-auto">
-{`import { signInWithEmailAndPassword } from "firebase/auth";
+                {`import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 const signIn = async (email: string, password: string) => {
@@ -92,7 +92,7 @@ const signIn = async (email: string, password: string) => {
             </CardHeader>
             <CardContent>
               <pre className="text-sm overflow-x-auto">
-{`const analyzeData = async (data: any) => {
+                {`const analyzeData = async (data: any) => {
   const token = localStorage.getItem("authToken");
   
   const response = await fetch("/api/analyze", {
@@ -122,7 +122,7 @@ const signIn = async (email: string, password: string) => {
             </CardHeader>
             <CardContent>
               <pre className="text-sm overflow-x-auto">
-{`from fastapi import HTTPException, Security
+                {`from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth
 
@@ -163,7 +163,7 @@ async def analyze(
           <Card className="bg-muted">
             <CardContent className="pt-6">
               <pre className="text-sm overflow-x-auto">
-{`import { onAuthStateChanged } from "firebase/auth";
+                {`import { onAuthStateChanged } from "firebase/auth";
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {

@@ -1,6 +1,6 @@
-import { Logo } from "@/components/logo";
-import Link from "next/link";
-import Image from "next/image";
+import { Logo } from '@/components/logo';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export function AuthLayout({ children, title, description, quote }: { children: React.ReactNode, title: string, description: string, quote: string }) {
   return (
@@ -18,12 +18,12 @@ export function AuthLayout({ children, title, description, quote }: { children: 
         </div>
       </div>
       <div className="relative hidden bg-muted lg:block">
-         <Image
-            src="https://picsum.photos/seed/auth/1200/1000"
-            alt="Abstract neural network"
-            fill
-            className="object-cover opacity-20"
-            data-ai-hint="neural network abstract"
+        <Image
+          src="https://picsum.photos/seed/auth/1200/1000"
+          alt="Abstract neural network"
+          fill
+          className="object-cover opacity-20"
+          data-ai-hint="neural network abstract"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-background via-transparent to-primary/20" />
         <div className="relative flex h-full flex-col justify-end p-10 text-white">

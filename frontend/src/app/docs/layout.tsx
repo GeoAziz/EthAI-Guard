@@ -1,7 +1,7 @@
-import { DocsHeader } from "@/components/docs/docs-header";
-import { DocsSidebar } from "@/components/docs/docs-sidebar";
-import { DocsBreadcrumb } from "@/components/docs/docs-breadcrumb";
-import { DocsPagination } from "@/components/docs/docs-pagination";
+import { DocsHeader } from '@/components/docs/docs-header';
+import { DocsSidebar } from '@/components/docs/docs-sidebar';
+import { DocsBreadcrumb } from '@/components/docs/docs-breadcrumb';
+import { DocsPagination } from '@/components/docs/docs-pagination';
 
 export default function DocsLayout({
   children,

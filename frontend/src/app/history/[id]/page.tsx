@@ -44,7 +44,7 @@ export default function EvaluationDetailPage({ params }: { params: { id: string 
       setLoading(true);
       const token = localStorage.getItem('token') || '';
       const res = await axios.get(`${BACKEND_URL}/v1/evaluations/${params.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       setEvaluation(res.data);
       setError('');
@@ -56,8 +56,8 @@ export default function EvaluationDetailPage({ params }: { params: { id: string 
   };
 
   const getRiskColor = (level: string) => {
-    if (level === 'high') return 'bg-red-100 text-red-800 border-red-300';
-    if (level === 'medium') return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    if (level === 'high') {return 'bg-red-100 text-red-800 border-red-300';}
+    if (level === 'medium') {return 'bg-yellow-100 text-yellow-800 border-yellow-300';}
     return 'bg-green-100 text-green-800 border-green-300';
   };
 
@@ -70,7 +70,7 @@ export default function EvaluationDetailPage({ params }: { params: { id: string 
       // Navigate to decision-analysis with pre-filled inputs
       const query = new URLSearchParams({
         model_id: evaluation.model_id,
-        input_features: JSON.stringify(evaluation.input_features)
+        input_features: JSON.stringify(evaluation.input_features),
       });
       router.push(`/decision-analysis?${query.toString()}`);
     }
@@ -84,7 +84,7 @@ export default function EvaluationDetailPage({ params }: { params: { id: string 
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading evaluation details...</p>
         </motion.div>
       </div>
@@ -157,7 +157,7 @@ export default function EvaluationDetailPage({ params }: { params: { id: string 
               <p className="text-sm text-gray-500">Compliance Level</p>
               <span
                 className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border ${getRiskColor(
-                  evaluation.risk_level
+                  evaluation.risk_level,
                 )}`}
               >
                 {evaluation.risk_level.toUpperCase()}

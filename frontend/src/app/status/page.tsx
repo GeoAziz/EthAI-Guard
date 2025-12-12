@@ -1,9 +1,11 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Server, Database, Zap, Cloud, Clock } from "lucide-react";
+import api from '@/lib/api';
+import dynamic from 'next/dynamic';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, Server, Database, Zap, Cloud, Clock } from 'lucide-react';
 
 function statusToBadge(status: string) {
   switch (status) {
@@ -21,6 +23,11 @@ function statusToBadge(status: string) {
   }
 }
 
+const DynamicChart = dynamic(() => import('@/components/DynamicChart'), {
+  ssr: false,
+  loading: () => <div className="h-48 bg-gray-100 rounded animate-pulse" />,
+});
+
 export default function StatusPage() {
   const [status, setStatus] = useState<any>(null);
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -32,16 +39,14 @@ export default function StatusPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/status');
-      if (!res.ok) throw new Error('Failed to fetch /api/status');
-      const data = await res.json();
+      const res = await api.get('/api/status');
+      const data = res.data;
       setStatus(data);
       lastCheckedRef.current = data.lastChecked || new Date().toISOString();
 
-      const r2 = await fetch('/api/incidents?limit=10');
-      if (r2.ok) {
-        const inc = await r2.json();
-        setIncidents(inc.incidents || []);
+      const r2 = await api.get('/api/incidents', { params: { limit: 10 } });
+      if (r2?.data) {
+        setIncidents(r2.data.incidents || []);
       }
     } catch (err: any) {
       console.error(err);
@@ -61,7 +66,7 @@ export default function StatusPage() {
 
   return (
     <div className="container px-4 py-12 md:py-20">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">System Status</h1>
@@ -69,7 +74,7 @@ export default function StatusPage() {
             <p className="text-sm text-muted-foreground mt-2">Last checked: {currentDate}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => fetchAll()} className="btn btn-ghost px-3 py-2 border rounded">Refresh</button>
+            <button onClick={() => fetchAll()} aria-label="Refresh status" title="Refresh status" className="btn btn-ghost px-3 py-2 border rounded">Refresh</button>
           </div>
         </div>
 
@@ -89,23 +94,43 @@ export default function StatusPage() {
         {/* Service Status */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6">Service Status</h2>
-          <div className="space-y-4">
-            {(status?.services || []).map((service: any, index: number) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loading && (
+              <div className="sr-only" role="status">Loading status data</div>
+            )}
+            {loading && Array.from({ length: 6 }).map((_, i) => (
+              <Card key={`skeleton-${i}`}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-5 w-5 bg-gray-200 rounded animate-pulse" />
+                      <div className="min-w-0">
+                        <div className="h-4 bg-gray-200 rounded w-32 animate-pulse mb-2" />
+                        <div className="h-3 bg-gray-100 rounded w-24 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {!loading && (status?.services || []).map((service: any, index: number) => (
               <Card key={service.id || index}>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {index === 0 && <Server className="h-5 w-5 text-muted-foreground" />}
-                      {index === 1 && <Zap className="h-5 w-5 text-muted-foreground" />}
-                      {index === 2 && <Database className="h-5 w-5 text-muted-foreground" />}
-                      {index === 3 && <Cloud className="h-5 w-5 text-muted-foreground" />}
-                      {index === 4 && <Server className="h-5 w-5 text-muted-foreground" />}
-                      <div>
-                        <h3 className="font-semibold">{service.name}</h3>
-                        <div className="flex items-center gap-4 mt-1">
-                          <span className="text-xs text-muted-foreground">Uptime: {service.uptime}</span>
-                          <span className="text-xs text-muted-foreground">Latency: {service.latency}</span>
-                        </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      {index === 0 && <Server className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      {index === 1 && <Zap className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      {index === 2 && <Database className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      {index === 3 && <Cloud className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      {index === 4 && <Server className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      <div className="min-w-0">
+                        <h3 className="font-semibold truncate" title={service.name}>{service.name}</h3>
+                        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                      <span>Uptime: {service.uptime}</span>
+                      <span>Latency: {service.latency}</span>
+                    </div>
                       </div>
                     </div>
                     <Badge className={statusToBadge(service.status).className}>
@@ -115,11 +140,9 @@ export default function StatusPage() {
                 </CardContent>
               </Card>
             ))}
-            {loading && (
-              <div className="text-sm text-muted-foreground">Loading service status…</div>
-            )}
+
             {error && (
-              <div className="text-sm text-red-500">{error}</div>
+              <div className="text-sm text-red-500 col-span-full">{error}</div>
             )}
           </div>
         </div>
@@ -139,8 +162,8 @@ export default function StatusPage() {
               <Card key={incident.id || incident.title}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{incident.title}</CardTitle>
+                    <div className="min-w-0">
+                      <CardTitle className="text-lg truncate" title={incident.title}>{incident.title}</CardTitle>
                       <CardDescription>{new Date(incident.date).toLocaleString()}</CardDescription>
                     </div>
                     {incident.resolved ? (
@@ -165,8 +188,16 @@ export default function StatusPage() {
             <CardDescription>Overall system availability over the past month</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-green-500">{status?.overall?.uptime30d || '—'}</div>
-            <p className="text-sm text-muted-foreground mt-2">Average uptime across all services</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="text-4xl font-bold text-green-500">{status?.overall?.uptime30d || '—'}</div>
+                <p className="text-sm text-muted-foreground mt-2">Average uptime across all services</p>
+              </div>
+              <div className="w-full sm:w-2/3">
+                {/* Dynamically loaded lightweight chart */}
+                <DynamicChart data={status?.overall?.uptimeSeries || []} />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

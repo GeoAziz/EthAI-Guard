@@ -54,7 +54,9 @@ if (!USE_IN_MEMORY) {
   }
 }
 
-function nowIso() { return new Date().toISOString(); }
+function nowIso() {
+  return new Date().toISOString();
+}
 
 async function createRetrainRequest(modelId, payload) {
   const requestId = uuidv4();
@@ -68,7 +70,7 @@ async function createRetrainRequest(modelId, payload) {
     createdAt: new Date(),
     updatedAt: new Date(),
     artifacts: {},
-    history: [{ ts: nowIso(), status: 'queued' }]
+    history: [{ ts: nowIso(), status: 'queued' }],
   };
   if (USE_IN_MEMORY || !RetrainRequestModel) {
     _retrain.push(doc);
@@ -89,7 +91,9 @@ async function getRetrainRequest(requestId) {
 async function updateRetrainRequestStatus(requestId, status, extra = {}) {
   if (USE_IN_MEMORY || !RetrainRequestModel) {
     const r = _retrain.find(x => x.requestId === requestId);
-    if (!r) return null;
+    if (!r) {
+      return null;
+    }
     r.status = status;
     r.updatedAt = new Date();
     Object.assign(r.artifacts, extra.artifacts || {});
@@ -99,7 +103,7 @@ async function updateRetrainRequestStatus(requestId, status, extra = {}) {
   const upd = await RetrainRequestModel.findOneAndUpdate(
     { requestId },
     { $set: { status, updatedAt: new Date() }, $push: { history: { ts: nowIso(), status, note: extra.note } }, $setOnInsert: {} },
-    { new: true }
+    { new: true },
   );
   if (extra.artifacts) {
     await RetrainRequestModel.updateOne({ requestId }, { $set: { artifacts: extra.artifacts } });
@@ -128,10 +132,14 @@ async function listModelVersions(modelId) {
 async function promoteModel(modelId, version, validation_report, promotedBy) {
   if (USE_IN_MEMORY || !ModelVersionModel) {
     for (const v of _versions) {
-      if (v.modelId === modelId) v.status = 'archived';
+      if (v.modelId === modelId) {
+        v.status = 'archived';
+      }
     }
     const target = _versions.find(v => v.modelId === modelId && v.version === version);
-    if (!target) return null;
+    if (!target) {
+      return null;
+    }
     target.status = 'active';
     target.validation_report = validation_report;
     target.promotedBy = promotedBy || 'system';
@@ -142,7 +150,7 @@ async function promoteModel(modelId, version, validation_report, promotedBy) {
   const upd = await ModelVersionModel.findOneAndUpdate(
     { modelId, version },
     { $set: { status: 'active', validation_report, promotedBy, promotedAt: new Date() } },
-    { new: true }
+    { new: true },
   );
   return upd ? upd.toObject() : null;
 }
@@ -160,14 +168,22 @@ async function writeAudit(event, details = {}, actor = 'system', modelId = null,
 async function listAudits(filter = {}) {
   if (USE_IN_MEMORY || !AuditLogModel) {
     return _audits.filter(a => {
-      if (filter.modelId && a.modelId !== filter.modelId) return false;
-      if (filter.requestId && a.requestId !== filter.requestId) return false;
+      if (filter.modelId && a.modelId !== filter.modelId) {
+        return false;
+      }
+      if (filter.requestId && a.requestId !== filter.requestId) {
+        return false;
+      }
       return true;
     });
   }
   const q = {};
-  if (filter.modelId) q.modelId = filter.modelId;
-  if (filter.requestId) q.requestId = filter.requestId;
+  if (filter.modelId) {
+    q.modelId = filter.modelId;
+  }
+  if (filter.requestId) {
+    q.requestId = filter.requestId;
+  }
   const arr = await AuditLogModel.find(q).sort({ createdAt: -1 });
   return arr.map(x => x.toObject());
 }

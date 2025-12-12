@@ -50,7 +50,7 @@ export default function DriftMonitorPage() {
       const [alertsRes, snapshotsRes, statusRes] = await Promise.all([
         fetch(`/api/v1/drift/alerts/${selectedModel}?resolved=false&limit=20`),
         fetch(`/api/v1/drift/snapshots/${selectedModel}?limit=50`),
-        fetch(`/api/v1/drift/status/${selectedModel}`)
+        fetch(`/api/v1/drift/status/${selectedModel}`),
       ]);
 
       const alertsData = await alertsRes.json();
@@ -72,7 +72,7 @@ export default function DriftMonitorPage() {
       await fetch(`/api/v1/drift/alerts/${alertId}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resolution_note: 'Resolved from dashboard' })
+        body: JSON.stringify({ resolution_note: 'Resolved from dashboard' }),
       });
       fetchDriftData();
     } catch (error) {
@@ -87,8 +87,8 @@ export default function DriftMonitorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reason: 'Critical drift detected',
-          requested_by: 'dashboard_user'
-        })
+          requested_by: 'dashboard_user',
+        }),
       });
       alert('Retraining request submitted');
     } catch (error) {
@@ -280,7 +280,7 @@ export default function DriftMonitorPage() {
                   {Object.entries(snapshots[0].feature_drifts).map(([feature, drift]: [string, any]) => {
                     const change = drift.mean_current - drift.mean_baseline;
                     const changePercent = ((change / drift.mean_baseline) * 100).toFixed(1);
-                    
+
                     return (
                       <tr key={feature} className="border-b hover:bg-gray-50">
                         <td className="p-2 font-medium">{feature}</td>

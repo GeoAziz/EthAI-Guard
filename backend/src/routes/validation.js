@@ -4,10 +4,10 @@ const { body, validationResult } = require('express-validator');
 const axios = require('axios');
 const logger = require('../logger');
 const admin = require('firebase-admin');
-const { initFirebase } = require('../middleware/firebaseAuth');
+const firebaseAdmin = require('../services/firebaseAdmin');
 
 // Initialize Firebase Admin SDK (no-op in tests without creds)
-initFirebase();
+firebaseAdmin.initFirebase();
 
 // Lazy getter to avoid crashing module load when Firebase isn't configured
 function getDb() {
@@ -76,7 +76,7 @@ router.post(
         },
         {
           timeout: 120000, // 2 minute timeout for large validations
-        }
+        },
       );
 
       const validationResult = aiCoreResponse.data;
@@ -98,7 +98,7 @@ router.post(
         updated_at: new Date().toISOString(),
       };
 
-  const docRef = await getDb().collection('validation_reports').add(reportDoc);
+      const docRef = await getDb().collection('validation_reports').add(reportDoc);
 
       logger.info({
         user_id,
@@ -123,7 +123,7 @@ router.post(
 
     } catch (error) {
       logger.error({ err: error, msg: error.message }, 'Model validation failed');
-      
+
       if (error.response) {
         // AI Core returned an error
         return res.status(error.response.status || 500).json({
@@ -137,7 +137,7 @@ router.post(
         detail: error.message,
       });
     }
-  }
+  },
 );
 
 /**
@@ -204,7 +204,7 @@ router.get('/v1/validation-reports/:id', async (req, res) => {
     const firestore_id = req.params.id;
 
     // Fetch report from Firestore
-  const docRef = getDb().collection('validation_reports').doc(firestore_id);
+    const docRef = getDb().collection('validation_reports').doc(firestore_id);
     const doc = await docRef.get();
 
     if (!doc.exists) {

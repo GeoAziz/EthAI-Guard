@@ -33,7 +33,7 @@ function generateExplanation(risk, rules, simulation) {
   return {
     summary,
     details: detailLines,
-    recommended_action: recommendedAction
+    recommended_action: recommendedAction,
   };
 }
 

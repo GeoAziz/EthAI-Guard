@@ -43,7 +43,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
         <Skeleton className="h-4 w-1/4" />
         <Skeleton className="h-4 w-1/4" />
       </div>
-      
+
       {/* Rows */}
       {Array.from({ length: rows }).map((_, idx) => (
         <div key={idx} className="flex gap-4 mb-3">
@@ -87,7 +87,7 @@ export function DashboardSkeleton() {
         <Skeleton className="h-8 w-64 mb-2" />
         <Skeleton className="h-4 w-96" />
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {Array.from({ length: 4 }).map((_, idx) => (
@@ -98,13 +98,13 @@ export function DashboardSkeleton() {
           </div>
         ))}
       </div>
-      
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <ChartSkeleton />
         <ChartSkeleton />
       </div>
-      
+
       {/* Table */}
       <div className="bg-white rounded-lg shadow p-6">
         <Skeleton className="h-6 w-48 mb-6" />
@@ -125,21 +125,21 @@ export function AnalysisResultSkeleton() {
           <Skeleton className="h-4 w-24" />
         </div>
       </div>
-      
+
       {/* Overall Score */}
       <div className="bg-white rounded-lg shadow p-8 mb-6 text-center">
         <Skeleton className="h-6 w-48 mx-auto mb-4" />
         <Skeleton className="h-24 w-24 rounded-full mx-auto mb-4" />
         <Skeleton className="h-4 w-32 mx-auto" />
       </div>
-      
+
       {/* Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {Array.from({ length: 3 }).map((_, idx) => (
           <CardSkeleton key={idx} />
         ))}
       </div>
-      
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartSkeleton />
@@ -153,7 +153,7 @@ export function FormSkeleton() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <Skeleton className="h-6 w-48 mb-6" />
-      
+
       {/* Form fields */}
       {Array.from({ length: 4 }).map((_, idx) => (
         <div key={idx} className="mb-6">
@@ -161,7 +161,7 @@ export function FormSkeleton() {
           <Skeleton className="h-10 w-full" />
         </div>
       ))}
-      
+
       {/* Buttons */}
       <div className="flex gap-4">
         <Skeleton className="h-10 w-24" />

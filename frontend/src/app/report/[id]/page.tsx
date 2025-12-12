@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Share2, Download, Trash2 } from "lucide-react";
-import { FairnessCharts } from "@/components/dashboard/fairness-charts";
-import api from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import React, { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Share2, Download, Trash2 } from 'lucide-react';
+import { FairnessCharts } from '@/components/dashboard/fairness-charts';
+import api from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 // Cast the imported FairnessCharts to a typed React component so props are recognized by TypeScript
 const FairnessChartsComponent = FairnessCharts as unknown as React.FC<{ summary?: any }>;
@@ -48,9 +48,9 @@ export default function ReportPage({ params }: { params: { id: string } }) {
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30">Compliant</Badge>
-              <Button variant="outline" size="icon"><Share2 className="h-4 w-4"/></Button>
-              <Button variant="outline" size="icon"><Download className="h-4 w-4"/></Button>
-              <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+              <Button variant="outline" size="icon"><Share2 className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon"><Download className="h-4 w-4" /></Button>
+              <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
             </div>
           </div>
         </CardHeader>
@@ -85,12 +85,13 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                       <div className="flex items-center gap-4">
                         <span className="text-4xl font-bold">{(report.summary.overallFairnessScore * 100).toFixed(0)}</span>
                         <Badge className={
-                          report.summary.overallFairnessScore >= 0.9 
-                            ? "bg-green-600/20 text-green-400 border-green-600/30" 
+                          report.summary.overallFairnessScore >= 0.9
+                            ? 'bg-green-600/20 text-green-400 border-green-600/30'
                             : report.summary.overallFairnessScore >= 0.7
-                            ? "bg-yellow-600/20 text-yellow-400 border-yellow-600/30"
-                            : "bg-red-600/20 text-red-400 border-red-600/30"
-                        }>
+                              ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
+                              : 'bg-red-600/20 text-red-400 border-red-600/30'
+                        }
+                        >
                           {report.summary.riskLevel || 'unknown'}
                         </Badge>
                       </div>
@@ -119,8 +120,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                         <div key={feature} className="flex items-center gap-2">
                           <span className="text-sm w-32 truncate">{feature}</span>
                           <div className="flex-1 bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full" 
+                            <div
+                              className="bg-primary h-2 rounded-full"
                               style={{ width: `${importance * 100}%` }}
                             />
                           </div>
@@ -131,10 +132,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                       ))}
                   </div>
                 ) : report?.summary?.explanation_plot ? (
-                  <img 
-                    src={report.summary.explanation_plot} 
-                    alt="SHAP plot" 
-                    className="max-w-full rounded" 
+                  <img
+                    src={report.summary.explanation_plot}
+                    alt="SHAP plot"
+                    className="max-w-full rounded"
                   />
                 ) : (
                   <div className="text-center text-muted-foreground">
@@ -169,7 +170,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                       </p>
                       {violation.metric && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Metric: {violation.metric} = {violation.value?.toFixed(3)} 
+                          Metric: {violation.metric} = {violation.value?.toFixed(3)}
                           (threshold: {violation.threshold?.toFixed(3)})
                         </p>
                       )}

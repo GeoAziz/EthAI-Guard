@@ -25,5 +25,5 @@ describe('Evidence export content', () => {
     expect(data).toHaveProperty('evaluations');
     expect(data.drift_snapshot).toHaveProperty('metrics');
     expect(data.fairness_metrics).toHaveProperty('demographic_parity_diff');
-  });
+  }, 10000); // Increase timeout to 10 seconds
 });

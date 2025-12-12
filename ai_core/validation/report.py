@@ -17,23 +17,23 @@ def generate_validation_report(
 ) -> Dict[str, Any]:
     """
     Generate comprehensive validation report.
-    
+
     Args:
         model_metadata: Model name, version, description
         synthetic_stats: Dataset statistics from generator
         metrics: All fairness metrics from metrics.py
         validation_summary: Summary from validator.py
         include_html: Whether to generate HTML report
-    
+
     Returns:
         Dict with report_json, report_html (optional), pass_fail, recommendations
     """
     timestamp = datetime.utcnow().isoformat() + "Z"
-    
+
     # Determine overall pass/fail
     overall_score = metrics.get("overall_fairness_score", 0)
     critical_metrics = [m for m in metrics.get("metrics", []) if m.get("level") == "critical"]
-    
+
     if critical_metrics:
         status = "fail"
         status_reason = f"{len(critical_metrics)} critical fairness issue(s) detected"
@@ -46,10 +46,10 @@ def generate_validation_report(
     else:
         status = "fail"
         status_reason = "Overall fairness score below acceptable threshold"
-    
+
     # Generate recommendations
     recommendations = _generate_recommendations(metrics, validation_summary)
-    
+
     # Build JSON report
     report_json = {
         "report_id": f"val-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
@@ -73,18 +73,18 @@ def generate_validation_report(
             validation_summary.get("successful_evaluations", 0)
         ),
     }
-    
+
     result = {
         "report_json": report_json,
         "status": status,
         "overall_score": overall_score,
         "recommendations": recommendations,
     }
-    
+
     # Generate HTML if requested
     if include_html:
         result["report_html"] = _generate_html_report(report_json)
-    
+
     return result
 
 
@@ -93,12 +93,12 @@ def _generate_recommendations(metrics: Dict[str, Any], validation_summary: Dict[
     Generate actionable recommendations based on metrics.
     """
     recommendations = []
-    
+
     for metric in metrics.get("metrics", []):
         metric_name = metric.get("metric")
         level = metric.get("level")
         score = metric.get("score", 0)
-        
+
         if level == "critical":
             if metric_name == "disparate_impact":
                 recommendations.append(
@@ -130,7 +130,7 @@ def _generate_recommendations(metrics: Dict[str, Any], validation_summary: Dict[
                     f"CRITICAL: Rule violation severity {score:.2f} indicates ethical policy breaches. "
                     "Review triggered rules and implement safeguards."
                 )
-        
+
         elif level == "warning":
             if metric_name == "disparate_impact":
                 recommendations.append(
@@ -152,7 +152,7 @@ def _generate_recommendations(metrics: Dict[str, Any], validation_summary: Dict[
                 recommendations.append(
                     f"WARNING: Stability score {score:.2f} shows some sensitivity to noise. Consider model robustness improvements."
                 )
-    
+
     # General recommendations
     avg_risk = validation_summary.get("avg_risk_score", 50)
     if avg_risk > 70:
@@ -165,32 +165,32 @@ def _generate_recommendations(metrics: Dict[str, Any], validation_summary: Dict[
             f"Model produces low average risk score ({avg_risk:.1f}). "
             "Verify model is appropriately sensitive to risk factors."
         )
-    
+
     # If no critical issues
     if not recommendations:
         recommendations.append(
             "Model passes all fairness checks. Continue monitoring in production. "
             "Re-run validation quarterly or when training data changes."
         )
-    
+
     return recommendations
 
 
 def _calculate_confidence_score(total_cases: int, successful_evals: int) -> float:
     """
     Calculate confidence score for validation (0-100).
-    
+
     Based on:
     - Number of test cases (more = higher confidence)
     - Evaluation success rate
     """
     if total_cases == 0:
         return 0.0
-    
+
     # Success rate component (0-50 points)
     success_rate = successful_evals / total_cases
     success_score = success_rate * 50
-    
+
     # Coverage component (0-50 points)
     # Full confidence at 500+ cases
     if total_cases >= 500:
@@ -199,7 +199,7 @@ def _calculate_confidence_score(total_cases: int, successful_evals: int) -> floa
         coverage_score = 30.0 + (total_cases - 100) / 400 * 20
     else:
         coverage_score = total_cases / 100 * 30
-    
+
     return min(100.0, success_score + coverage_score)
 
 
@@ -213,7 +213,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
         "conditional_pass": "#f59e0b",
         "fail": "#ef4444",
     }.get(status, "#6b7280")
-    
+
     metrics_html = ""
     for metric in report_json["fairness_metrics"]["metrics"]:
         level_color = {
@@ -221,7 +221,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
             "warning": "#f59e0b",
             "critical": "#ef4444",
         }.get(metric["level"], "#6b7280")
-        
+
         metrics_html += f"""
         <tr>
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">{metric['metric']}</td>
@@ -234,7 +234,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">{metric['explanation']}</td>
         </tr>
         """
-    
+
     recommendations_html = ""
     for rec in report_json["recommendations"]:
         rec_color = "#ef4444" if "CRITICAL" in rec else "#f59e0b" if "WARNING" in rec else "#10b981"
@@ -243,7 +243,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
             {rec}
         </li>
         """
-    
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -271,7 +271,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
                 Generated: {report_json['timestamp']}<br>
                 Model: {report_json['model_metadata'].get('name', 'Unknown')} v{report_json['model_metadata'].get('version', '1.0')}
             </div>
-            
+
             <div class="section">
                 <h2>Overall Status</h2>
                 <div style="margin-top: 16px;">
@@ -283,7 +283,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
                     </div>
                 </div>
             </div>
-            
+
             <div class="section">
                 <h2>Test Dataset</h2>
                 <p>
@@ -293,7 +293,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
                     <strong>Average Risk Score:</strong> {report_json['validation_summary'].get('avg_risk_score', 0):.1f}
                 </p>
             </div>
-            
+
             <div class="section">
                 <h2>Fairness Metrics</h2>
                 <table>
@@ -310,7 +310,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="section">
                 <h2>Recommendations</h2>
                 <ul style="list-style: none; padding: 0;">
@@ -321,7 +321,7 @@ def _generate_html_report(report_json: Dict[str, Any]) -> str:
     </body>
     </html>
     """
-    
+
     return html
 
 
@@ -339,6 +339,6 @@ def export_report_html(report: Dict[str, Any], filepath: str) -> None:
     """
     if "report_html" not in report:
         raise ValueError("HTML report not generated. Set include_html=True when generating report.")
-    
+
     with open(filepath, 'w') as f:
         f.write(report["report_html"])

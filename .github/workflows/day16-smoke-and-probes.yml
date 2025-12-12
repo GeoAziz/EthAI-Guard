@@ -20,11 +20,22 @@ jobs:
         run: |
           docker compose up -d --build
           echo "Waiting for backend readiness..."
+          READY=false
           for i in $(seq 1 30); do
             if curl -fs http://localhost:5000/health/readiness | jq -e '.status=="ready"' >/dev/null 2>&1; then
-              echo "Backend ready"; break; fi; sleep 2;
+              echo "Backend ready after $i attempts"
+              READY=true
+              break
+            fi
+            sleep 2
           done
-          curl -fs http://localhost:8100/health/liveness || (echo "AI Core liveness failed" && exit 1)
+          if [ "$READY" = "false" ]; then
+            echo "❌ Backend failed to become ready after 60 seconds"
+            docker compose logs backend
+            exit 1
+          fi
+          echo "Checking AI Core liveness..."
+          curl -fs http://localhost:8100/health/liveness || (echo "AI Core liveness failed" && docker compose logs ai_core && exit 1)
 
       - name: Run Smoke Tests
         run: bash tools/smoke_tests/run_smoke_tests.sh http://localhost:5000

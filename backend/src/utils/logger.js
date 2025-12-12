@@ -1,7 +1,7 @@
 /**
  * Centralized Logging Configuration for EthixAI Backend
  * Using Winston for structured, production-ready logging
- * 
+ *
  * Features:
  * - Structured JSON logging
  * - Multiple transports (Console, File, MongoDB)
@@ -15,8 +15,12 @@ const path = require('path');
 
 // Determine log level based on environment
 const getLogLevel = () => {
-  if (process.env.NODE_ENV === 'production') return 'info';
-  if (process.env.NODE_ENV === 'test') return 'error';
+  if (process.env.NODE_ENV === 'production') {
+    return 'info';
+  }
+  if (process.env.NODE_ENV === 'test') {
+    return 'error';
+  }
   return 'debug';
 };
 
@@ -27,7 +31,7 @@ const devFormat = format.combine(
   format.errors({ stack: true }),
   format.printf(({ timestamp, level, message, ...meta }) => {
     let log = `${timestamp} [${level}] ${message}`;
-    
+
     // Add metadata if present
     if (Object.keys(meta).length > 0) {
       const metaStr = JSON.stringify(meta, null, 2);
@@ -35,16 +39,16 @@ const devFormat = format.combine(
         log += `\n${metaStr}`;
       }
     }
-    
+
     return log;
-  })
+  }),
 );
 
 // Production format (structured JSON)
 const prodFormat = format.combine(
   format.timestamp(),
   format.errors({ stack: true }),
-  format.json()
+  format.json(),
 );
 
 // Create logger instance
@@ -54,53 +58,53 @@ const logger = createLogger({
   defaultMeta: {
     service: 'ethixai-backend',
     environment: process.env.NODE_ENV || 'development',
-    version: process.env.VERSION || '1.0.0'
+    version: process.env.VERSION || '1.0.0',
   },
   transports: [
     // Console output (always enabled)
     new transports.Console({
       handleExceptions: true,
-      handleRejections: true
+      handleRejections: true,
     }),
-    
+
     // File output for errors
     new transports.File({
       filename: path.join('logs', 'error.log'),
       level: 'error',
       maxsize: 10485760, // 10MB
       maxFiles: 5,
-      tailable: true
+      tailable: true,
     }),
-    
+
     // File output for all logs
     new transports.File({
       filename: path.join('logs', 'combined.log'),
       maxsize: 10485760, // 10MB
       maxFiles: 10,
-      tailable: true
-    })
+      tailable: true,
+    }),
   ],
-  exitOnError: false
+  exitOnError: false,
 });
 
 // MongoDB transport (if configured)
 if (process.env.MONGODB_URI && process.env.ENABLE_MONGODB_LOGGING === 'true') {
   const MongoDBTransport = require('winston-mongodb').MongoDB;
-  
+
   logger.add(new MongoDBTransport({
     db: process.env.MONGODB_URI,
     collection: 'logs',
     level: 'info',
     options: {
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
     },
     metaKey: 'metadata',
     storeHost: true,
     capped: true,
     cappedSize: 104857600, // 100MB
-    cappedMax: 100000
+    cappedMax: 100000,
   }));
-  
+
   logger.info('MongoDB logging transport enabled');
 }
 
@@ -126,7 +130,7 @@ logger.logRequest = (req, meta = {}) => {
     userAgent: req.get('user-agent'),
     userId: req.user?.id,
     correlationId: req.correlationId,
-    ...meta
+    ...meta,
   });
 };
 
@@ -138,14 +142,14 @@ logger.logRequest = (req, meta = {}) => {
  */
 logger.logResponse = (req, res, duration) => {
   const logLevel = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
-  
+
   logger.log(logLevel, 'HTTP Response', {
     method: req.method,
     url: req.originalUrl,
     statusCode: res.statusCode,
     duration: `${duration}ms`,
     userId: req.user?.id,
-    correlationId: req.correlationId
+    correlationId: req.correlationId,
   });
 };
 
@@ -160,7 +164,7 @@ logger.logInference = (params) => {
     protectedAttributes: params.protectedAttributes,
     userId: params.userId,
     correlationId: params.correlationId,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -170,7 +174,7 @@ logger.logInference = (params) => {
  */
 logger.logBiasDetection = (result) => {
   const logLevel = result.biasDetected ? 'warn' : 'info';
-  
+
   logger.log(logLevel, 'Bias Detection Result', {
     biasDetected: result.biasDetected,
     fairnessScore: result.fairnessScore,
@@ -180,7 +184,7 @@ logger.logBiasDetection = (result) => {
     actualValue: result.actualValue,
     userId: result.userId,
     correlationId: result.correlationId,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -193,7 +197,7 @@ logger.logSecurityEvent = (event, details) => {
   logger.warn('Security Event', {
     event,
     ...details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -206,7 +210,7 @@ logger.logAudit = (action, details) => {
   logger.info('Audit Event', {
     action,
     ...details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -218,11 +222,11 @@ logger.logAudit = (action, details) => {
  */
 logger.logPerformance = (operation, duration, meta = {}) => {
   const logLevel = duration > 1000 ? 'warn' : 'debug';
-  
+
   logger.log(logLevel, 'Performance Metric', {
     operation,
     duration: `${duration}ms`,
-    ...meta
+    ...meta,
   });
 };
 
@@ -236,7 +240,7 @@ logger.logDatabase = (operation, collection, duration) => {
   logger.debug('Database Operation', {
     operation,
     collection,
-    duration: `${duration}ms`
+    duration: `${duration}ms`,
   });
 };
 
@@ -249,12 +253,12 @@ logger.logDatabase = (operation, collection, duration) => {
  */
 logger.logExternalAPI = (service, endpoint, statusCode, duration) => {
   const logLevel = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'debug';
-  
+
   logger.log(logLevel, 'External API Call', {
     service,
     endpoint,
     statusCode,
-    duration: `${duration}ms`
+    duration: `${duration}ms`,
   });
 };
 
@@ -269,7 +273,7 @@ if (!fs.existsSync(logsDir)) {
 logger.info('Logger initialized', {
   level: getLogLevel(),
   environment: process.env.NODE_ENV || 'development',
-  mongodbLogging: process.env.ENABLE_MONGODB_LOGGING === 'true'
+  mongodbLogging: process.env.ENABLE_MONGODB_LOGGING === 'true',
 });
 
 module.exports = logger;

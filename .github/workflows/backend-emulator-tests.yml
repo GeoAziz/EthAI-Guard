@@ -1,0 +1,52 @@
+name: Backend Emulator Integration Tests
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - 'firebase.json'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'firebase.json'
+
+jobs:
+  emulator-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java (required for Firebase emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install repo dependencies (backend)
+        run: |
+          cd backend
+          npm ci
+
+      - name: Install Firebase CLI
+        run: |
+          npm install -g firebase-tools@latest
+
+      - name: Start Firebase Auth emulator and run tests
+        env:
+          # emulator uses this host:port to expose auth emulator to clients
+          FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
+          # project id used by emulator; pick a throwaway id
+          GCLOUD_PROJECT: demo-project
+        run: |
+          cd backend
+          chmod +x ./scripts/ci_run_emulator_and_tests.sh
+          ./scripts/ci_run_emulator_and_tests.sh
