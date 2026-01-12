@@ -185,7 +185,11 @@ def pytest_runtest_makereport(item, call):
                 print(f"\nScreenshot saved: {screenshot_path}")
                 
                 # Attach to HTML report if pytest-html is available
-                if hasattr(report, 'extras'):
-                    report.extras.append(pytest.html.extras.image(screenshot_path))
+                try:
+                    import pytest_html
+                    if hasattr(report, 'extras'):
+                        report.extras.append(pytest_html.extras.image(screenshot_path))
+                except ImportError:
+                    pass  # pytest-html not available
             except Exception as e:
                 print(f"\nFailed to capture screenshot: {e}")
