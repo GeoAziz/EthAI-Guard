@@ -35,6 +35,7 @@ function sendToPostHog(name: string, properties?: Record<string, unknown>) {
 
 const _queue: AnalyticsEvent[] = [];
 let _flushTimeout: ReturnType<typeof setTimeout> | null = null;
+let _flushing = false;
 const FLUSH_DELAY_MS = 2000;
 const MAX_QUEUE_SIZE = 50;
 
@@ -46,8 +47,10 @@ function scheduleFlush() {
 }
 
 async function flushQueue() {
+  if (_flushing) { return; }
   _flushTimeout = null;
   if (_queue.length === 0) { return; }
+  _flushing = true;
   const batch = _queue.splice(0, _queue.length);
   try {
     // Lazy-import to avoid circular dependency at module load time
@@ -55,6 +58,8 @@ async function flushQueue() {
     await api.post('/v1/analytics/events', { events: batch });
   } catch {
     // Non-critical – silently drop events rather than surfacing errors to users
+  } finally {
+    _flushing = false;
   }
 }
 

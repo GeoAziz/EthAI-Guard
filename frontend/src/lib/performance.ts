@@ -35,10 +35,13 @@ function rateMetric(name: string, value: number): PerformanceMetric['rating'] {
   return 'poor';
 }
 
+const CLS_SCALE = 1000; // CLS is a unitless ratio (0–1); multiply by 1000 for milliCLS so Math.round keeps 3 significant figures
+
 function report(name: string, value: number) {
   const metric: PerformanceMetric = {
     name,
-    value: Math.round(name === 'CLS' ? value * 1000 : value),
+    // CLS values are tiny decimals (e.g. 0.12). Scale by 1000 so the stored integer (120) is human-readable.
+    value: Math.round(name === 'CLS' ? value * CLS_SCALE : value),
     rating: rateMetric(name, value),
     path: typeof window !== 'undefined' ? window.location.pathname : undefined,
   };

@@ -139,7 +139,7 @@ export default function AdminAnalyticsPage() {
       })
       .finally(() => { if (mounted) { setLoading(false); } });
     return () => { mounted = false; };
-  }, []);
+  }, [toast]);
 
   const d = data ?? MOCK_DATA;
 
