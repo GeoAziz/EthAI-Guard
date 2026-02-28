@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -7,6 +8,7 @@ import { AnnounceProvider } from '@/contexts/AnnounceContext';
 export const metadata: Metadata = {
   title: 'EthixAI Dashboard',
   description: 'AI ethics and explainability engine for financial institutions.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -18,6 +20,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <title>EthixAI Dashboard</title>
+        <meta name="theme-color" content="#10b981" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -35,6 +38,13 @@ export default function RootLayout({
           </AnnounceProvider>
         </AuthProvider>
         <Toaster />
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }`,
+          }}
+        />
       </body>
     </html>
   );

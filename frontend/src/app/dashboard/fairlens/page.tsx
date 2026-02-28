@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FairnessCharts } from '@/components/dashboard/fairness-charts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
@@ -15,6 +15,14 @@ import {
 } from '@/components/ui/select';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+
+const FairnessCharts = dynamic(
+  () => import('@/components/dashboard/fairness-charts').then((m) => m.FairnessCharts),
+  {
+    ssr: false,
+    loading: () => <div className="h-72 w-full animate-pulse rounded bg-muted" />,
+  },
+);
 
 export default function FairlensPage() {
   const { toast } = useToast();
