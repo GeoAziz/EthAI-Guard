@@ -31,6 +31,7 @@ import {
   Archive,
   Play,
   FileText,
+  TrendingUp,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -79,6 +80,7 @@ export default function DashboardLayout({
     { href: '/dashboard/admin/datasets', label: 'Datasets', icon: Database },
     { href: '/dashboard/admin/models', label: 'Models', icon: Layers },
     { href: '/dashboard/admin/audit', label: 'Audit Logs', icon: Archive },
+    { href: '/dashboard/admin/analytics', label: 'Analytics', icon: TrendingUp },
   ];
 
   // Analyst-specific menu items
