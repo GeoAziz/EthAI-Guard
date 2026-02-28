@@ -1,12 +1,13 @@
 // RBAC helper utilities
-export type UserRole = 'admin' | 'analyst' | 'reviewer' | 'user' | 'guest' | string;
+export type UserRole = 'admin' | 'analyst' | 'reviewer' | 'auditor' | 'user' | 'guest' | string;
 
-const ROLE_PRIORITY: UserRole[] = ['admin', 'analyst', 'reviewer', 'user', 'guest'];
+const ROLE_PRIORITY: UserRole[] = ['admin', 'auditor', 'analyst', 'reviewer', 'user', 'guest'];
 
 const ROLE_DEFAULT_ROUTE: Record<UserRole, string> = {
   admin: '/dashboard/admin/access-requests',
   analyst: '/dashboard/analyst',
   reviewer: '/report',
+  auditor: '/dashboard/admin/audit',
   user: '/dashboard',
   guest: '/',
 };

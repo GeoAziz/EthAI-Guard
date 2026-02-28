@@ -1,0 +1,26 @@
+{
+  "name": "ethai-guard-selenium-tests",
+  "version": "1.0.0",
+  "description": "Phase 3A Selenium E2E Tests - RBAC, Audit, Degradation Verification",
+  "main": "tests/phase3a.test.js",
+  "scripts": {
+    "test:phase3a": "mocha tests/phase3a.test.js --timeout 30000",
+    "test:phase3a:headless": "SELENIUM_HEADLESS=true mocha tests/phase3a.test.js --timeout 30000",
+    "test:phase3a:gui": "SELENIUM_HEADLESS=false mocha tests/phase3a.test.js --timeout 30000",
+    "test:phase3b": "mocha tests/phase3b.test.js --timeout 30000",
+    "test:phase3b:headless": "SELENIUM_HEADLESS=true mocha tests/phase3b.test.js --timeout 60000",
+    "test:phase3b:gui": "SELENIUM_HEADLESS=false mocha tests/phase3b.test.js --timeout 60000",
+    "test:phase3c": "mocha tests/phase3c.test.js --timeout 180000",
+    "test:phase3c:headless": "SELENIUM_HEADLESS=true mocha tests/phase3c.test.js --timeout 180000",
+    "test:phase3c:gui": "SELENIUM_HEADLESS=false mocha tests/phase3c.test.js --timeout 180000",
+    "test:all": "mocha tests/*.test.js --timeout 30000"
+  },
+  "keywords": ["selenium", "e2e", "rbac", "ethai-guard"],
+  "author": "EthAI-Guard Selenium Agent",
+  "license": "MIT",
+  "dependencies": {
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "selenium-webdriver": "^4.15.0"
+  }
+}

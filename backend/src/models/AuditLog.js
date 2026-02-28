@@ -66,6 +66,27 @@ const auditLogSchema = new mongoose.Schema({
     // Human-readable description
   },
 
+  // User role (required for contract compliance)
+  user_id: {
+    type: String,
+    required: true,
+    index: true,
+  },
+
+  role: {
+    type: String,
+    enum: ['admin', 'auditor', 'analyst', 'reviewer', 'user'],
+    required: true,
+    index: true,
+  },
+
+  // Request ID for tracing (required for contract compliance)
+  request_id: {
+    type: String,
+    required: true,
+    index: true,
+  },
+
   status: {
     type: String,
     required: true,
