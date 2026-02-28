@@ -81,13 +81,90 @@ def firefox_options():
 
 @pytest.fixture
 def chrome_driver(chrome_options):
-    """Create and configure Chrome WebDriver instance."""
-    service = ChromeService(ChromeDriverManager().install())
+    """Create and configure Chrome WebDriver instance.
+
+    WebDriverManager may return a path that is a directory or a non-executable
+    file (depending on the chromedriver archive layout). Handle those cases
+    by locating the actual chromedriver binary, ensuring it is executable,
+    and passing that path to ChromeService.
+    """
+    driver_install_path = ChromeDriverManager().install()
+
+    # If manager returned a directory, search for a binary inside it.
+    driver_path = driver_install_path
+    try:
+        # If install() returned a directory, search inside it. If it
+        # returned a file (some webdriver-manager cache entries do),
+        # search alongside that file for a real 'chromedriver' binary.
+        if os.path.isdir(driver_install_path):
+            found = None
+            for root, _dirs, files in os.walk(driver_install_path):
+                for f in files:
+                    # prefer files named exactly 'chromedriver'
+                    if f == 'chromedriver':
+                        found = os.path.join(root, f)
+                        break
+                if found:
+                    break
+                # fallback: any file containing 'chromedriver' in its name
+                for f in files:
+                    if 'chromedriver' in f:
+                        found = os.path.join(root, f)
+                        break
+                if found:
+                    break
+
+            if found:
+                driver_path = found
+        elif os.path.isfile(driver_install_path):
+            # Search the parent directory for the real chromedriver binary
+            parent = os.path.dirname(driver_install_path)
+            found = None
+            try:
+                for f in os.listdir(parent):
+                    if f == 'chromedriver' or 'chromedriver' in f:
+                        candidate = os.path.join(parent, f)
+                        if os.path.isfile(candidate):
+                            found = candidate
+                            break
+            except Exception:
+                found = None
+
+            if found:
+                driver_path = found
+
+        # Ensure the chosen file is executable; if not, try its parent dir
+        if not os.path.isfile(driver_path) or not os.access(driver_path, os.X_OK):
+            parent = os.path.dirname(driver_path)
+            candidate = os.path.join(parent, 'chromedriver')
+            if os.path.isfile(candidate):
+                driver_path = candidate
+
+        # Make it executable if needed
+        if os.path.isfile(driver_path) and not os.access(driver_path, os.X_OK):
+            try:
+                os.chmod(driver_path, 0o755)
+            except Exception:
+                # best-effort, continue and let webdriver raise a helpful error
+                pass
+
+    except Exception:
+        # If anything goes wrong while trying to resolve the path, fall back
+        # to the raw manager result and let the underlying library raise.
+        driver_path = driver_install_path
+
+    # Debug: show what path we will use for the chromedriver service
+    try:
+        print(f"Using chromedriver at: {driver_path}", flush=True)
+    except Exception:
+        pass
+
+    service = ChromeService(driver_path)
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.implicitly_wait(5)
-    
+
     yield driver
-    
+
     driver.quit()
 
 

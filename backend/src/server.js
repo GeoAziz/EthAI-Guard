@@ -395,6 +395,13 @@ try {
   logger.error({ err: e }, 'routes_access_requests_register_failed');
 }
 
+// Audit logs route (admin/auditor only)
+try {
+  app.use('/api/audit', require('./routes/auditLogs'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_audit_logs_register_failed');
+}
+
 // Helper functions (abstract persistence)
 async function findUserByEmail(email) {
   if (USE_IN_MEMORY) {
@@ -806,45 +813,21 @@ app.post('/auth/firebase/exchange', async (req, res) => {
       return res.status(403).json({ error: 'email_not_verified' });
     }
 
-    // Find or provision a local user record (so backend can store role, devices, refresh tokens)
-    let userDoc;
-    // Provision or find local user; prefer copying role from Firebase custom claims when present
-    const firebaseRole = decoded.role || (decoded.claims && decoded.claims.role) || null;
-    if (USE_IN_MEMORY) {
-      userDoc = _users.find(u => u.firebase_uid === decoded.uid) || _users.find(u => u.email === decoded.email);
-      if (!userDoc) {
-        const id = String(_users.length + 1);
-        userDoc = { _id: id, name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' };
-        _users.push(userDoc);
-      } else if (firebaseRole && userDoc.role !== firebaseRole) {
-        userDoc.role = firebaseRole; // keep in-memory role in sync with Firebase claim
-      }
-    } else {
-      const User = require('./models/User');
-      userDoc = await User.findOne({ firebase_uid: { $eq: decoded.uid } }) || await User.findOne({ email: { $eq: decoded.email } });
-      if (!userDoc) {
-        userDoc = await User.create({ name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' });
-      } else {
-        let changed = false;
-        if (!userDoc.firebase_uid) {
-          userDoc.firebase_uid = decoded.uid;
-          changed = true;
-        }
-        if (firebaseRole && userDoc.role !== firebaseRole) {
-          userDoc.role = firebaseRole;
-          changed = true;
-        }
-        if (changed) {
-          await userDoc.save();
-        }
-      }
-    }
-
-    // Issue backend tokens (access + refresh)
-    const accessToken = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
-    const refreshPayload = { sub: userDoc._id, jti: uuidv4() };
-    const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
-    await storeRefreshToken(userDoc._id, refreshTokenJwt, req);
+    // Extract role from Firebase custom claims (top-level property in decoded token)
+    // Firebase-only auth: no MongoDB user lookup needed for login
+    const firebaseRole = decoded.role || 'user';
+    const userId = decoded.uid; // Use Firebase UID as user identifier
+    
+    // Issue backend tokens (access + refresh) with Firebase credentials
+    const accessToken = jwt.sign({ sub: userId, email: decoded.email, role: firebaseRole }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+  // Include the user's role inside the refresh token so we can remain Firebase-only
+  // (avoid MongoDB lookups during verify/refresh flows). The refresh token remains
+  // signed by REFRESH_SECRET and contains: { sub: <firebaseUid>, role: <role>, jti }
+  const refreshPayload = { sub: userId, role: firebaseRole, jti: uuidv4() };
+  const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+  // Refresh token storage is intentionally skipped here to avoid requiring MongoDB
+  // persistence during authentication exchange. Revocation/rotation features that
+  // rely on DB storage are therefore disabled in this codepath.
 
     // If cookie-based sessions are enabled, set HttpOnly cookies for refresh and access tokens
     if (process.env.USE_COOKIE_REFRESH === '1') {
@@ -889,20 +872,23 @@ app.get('/auth/verify', async (req, res) => {
     }
 
     // If we have a refresh token, validate and issue a new access token (rotate) for UX
+    // NOTE: For Firebase-only flows we avoid loading a local user record. The refresh
+    // token contains the user's role so we can re-issue an access token without DB lookups.
     if (refreshToken) {
-      const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
-      const userId = payload.sub;
-      // load user to return role and ensure exists
-      const userDoc = USE_IN_MEMORY ? _users.find(u => String(u._id) === String(userId)) : await User.findById(userId);
-      if (!userDoc) {
+      try {
+        const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
+        const userId = payload.sub;
+        const role = payload.role || 'user';
+
+        // Issue fresh access token and set cookie
+        const newAccess = jwt.sign({ sub: userId, role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+        const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 };
+        res.cookie('accessToken', newAccess, cookieOpts);
+        return res.json({ userId: String(userId), role });
+      } catch (e) {
+        // treat verification errors same as invalid session
         return res.status(401).json({ error: 'invalid_session' });
       }
-
-      // Issue fresh access token and set cookie
-      const newAccess = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
-      const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 };
-      res.cookie('accessToken', newAccess, cookieOpts);
-      return res.json({ userId: String(userDoc._id), role: userDoc.role || 'user' });
     }
 
     return res.status(401).json({ error: 'invalid_session' });
@@ -921,51 +907,20 @@ app.post('/auth/refresh', async (req, res) => {
   }
 
   try {
+    // Verify refresh token JWT and re-issue tokens using embedded role (Firebase-only flow)
     const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
     const userId = payload.sub;
+    const role = payload.role || 'user';
 
-    // Find and validate the refresh token
-    const tokenDoc = await findValidRefreshToken(userId, refreshToken);
-    if (!tokenDoc) {
-      // Check if this token existed but was revoked (reuse detection)
-      const anyDoc = await findAnyRefreshToken(userId, refreshToken);
-      if (anyDoc && anyDoc.revokedAt) {
-        // Security event: refresh token reuse attempt
-        try {
-          const { refreshTokenReuseTotal } = require('./utils/metrics');
-          refreshTokenReuseTotal.inc({ rotation_id: anyDoc.rotationId || 'unknown' });
-        } catch (metricErr) {
-          logger.warn({ err: metricErr }, 'Failed to record refresh token reuse metric');
-        }
-        logger.warn({ userId, rotationId: anyDoc.rotationId, tokenId: anyDoc._id }, 'Refresh token reuse detected; revoking token family');
-        await revokeFamily(anyDoc.rotationId);
-        return res.status(401).json({ error: 'token_reuse_detected' });
-      }
-      return res.status(401).json({ error: 'Invalid or revoked refresh token' });
-    }
+    // Issue new access token (based on role inside refresh token)
+    const accessToken = jwt.sign({ sub: userId, role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
 
-    // Issue new access token
-    const user = await findUserByEmail !== 'function' ? null : null;
-    const userDoc = !USE_IN_MEMORY ? await User.findById(userId) : _users.find(u => String(u._id) === String(userId));
-    if (!userDoc) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    const accessToken = jwt.sign(
-      { sub: userDoc._id, role: userDoc.role || 'user' },
-      process.env.SECRET_KEY || 'secret',
-      { expiresIn: '15m' },
-    );
-
-    // Rotate refresh token: revoke old, issue new (keep rotationId, link parent)
-    const newRefreshPayload = { sub: userId, jti: uuidv4() };
+    // Rotate refresh token: create a new one that also includes role
+    const newRefreshPayload = { sub: userId, role, jti: uuidv4() };
     const newRefreshJwt = jwt.sign(newRefreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
 
-    if (!USE_IN_MEMORY) {
-      // Revoke old token and store new one, preserving rotation chain
-      await revokeRefreshToken(tokenDoc._id);
-      await storeRefreshToken(userId, newRefreshJwt, req, null, tokenDoc.tokenHash);
-    } else {
+    // In-memory rotation (if running in test mode) — otherwise rotation persistence is skipped
+    if (USE_IN_MEMORY) {
       _refreshTokens.delete(refreshToken);
       _refreshTokens.set(newRefreshJwt, String(userId));
     }
@@ -977,7 +932,7 @@ app.post('/auth/refresh', async (req, res) => {
       return res.json({ accessToken });
     }
 
-    res.json({ accessToken, refreshToken: newRefreshJwt });
+    return res.json({ accessToken, refreshToken: newRefreshJwt });
   } catch (e) {
     logger.error({ err: e }, 'Error during refresh');
     return res.status(401).json({ error: 'Invalid refresh token' });

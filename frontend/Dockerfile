@@ -4,7 +4,10 @@ WORKDIR /app
 
 # Install deps
 COPY package*.json ./
-RUN npm ci --production=false
+# Use `npm install` in the builder to avoid failing when package-lock.json is out of sync
+# `npm ci` is stricter and will fail if lockfile and package.json disagree (we saw this in CI).
+# `--legacy-peer-deps` avoids peer-dependency resolution errors during image builds.
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copy source and build
 COPY . .

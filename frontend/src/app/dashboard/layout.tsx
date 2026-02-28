@@ -101,6 +101,13 @@ export default function DashboardLayout({
     { href: '/dashboard/reviewer/audit', label: 'Audit Logs', icon: Archive },
   ];
 
+  // Auditor-specific menu items
+  const auditorMenuItems = [
+    { href: '/dashboard/admin', label: 'Admin Dashboard', icon: Home },
+    { href: '/dashboard/admin/audit', label: 'Audit Logs', icon: Archive },
+    { href: '/dashboard/compliance', label: 'Compliance Reports', icon: FileText },
+  ];
+
   // Select menu based on role
   let menuItems = baseMenuItems;
   if (primaryRole === 'admin') {
@@ -109,6 +116,8 @@ export default function DashboardLayout({
     menuItems = analystMenuItems;
   } else if (primaryRole === 'reviewer') {
     menuItems = reviewerMenuItems;
+  } else if (primaryRole === 'auditor') {
+    menuItems = auditorMenuItems;
   }
 
   return (

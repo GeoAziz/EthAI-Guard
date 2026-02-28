@@ -6,8 +6,8 @@ const router = express.Router();
 const { authGuard } = require('../middleware/authGuard');
 const { requireRole } = require('../middleware/rbac');
 
-// protect all audit routes by default (admin only)
-router.use(authGuard, requireRole('admin'));
+// protect all audit routes (admin + auditor can read, only admin can write)
+router.use(authGuard, requireRole('admin', 'auditor'));
 
 /**
  * @route   GET /api/audit/logs

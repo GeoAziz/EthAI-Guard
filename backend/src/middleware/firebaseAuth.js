@@ -44,8 +44,13 @@ async function firebaseAuth(req, res, next) {
               role: 'user',
             });
           } catch (createErr) {
-            // Race: if another request created it first, fetch again by firebase_uid
-            userDoc = await User.findOne({ firebase_uid: decoded.uid }) || userDoc;
+            // Race: if another request created it first, fetch again
+            // Use findOneAndUpdate to handle concurrent creation atomically
+            userDoc = await User.findOneAndUpdate(
+              { firebase_uid: decoded.uid },
+              { $setOnInsert: { name: displayName, email: decoded.email, password_hash: null, role: 'user' } },
+              { upsert: true, new: true }
+            );
           }
         }
         if (userDoc) {

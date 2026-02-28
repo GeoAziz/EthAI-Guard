@@ -57,10 +57,10 @@ export default function AdminAuditPage() {
   }
 
   return (
-    <RoleProtected required={['admin']}>
+    <RoleProtected required={['admin', 'auditor']}>
       <div className="p-4 sm:p-6 lg:p-8 w-full max-w-6xl">
         <Breadcrumbs />
-        <PageHeader title="Audit logs (admin)" subtitle="Full organization audit history" />
+        <PageHeader title="Audit logs" subtitle="Full organization audit history" />
 
         <div className="mt-6 rounded-lg border bg-white p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mb-4">
@@ -68,30 +68,34 @@ export default function AdminAuditPage() {
               placeholder="Filter by user email" 
               className="border rounded px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-primary" 
               value={filterUser} 
-              onChange={e => setFilterUser(e.target.value)} 
+              onChange={e => setFilterUser(e.target.value)}
+              data-testid="audit-filter-input"
             />
             <button 
               onClick={() => setPage(1)} 
               className="px-3 py-2 border rounded text-sm hover:bg-muted"
+              data-testid="audit-apply-button"
             >
               Apply
             </button>
             <button 
               onClick={handleExport} 
               className="px-3 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 whitespace-nowrap"
+              data-testid="export-button"
             >
               Export
             </button>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm table-auto">
+            <table className="w-full text-xs sm:text-sm table-auto" data-testid="audit-log-table">
               <thead className="text-xs text-muted-foreground border-b bg-muted/50">
                 <tr>
                   <th className="py-2 px-2 text-left">Timestamp</th>
-                  <th className="py-2 px-2 text-left hidden sm:table-cell">Actor</th>
-                  <th className="py-2 px-2 text-left">Event</th>
-                  <th className="py-2 px-2 text-left hidden md:table-cell">Details</th>
+                  <th className="py-2 px-2 text-left hidden sm:table-cell">User</th>
+                  <th className="py-2 px-2 text-left hidden sm:table-cell">Role</th>
+                  <th className="py-2 px-2 text-left">Action</th>
+                  <th className="py-2 px-2 text-left hidden md:table-cell">Request ID</th>
                 </tr>
               </thead>
               <tbody>
