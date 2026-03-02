@@ -1,53 +1,35 @@
+'use client';
+
+import { useState } from 'react';
+import type { Metadata } from 'next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Briefcase, MapPin, Clock, Users, Heart, Zap, GraduationCap, DollarSign } from 'lucide-react';
+import Link from 'next/link';
+import { filterJobs } from './constants';
+import { formatSalaryRange } from './utils';
+import JobFilters from './JobFilters';
+import ApplicationForm from './ApplicationForm';
+import { GeneralApplicationModal } from './GeneralApplicationModal';
+
+// First, let's keep the openings as is for now - we'll use JOBS for the new filtered view
+// But we need to export metadata at the top level
 
 export default function CareersPage() {
-  const openings = [
-    {
-      title: 'Senior ML Engineer - Fairness',
-      department: 'Engineering',
-      location: 'Remote / San Francisco',
-      type: 'Full-time',
-      description: 'Build and optimize fairness-aware ML pipelines for financial AI systems.',
-    },
-    {
-      title: 'Applied AI Researcher',
-      department: 'Research',
-      location: 'Remote / New York',
-      type: 'Full-time',
-      description: 'Conduct research on novel fairness metrics and explainability techniques.',
-    },
-    {
-      title: 'Product Designer',
-      department: 'Product',
-      location: 'Remote',
-      type: 'Full-time',
-      description: 'Design intuitive interfaces for complex AI explainability visualizations.',
-    },
-    {
-      title: 'DevOps Engineer',
-      department: 'Engineering',
-      location: 'Remote / London',
-      type: 'Full-time',
-      description: 'Scale our infrastructure to handle enterprise-level AI workloads.',
-    },
-    {
-      title: 'Compliance Specialist',
-      department: 'Legal',
-      location: 'Hybrid / Boston',
-      type: 'Full-time',
-      description: 'Ensure our platform meets global regulatory requirements for AI in finance.',
-    },
-    {
-      title: 'Customer Success Manager',
-      department: 'Customer Success',
-      location: 'Remote',
-      type: 'Full-time',
-      description: 'Help financial institutions maximize value from EthixAI platform.',
-    },
-  ];
+  // Filter state
+  const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>(undefined);
+  const [selectedLocation, setSelectedLocation] = useState<string | undefined>(undefined);
+  const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
+
+  // Modal state
+  const [applicationFormOpen, setApplicationFormOpen] = useState(false);
+  const [generalApplicationOpen, setGeneralApplicationOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string>('');
+
+  // Get filtered jobs
+  const filteredJobs = filterJobs(selectedDepartment, selectedLocation, selectedType);
 
   const benefits = [
     {
@@ -82,6 +64,20 @@ export default function CareersPage() {
     },
   ];
 
+  const handleApplyNow = (jobId: string, jobTitle: string) => {
+    setSelectedJobId(jobId);
+    setSelectedJobTitle(jobTitle);
+    setApplicationFormOpen(true);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedDepartment(undefined);
+    setSelectedLocation(undefined);
+    setSelectedType(undefined);
+  };
+
+  const maxResults = filteredJobs.length;
+
   return (
     <div className="container px-4 py-12 md:py-20">
       <div className="max-w-6xl mx-auto">
@@ -92,6 +88,13 @@ export default function CareersPage() {
             Help us build the future of fair and transparent AI for financial services.
             We're looking for passionate individuals who want to make a real impact.
           </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button asChild variant="outline">
+              <Link href="/careers/saved">
+                View Saved Jobs
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Why EthixAI */}
@@ -114,37 +117,98 @@ export default function CareersPage() {
           </div>
         </div>
 
-        {/* Open Positions */}
+        {/* Open Positions with Filters */}
         <div className="mb-16">
           <h2 className="text-2xl md:text-3xl font-bold mb-8">Open Positions</h2>
-          <div className="space-y-4">
-            {openings.map((job, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl mb-2">{job.title}</CardTitle>
-                      <CardDescription className="mb-3">{job.description}</CardDescription>
-                      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Briefcase className="h-4 w-4" />
-                          {job.department}
+
+          <div className="grid gap-8 md:grid-cols-4">
+            {/* Filters Sidebar */}
+            <aside>
+              <JobFilters
+                department={selectedDepartment}
+                location={selectedLocation}
+                type={selectedType}
+                onDepartmentChange={setSelectedDepartment}
+                onLocationChange={setSelectedLocation}
+                onTypeChange={setSelectedType}
+                results={maxResults}
+                onClearFilters={handleClearFilters}
+              />
+            </aside>
+
+            {/* Jobs Grid */}
+            <div className="md:col-span-3">
+              <div className="mb-4 text-sm text-muted-foreground">
+                {maxResults} position{maxResults !== 1 ? 's' : ''} found
+              </div>
+
+              {filteredJobs.length > 0 ? (
+                <div className="space-y-4">
+                  {filteredJobs.map((job) => (
+                    <Card key={job.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <Badge variant="outline" className="bg-primary/10 text-primary">
+                                {job.department}
+                              </Badge>
+                              {job.featured && (
+                                <Badge variant="default">Featured</Badge>
+                              )}
+                            </div>
+                            <Link href={`/careers/${job.id}`} className="group">
+                              <CardTitle className="text-xl mb-1 group-hover:text-primary transition-colors">
+                                {job.title}
+                              </CardTitle>
+                            </Link>
+                            <CardDescription className="mb-3">{job.shortDescription}</CardDescription>
+                            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-3">
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-4 w-4" />
+                                {job.location}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {job.type}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4" />
+                                {formatSalaryRange(job.salaryMin, job.salaryMax)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Link href={`/careers/${job.id}`}>
+                              <Button variant="outline">View Details</Button>
+                            </Link>
+                            <Button onClick={() => handleApplyNow(job.id, job.title)}>
+                              Apply
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {job.location}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {job.type}
-                        </div>
-                      </div>
-                    </div>
-                    <Button className="flex-shrink-0">Apply Now</Button>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="pt-12 pb-12 text-center">
+                    <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No positions found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Try adjusting your filters or check back soon for new opportunities.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={handleClearFilters}
+                    >
+                      Clear Filters
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
 
@@ -177,7 +241,11 @@ export default function CareersPage() {
               We're always interested in meeting talented people who share our mission.
               Send us your resume and tell us why you'd like to join EthixAI.
             </p>
-            <Button variant="outline" size="lg">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setGeneralApplicationOpen(true)}
+            >
               Send General Application
             </Button>
           </CardContent>
@@ -192,6 +260,22 @@ export default function CareersPage() {
             </a>
           </p>
         </div>
+
+        {/* Application Modals */}
+        {applicationFormOpen && selectedJobId && (
+          <ApplicationForm
+            jobId={selectedJobId}
+            jobTitle={selectedJobTitle}
+            onClose={() => setApplicationFormOpen(false)}
+          />
+        )}
+
+        {generalApplicationOpen && (
+          <GeneralApplicationModal
+            isOpen={generalApplicationOpen}
+            onClose={() => setGeneralApplicationOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

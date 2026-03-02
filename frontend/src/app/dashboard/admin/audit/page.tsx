@@ -5,6 +5,7 @@ import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 export default function AdminAuditPage() {
   const [logs, setLogs] = useState<Array<any>>([]);
@@ -62,36 +63,42 @@ export default function AdminAuditPage() {
         <Breadcrumbs />
         <PageHeader title="Audit logs (admin)" subtitle="Full organization audit history" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4 sm:p-6">
+        <div className="mt-6 rounded-lg border bg-card p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mb-4">
-            <input 
-              placeholder="Filter by user email" 
-              className="border rounded px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-primary" 
-              value={filterUser} 
-              onChange={e => setFilterUser(e.target.value)} 
+            <input
+              placeholder="Filter by user email"
+              className="border rounded px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-primary"
+              value={filterUser}
+              onChange={e => setFilterUser(e.target.value)}
+              aria-label="Filter by user email"
             />
-            <button 
-              onClick={() => setPage(1)} 
-              className="px-3 py-2 border rounded text-sm hover:bg-muted"
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(1)}
+              className="min-h-9"
+              aria-label="Apply filter"
             >
               Apply
-            </button>
-            <button 
-              onClick={handleExport} 
-              className="px-3 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 whitespace-nowrap"
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleExport}
+              className="min-h-9"
+              aria-label="Export audit logs"
             >
               Export
-            </button>
+            </Button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm table-auto">
               <thead className="text-xs text-muted-foreground border-b bg-muted/50">
                 <tr>
-                  <th className="py-2 px-2 text-left">Timestamp</th>
-                  <th className="py-2 px-2 text-left hidden sm:table-cell">Actor</th>
-                  <th className="py-2 px-2 text-left">Event</th>
-                  <th className="py-2 px-2 text-left hidden md:table-cell">Details</th>
+                  <th scope="col" className="py-2 px-2 text-left">Timestamp</th>
+                  <th scope="col" className="py-2 px-2 text-left hidden sm:table-cell">Actor</th>
+                  <th scope="col" className="py-2 px-2 text-left">Event</th>
+                  <th scope="col" className="py-2 px-2 text-left hidden md:table-cell">Details</th>
                 </tr>
               </thead>
               <tbody>

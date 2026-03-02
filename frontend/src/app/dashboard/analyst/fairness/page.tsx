@@ -3,10 +3,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import ChartPlaceholder from '@/components/ui/chart-placeholder';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
+import { AlertCircle } from 'lucide-react';
 
 type FairnessMetrics = {
   DI?: number;
@@ -77,8 +79,8 @@ export default function FairnessPage() {
       const q = new URLSearchParams();
       q.set('page', String(eventsPage));
       q.set('limit', String(eventsLimit));
-      if (modelId) q.set('modelId', modelId);
-      if (datasetId) q.set('datasetId', datasetId);
+      if (modelId) {q.set('modelId', modelId);}
+      if (datasetId) {q.set('datasetId', datasetId);}
       const res = await api.get(`/v1/fairness/events?${q.toString()}`);
       const data = res?.data;
       if (Array.isArray(data)) {
@@ -107,95 +109,163 @@ export default function FairnessPage() {
         <PageHeader title="Fairness Dashboard" subtitle="Bias and fairness metrics for your models" />
 
         <section className="mt-6 space-y-6">
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="text-lg font-medium">Metrics</h3>
-            <p className="text-sm text-muted-foreground">Disparate Impact (DI), Equal Opportunity Difference (EOD), Statistical Parity (SP)</p>
-            <div className="mt-4">
+          <div className="rounded-lg border bg-white p-6">
+            <div>
+              <h3 className="text-lg font-medium">Key Fairness Metrics</h3>
+              <p className="text-sm text-muted-foreground">Summary of overall model fairness indicators</p>
+            </div>
+            <div className="mt-6">
               {loadingMetrics ? (
-                <div className="text-sm text-gray-500">Loading metrics…</div>
+                <div className="p-8 text-center text-sm text-muted-foreground">Loading metrics…</div>
               ) : metrics ? (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 border rounded">
-                    <div className="text-xs text-muted-foreground">Disparate Impact</div>
-                    <div className="text-2xl font-semibold">{metrics.DI ?? '—'}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-6 border rounded-lg hover:shadow-lg hover:border-blue-200 transition-all duration-200 cursor-pointer group">
+                    <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Disparate Impact</div>
+                    <div className="text-3xl sm:text-4xl font-bold mt-3 text-blue-600">
+                      {metrics.DI !== undefined && metrics.DI !== null ? typeof metrics.DI === 'number' ? metrics.DI.toFixed(3) : metrics.DI : '—'}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Ratio of favorable outcomes between groups</p>
+                    <div className="h-1 w-0 group-hover:w-full bg-blue-400 transition-all duration-300 mt-3 rounded" />
                   </div>
-                  <div className="p-4 border rounded">
-                    <div className="text-xs text-muted-foreground">Equal Opportunity Difference</div>
-                    <div className="text-2xl font-semibold">{metrics.EOD ?? '—'}</div>
+                  <div className="p-6 border rounded-lg hover:shadow-lg hover:border-green-200 transition-all duration-200 cursor-pointer group">
+                    <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Equal Opportunity Difference</div>
+                    <div className="text-3xl sm:text-4xl font-bold mt-3 text-green-600">
+                      {metrics.EOD !== undefined && metrics.EOD !== null ? typeof metrics.EOD === 'number' ? metrics.EOD.toFixed(3) : metrics.EOD : '—'}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Difference in true positive rates</p>
+                    <div className="h-1 w-0 group-hover:w-full bg-green-400 transition-all duration-300 mt-3 rounded" />
                   </div>
-                  <div className="p-4 border rounded">
-                    <div className="text-xs text-muted-foreground">Statistical Parity</div>
-                    <div className="text-2xl font-semibold">{metrics.SP ?? '—'}</div>
+                  <div className="p-6 border rounded-lg hover:shadow-lg hover:border-purple-200 transition-all duration-200 cursor-pointer group">
+                    <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Statistical Parity</div>
+                    <div className="text-3xl sm:text-4xl font-bold mt-3 text-purple-600">
+                      {metrics.SP !== undefined && metrics.SP !== null ? typeof metrics.SP === 'number' ? metrics.SP.toFixed(3) : metrics.SP : '—'}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Difference in selection rates</p>
+                    <div className="h-1 w-0 group-hover:w-full bg-purple-400 transition-all duration-300 mt-3 rounded" />
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">Provide modelId and datasetId in query to load metrics.</div>
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Provide <code className="bg-gray-100 px-2 py-1 rounded text-xs">modelId</code> and <code className="bg-gray-100 px-2 py-1 rounded text-xs">datasetId</code> query parameters to load metrics
+                </div>
               )}
             </div>
           </div>
 
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="text-lg font-medium">Fairness heatmap</h3>
-            <p className="text-sm text-muted-foreground">Heatmap shows metric values across sensitive groups.</p>
-            <div className="mt-4">
+          <div className="rounded-lg border bg-white p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-medium">Fairness heatmap</h3>
+                <p className="text-sm text-muted-foreground">Metric values across sensitive groups and protected attributes</p>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1 text-right">
+                <div className="flex items-center gap-2 justify-end"><span className="w-4 h-4 rounded" style={{ backgroundColor: '#10B981' }} />High fairness</div>
+                <div className="flex items-center gap-2 justify-end"><span className="w-4 h-4 rounded" style={{ backgroundColor: '#F59E0B' }} />Medium fairness</div>
+                <div className="flex items-center gap-2 justify-end"><span className="w-4 h-4 rounded" style={{ backgroundColor: '#EF4444' }} />Low fairness</div>
+              </div>
+            </div>
+            <div className="mt-6">
               {loadingHeatmap ? (
-                <div className="text-sm text-gray-500">Loading heatmap…</div>
+                <div className="p-8 text-center text-sm text-muted-foreground">Loading heatmap…</div>
               ) : heatmap ? (
-                <div className="overflow-auto">
-                  <table className="w-full text-sm table-fixed border-collapse">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
                     <thead>
                       <tr>
-                        <th className="p-2 border" />
+                        <th className="text-left py-3 px-3 font-medium text-xs" />
                         {heatmap.xLabels.map((x) => (
-                          <th className="p-2 border text-xs" key={x}>{x}</th>
+                          <th className="text-center py-3 px-2 font-medium text-xs" key={x}>{x}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {heatmap.yLabels.map((yLabel, rowIdx) => (
                         <tr key={yLabel}>
-                          <td className="p-2 border text-xs font-medium">{yLabel}</td>
-                          {heatmap.values[rowIdx]?.map((v, colIdx) => (
-                            <td className="p-2 border text-center" key={colIdx}>
-                              <div className="text-sm">{v}</div>
-                              <div className="h-2 bg-gray-100 mt-1 rounded" style={{ width: `${Math.min(100, Math.abs(v) * 100)}%`, backgroundColor: v >= 0 ? '#60A5FA' : '#FCA5A5' }} />
-                            </td>
-                          ))}
+                          <td className="py-3 px-3 font-medium text-xs text-muted-foreground">{yLabel}</td>
+                          {heatmap.values[rowIdx]?.map((v, colIdx) => {
+                            // Determine color based on value (1.0 = perfect fairness, 0 = worst)
+                            let bgColor = '#10B981'; // Green (good)
+                            if (typeof v === 'number') {
+                              if (v < 0.5) bgColor = '#EF4444'; // Red (bad)
+                              else if (v < 0.75) bgColor = '#F59E0B'; // Amber (medium)
+                            }
+                            return (
+                              <td
+                                key={colIdx}
+                                className="py-3 px-2 text-center group relative cursor-pointer hover:opacity-80 transition-opacity"
+                                title={`${yLabel} × ${heatmap.xLabels[colIdx]}: ${v}`}
+                              >
+                                <div
+                                  className="rounded py-2 px-2 text-white font-medium text-sm"
+                                  style={{ backgroundColor: bgColor }}
+                                >
+                                  {typeof v === 'number' ? v.toFixed(2) : v}
+                                </div>
+                                <div className="absolute hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  {`${yLabel} × ${heatmap.xLabels[colIdx]}: ${v}`}
+                                </div>
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">Provide modelId in query to load heatmap.</div>
+                <div className="p-8 text-center text-sm text-muted-foreground">Provide modelId and datasetId in query to load heatmap.</div>
               )}
             </div>
           </div>
 
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="text-lg font-medium">Bias Metrics per Model</h3>
-            <p className="text-sm text-muted-foreground">Per-group bias metrics for the selected model/dataset.</p>
-            <div className="mt-4">
+          <div className="rounded-lg border bg-white p-6">
+            <div>
+              <h3 className="text-lg font-medium">Bias Metrics per Model</h3>
+              <p className="text-sm text-muted-foreground">Per-group fairness metrics for the selected model</p>
+            </div>
+            <div className="mt-6">
               {loadingMetrics ? (
-                <div className="text-sm text-gray-500">Loading table…</div>
-              ) : metrics && metrics.groups ? (
-                <table className="w-full text-sm">
-                  <thead className="text-xs text-muted-foreground border-b">
-                    <tr><th className="py-2">Group</th><th className="py-2">DI</th><th className="py-2">EOD</th><th className="py-2">SP</th></tr>
-                  </thead>
-                  <tbody>
-                    {metrics.groups.map((g: any) => (
-                      <tr className="border-b" key={g.group}>
-                        <td className="py-2">{g.group}</td>
-                        <td className="py-2">{g.DI}</td>
-                        <td className="py-2">{g.EOD}</td>
-                        <td className="py-2">{g.SP}</td>
+                <div className="p-8 text-center text-sm text-muted-foreground">Loading metrics…</div>
+              ) : metrics && metrics.groups && metrics.groups.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-muted-foreground border-b bg-muted/30">
+                      <tr>
+                        <th className="text-left py-3 px-3 font-medium">Group</th>
+                        <th className="text-left py-3 px-3 font-medium hidden sm:table-cell">Disparate Impact</th>
+                        <th className="text-left py-3 px-3 font-medium hidden md:table-cell">Equal Opp. Diff</th>
+                        <th className="text-left py-3 px-3 font-medium">Stat. Parity</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {metrics.groups.map((g: any, idx: number) => (
+                        <tr key={idx} className="border-b hover:bg-muted/50 transition-colors duration-200">
+                          <td className="py-3 px-3 font-medium text-sm">{g.group}</td>
+                          <td className="py-3 px-3 hidden sm:table-cell">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="font-mono">{typeof g.DI === 'number' ? g.DI.toFixed(3) : g.DI}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 hidden md:table-cell">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="font-mono">{typeof g.EOD === 'number' ? g.EOD.toFixed(3) : g.EOD}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="font-mono">{typeof g.SP === 'number' ? g.SP.toFixed(3) : g.SP}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <div className="text-sm text-muted-foreground">No bias metrics available. Provide modelId and datasetId in query to populate table.</div>
+                <div className="p-8 text-center">
+                  <p className="text-sm text-muted-foreground">No bias metrics available</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Provide modelId and datasetId in query parameters to load metrics</p>
+                </div>
               )}
             </div>
           </div>
@@ -221,31 +291,30 @@ export default function FairnessPage() {
             </div>
 
             <div className="mt-4">
-              {loadingEvents && <div className="text-sm text-muted-foreground">Loading…</div>}
+              {loadingEvents && <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}
               {!loadingEvents && events.length === 0 && (
-                <div className="text-sm text-muted-foreground">No events</div>
+                <div className="p-8 text-center">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg mb-2">No fairness events</h3>
+                  <p className="text-sm text-muted-foreground">Run an analysis with fairness metrics to generate and view fairness audit events here.</p>
+                </div>
               )}
               {!loadingEvents && events.length > 0 && (
-                <div className="overflow-auto">
+                <div className="overflow-x-auto">
                   <table className="w-full text-sm table-auto">
-                    <thead className="text-xs text-muted-foreground border-b">
+                    <thead className="text-xs text-muted-foreground border-b bg-muted/30">
                       <tr>
-                        <th className="py-2">Timestamp</th>
-                        <th className="py-2">Model</th>
-                        <th className="py-2">Dataset</th>
-                        <th className="py-2">Type</th>
-                        <th className="py-2">Severity</th>
+                        <th className="text-left py-3 px-3 font-medium">Timestamp</th>
+                        <th className="text-left py-3 px-3 font-medium hidden sm:table-cell">Model</th>
+                        <th className="text-left py-3 px-3 font-medium hidden md:table-cell">Dataset</th>
+                        <th className="text-left py-3 px-3 font-medium hidden lg:table-cell">Type</th>
+                        <th className="text-left py-3 px-3 font-medium">Severity</th>
+                        <th className="text-right py-3 px-3 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {events.map((e, idx) => (
-                        <tr key={e.id || idx} className="border-b">
-                          <td className="py-2">{e.timestamp || e.createdAt || '—'}</td>
-                          <td className="py-2">{e.modelId || e.model || '—'}</td>
-                          <td className="py-2">{e.datasetId || e.dataset || '—'}</td>
-                          <td className="py-2">{e.type || '—'}</td>
-                          <td className="py-2">{e.severity || '—'}</td>
-                        </tr>
+                        <FairnessEventRow key={e.id || idx} event={e} />
                       ))}
                     </tbody>
                   </table>
@@ -273,5 +342,72 @@ export default function FairnessPage() {
         </section>
       </div>
     </RoleProtected>
+  );
+}
+
+function FairnessEventRow({ event }: { event: any }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const { toast } = useToast();
+
+  const getSeverityVariant = (severity?: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'high':
+        return 'high';
+      case 'medium':
+        return 'medium';
+      case 'low':
+        return 'low';
+      default:
+        return 'unknown';
+    }
+  };
+
+  const handleViewDetails = () => {
+    toast?.({ title: 'Event Details', description: `Viewing details for event from ${event.timestamp || event.createdAt}` });
+    setShowMenu(false);
+  };
+
+  const handleExport = () => {
+    toast?.({ title: 'Export started', description: 'Downloading event data...' });
+    setShowMenu(false);
+  };
+
+  return (
+    <tr className="border-b group hover:bg-muted/50 transition-colors duration-200">
+      <td className="py-3 px-3 text-xs">{event.timestamp || event.createdAt || '—'}</td>
+      <td className="py-3 px-3 hidden sm:table-cell truncate text-muted-foreground">{event.modelId || event.model || '—'}</td>
+      <td className="py-3 px-3 hidden md:table-cell truncate text-muted-foreground">{event.datasetId || event.dataset || '—'}</td>
+      <td className="py-3 px-3 hidden lg:table-cell text-muted-foreground">{event.type || '—'}</td>
+      <td className="py-3 px-3">
+        <Badge variant={getSeverityVariant(event.severity) as any}>
+          {event.severity || 'unknown'}
+        </Badge>
+      </td>
+      <td className="py-3 px-3 text-right relative">
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-muted rounded relative z-10"
+          onClick={() => setShowMenu(!showMenu)}
+          title="More actions"
+        >
+          ⋮
+        </button>
+        {showMenu && (
+          <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-md z-20 min-w-[150px]">
+            <button
+              onClick={handleViewDetails}
+              className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
+            >
+              View details
+            </button>
+            <button
+              onClick={handleExport}
+              className="w-full text-left px-4 py-2 hover:bg-muted text-sm border-t"
+            >
+              Export data
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }

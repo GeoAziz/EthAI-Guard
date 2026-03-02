@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -66,30 +68,34 @@ export default function AnalystReportDetailsPage({ params }: { params: { id: str
           {loading && <div className="text-sm text-muted-foreground">Loading report…</div>}
           {!loading && !report && <div className="text-sm text-muted-foreground">Report not found</div>}
           {!loading && report && (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-medium">{report.name || report.title || id}</h2>
-                  <div className="text-sm text-muted-foreground">Model: {report.modelId || report.model || '—'}</div>
+                  <h2 className="text-lg sm:text-xl font-semibold">{report.name || report.title || id}</h2>
+                  <div className="text-sm text-muted-foreground mt-1">Model: {report.modelId || report.model || '—'}</div>
                 </div>
-                <div>
-                  <button onClick={handleExport} className="px-3 py-1 bg-primary text-white rounded">Export</button>
+                <Button onClick={handleExport} variant="default">Export</Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Bias Severity</h3>
+                  <div>
+                    <Badge variant={String(computeBiasSeverity(report)).toLowerCase() as any}>
+                      {String(computeBiasSeverity(report))}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Drift Score</h3>
+                  <div className="text-lg font-semibold">{computeDriftScore(report) ?? '—'}</div>
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-medium">Bias Severity</h3>
-                <div className="text-sm">{String(computeBiasSeverity(report))}</div>
-              </div>
-
-              <div>
-                <h3 className="font-medium">Drift Score</h3>
-                <div className="text-sm">{computeDriftScore(report) ?? '—'}</div>
-              </div>
-
-              <div>
-                <h3 className="font-medium">Raw payload</h3>
-                <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto">{JSON.stringify(report, null, 2)}</pre>
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-3">Full Report</h3>
+                <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96">{JSON.stringify(report, null, 2)}</pre>
               </div>
             </div>
           )}

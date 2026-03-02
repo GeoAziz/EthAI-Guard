@@ -84,15 +84,15 @@ export default function DashboardLayout({
   ];
 
   // Analyst-specific menu items
-        // Analyst-specific menu items (trimmed for analyst UX)
-        // Keep analyst navigation focused on analyst workflows. Datasets, Models
-        // and Explainability are intentionally not exposed here to reduce
-        // cognitive load; they remain reachable via the Analyst dashboard UI.
-        const analystMenuItems = [
-          { href: '/dashboard/analyst', label: 'Analyst Dashboard', icon: Home },
-          { href: '/dashboard/analyst/run', label: 'Run Analysis', icon: Play },
-          { href: '/dashboard/analyst/reports', label: 'Reports', icon: FileText },
-        ];
+  // Analyst-specific menu items (trimmed for analyst UX)
+  // Keep analyst navigation focused on analyst workflows. Datasets, Models
+  // and Explainability are intentionally not exposed here to reduce
+  // cognitive load; they remain reachable via the Analyst dashboard UI.
+  const analystMenuItems = [
+    { href: '/dashboard/analyst', label: 'Analyst Dashboard', icon: Home },
+    { href: '/dashboard/analyst/run', label: 'Run Analysis', icon: Play },
+    { href: '/dashboard/analyst/reports', label: 'Reports', icon: FileText },
+  ];
 
   // Reviewer-specific menu items
   const reviewerMenuItems = [
@@ -171,10 +171,15 @@ export default function DashboardLayout({
             <UserNav />
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {/* Optionally show a spinner while checking auth */}
+        <main className="flex-1">
+          {/* Show spinner while checking auth */}
           {loading ? (
-            <div className="flex items-center justify-center h-40 text-muted-foreground">Loading…</div>
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+              </div>
+            </div>
           ) : (
             children
           )}

@@ -1,7 +1,7 @@
 /**
  * @file analyst-nav.test.ts
  * @description Tests for analyst role navigation simplification
- * 
+ *
  * This test suite verifies that:
  * 1. Analyst role sees only simplified sidebar items
  * 2. Global Datasets, Models, Explainability items are not shown
@@ -33,7 +33,7 @@ describe('Analyst Navigation Simplification', () => {
 
   test('Analyst menu contains only core workflow items', () => {
     expect(expectedAnalystMenuItems).toHaveLength(3);
-    
+
     const hrefs = expectedAnalystMenuItems.map(item => item.href);
     expect(hrefs).toEqual([
       '/dashboard/analyst',
@@ -44,7 +44,7 @@ describe('Analyst Navigation Simplification', () => {
 
   test('Analyst menu does not include global navigation items', () => {
     const analystHrefs = expectedAnalystMenuItems.map(item => item.href);
-    
+
     removedItems.forEach(removedItem => {
       expect(analystHrefs).not.toContain(removedItem);
     });
@@ -64,7 +64,7 @@ describe('Analyst Navigation Simplification', () => {
     /**
      * Old subtitle: "Datasets, model evaluations, and explainability tools"
      * New subtitle: "Run and manage fairness and explainability analyses"
-     * 
+     *
      * This test documents the change but does not validate DOM
      * (DOM testing would require a component test with React Testing Library)
      */
@@ -81,7 +81,7 @@ describe('Analyst Navigation Simplification', () => {
      * KPI Cards changed:
      * - Before: Total Datasets, Total Models, Active Runs, Alerts (4 cards)
      * - After: Active Runs, Alerts (2 cards)
-     * 
+     *
      * This reduces clutter and focuses on actionable metrics
      */
     const simplifiedKPIs = ['Active Runs', 'Alerts'];
@@ -119,13 +119,13 @@ describe('Analyst Navigation Simplification', () => {
 
 /**
  * Summary of Changes
- * 
+ *
  * Why simplify the analyst nav?
  * - Reduce cognitive load by hiding less-critical items
  * - Focus analyst workflow on core tasks: Run → View Reports
  * - Dataset/Model management remains accessible via CTA or full pages
  * - Improves UX by simplifying the navigation surface
- * 
+ *
  * Files changed:
  * - frontend/src/app/(auth)/layout.tsx
  * - frontend/src/app/dashboard/layout.tsx

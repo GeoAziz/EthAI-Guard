@@ -19,16 +19,16 @@ describe('UserReportsPage', () => {
 
   it('renders empty state', async () => {
     mockGet.mockResolvedValueOnce({ data: [] });
-  render(<UserReportsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
+    render(<UserReportsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
     expect(screen.getByText('No reports available')).toBeInTheDocument();
   });
 
   it('renders rows and triggers export', async () => {
     const reports = [{ id: 'rep-1', modelId: 'm1', datasetId: 'd1', status: 'ready', createdAt: '2025-01-01T00:00:00Z' }];
     mockGet.mockResolvedValueOnce({ data: reports });
-  render(<UserReportsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
+    render(<UserReportsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
     // Use findByText to allow the component to finish rendering after async fetch
     expect(await screen.findByText('rep-1')).toBeInTheDocument();
     // mock export call
@@ -39,8 +39,8 @@ describe('UserReportsPage', () => {
 
   it('shows toast on api error', async () => {
     mockGet.mockRejectedValueOnce(new Error('boom'));
-  render(<UserReportsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
-  await waitFor(() => expect(toast).toHaveBeenCalled());
+    render(<UserReportsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/reports?userId=me&page=1&limit=10'));
+    await waitFor(() => expect(toast).toHaveBeenCalled());
   });
 });

@@ -225,6 +225,10 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Response standardization middleware (must be before routes)
+const responseWrapper = require('./middleware/responseWrapper');
+app.use(responseWrapper);
+
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:27017/ethixai';
 const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY_DB === '1';
 // Track startup lifecycle for /health/startup endpoint
@@ -1806,12 +1810,23 @@ app.get('/reports/:userId', authMiddleware, async (req, res, next) => {
 // Centralized error handler (must be added after routes)
 app.use((err, req, res, next) => {
   logger.error({ err, path: req.path }, 'Unhandled exception');
-  const status = err.status || 500;
-  const payload = { error: status === 500 ? 'Internal server error' : err.message };
-  if (process.env.NODE_ENV !== 'production') {
-    payload.stack = err.stack;
-  }
-  res.status(status).json(payload);
+  const statusCode = err.status || err.statusCode || 500;
+  const errorCode = err.code || (statusCode >= 500 ? 'internal_error' : 'unknown_error');
+  const isOperational = err.isOperational !== false;
+  
+  res.status(statusCode).json({
+    status: 'error',
+    error: {
+      code: errorCode,
+      message: isOperational ? err.message : 'An error occurred',
+      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    },
+    metadata: {
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      requestId: req.id || req.headers['x-request-id'],
+    },
+  });
 });
 
 if (require.main === module) {

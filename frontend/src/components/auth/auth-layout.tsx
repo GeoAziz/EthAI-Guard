@@ -1,6 +1,7 @@
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import Image from 'next/image';
+import { productionImages } from '@/lib/production-images';
 
 export function AuthLayout({ children, title, description, quote }: { children: React.ReactNode, title: string, description: string, quote: string }) {
   return (
@@ -19,7 +20,7 @@ export function AuthLayout({ children, title, description, quote }: { children: 
       </div>
       <div className="relative hidden bg-muted lg:block">
         <Image
-          src="https://picsum.photos/seed/auth/1200/1000"
+          src={productionImages.authDecoration}
           alt="Abstract neural network"
           fill
           className="object-cover opacity-20"

@@ -14,10 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { defaultRouteForRoles } from '@/lib/rbac';
 import { auth } from '@/lib/firebase';
 import { sendEmailVerification } from 'firebase/auth';
 import api from '@/lib/api';
+import { getFirebaseErrorMessage, getHttpErrorMessage } from '@/lib/toast-messages';
+import {
+  extractRoles,
+  shouldEnforceEmailVerification,
+  getRedirectAfterLogin,
+  type AuthUser,
+} from '@/lib/auth-routing';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -27,10 +33,9 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login, refreshRoles, hasRole } = useAuth();
+  const { login, refreshRoles } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [canResendInline, setCanResendInline] = React.useState(false);
-  const [resendSending, setResendSending] = React.useState(false);
+  const [showInlineResend, setShowInlineResend] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -44,51 +49,30 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      // Perform login (this may return a Firebase credential when using Firebase)
-      console.log('[LoginPage] Starting login with:', values.email);
+      // Perform login
       const cred = await login(values.email, values.password);
-      console.log('[LoginPage] Login returned:', cred);
+      const current = auth.currentUser || (cred && (cred as any).user);
 
-      // If using Firebase, enforce email verification only for non-privileged users.
+      // Check email verification requirement for non-privileged users
       try {
-        const current = auth.currentUser || (cred && (cred as any).user);
-        if (current && !current.emailVerified) {
-          // Try to get roles from backend (authoritative)
-          let privileged = false;
-          try {
-            const me = await api.get('/v1/users/me');
-            const roleFromBackend = me?.data?.role;
-            let backendRoles: string[] | undefined;
-            if (Array.isArray(roleFromBackend)) {backendRoles = roleFromBackend;}
-            else if (typeof roleFromBackend === 'string') {backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);}
-            if (backendRoles && backendRoles.some(r => ['admin','analyst','reviewer'].includes(r))) {
-              privileged = true;
-            }
-          } catch (_) {}
-          // Fallback: try token claims
-          if (!privileged) {
+        if (current) {
+          const me = await api.get('/v1/users/me');
+          const backendRoles = me?.data?.role;
+          const roles = extractRoles(backendRoles);
+
+          if (shouldEnforceEmailVerification(current as AuthUser, roles)) {
             try {
-              const idTokenResult = await current.getIdTokenResult(true);
-              const claims = idTokenResult?.claims || {};
-              let effectiveRoles: string[] | undefined;
-              if (Array.isArray(claims.roles)) {effectiveRoles = claims.roles as string[];}
-              else if (typeof claims.role === 'string') {effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);}
-              if (effectiveRoles && effectiveRoles.some(r => ['admin','analyst','reviewer'].includes(r))) {
-                privileged = true;
-              }
-            } catch (_) {}
-          }
-          if (!privileged) {
-            // Best-effort: send a verification email and redirect user to a friendly
-            // verification page with a resend button and instructions.
-            try { await sendEmailVerification(current); } catch (_) {}
+              await sendEmailVerification(current);
+            } catch (_) {
+              // Best-effort; continue even if send fails
+            }
             router.push('/verify-email');
             setIsSubmitting(false);
             return;
           }
         }
-      } catch (e) {
-        // ignore verification-check errors and proceed (server-side may still gate access)
+      } catch (_) {
+        // If we can't fetch user info, proceed and let server-side auth handle it
       }
 
       toast({
@@ -97,103 +81,66 @@ export default function LoginPage() {
         duration: 2000,
       });
 
-      // Refresh roles from backend (best-effort) to get authoritative role mapping
-      try { await refreshRoles(); } catch (_) {}
-
-      // 1) Try backend authoritative role
+      // Refresh roles from backend
       try {
-        console.log('[LoginPage] Fetching /v1/users/me...');
-        const me = await api.get('/v1/users/me');
-        console.log('[LoginPage] /v1/users/me response:', me?.data);
-        const roleFromBackend = me?.data?.role;
-        let backendRoles: string[] | undefined;
-        if (Array.isArray(roleFromBackend)) {backendRoles = roleFromBackend;}
-        else if (typeof roleFromBackend === 'string') {backendRoles = roleFromBackend.split(',').map((s: string) => s.trim()).filter(Boolean);}
+        await refreshRoles();
+      } catch (_) {
+        // Continue on error
+      }
 
-        if (backendRoles && backendRoles.length > 0) {
-          router.push(defaultRouteForRoles(backendRoles));
+      // Detect redirect destination with priority: backend → token → context
+      try {
+        const me = await api.get('/v1/users/me');
+        const backendRoles = me?.data?.role;
+        if (backendRoles) {
+          router.push(getRedirectAfterLogin(backendRoles));
           return;
         }
       } catch (_) {
-        // ignore and fall back to token claims
+        // Fall through to token claims
       }
 
-      // 2) Try token claims from Firebase (if available)
+      // Try Firebase ID token claims
       try {
-        const current = auth.currentUser;
         if (current) {
           const idTokenResult = await current.getIdTokenResult(true);
           const claims = idTokenResult?.claims || {};
-          let effectiveRoles: string[] | undefined;
-          if (Array.isArray(claims.roles)) {effectiveRoles = claims.roles as string[];}
-          else if (typeof claims.role === 'string') {effectiveRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);}
-          const dest = defaultRouteForRoles(effectiveRoles ?? undefined);
-          router.push(dest);
+          router.push(getRedirectAfterLogin(undefined, claims));
           return;
         }
       } catch (_) {
-        // ignore and fall through
+        // Fall through to context-based routing
       }
 
-      // 3) Last-resort: use hasRole from AuthContext
-      if (hasRole && hasRole('admin')) {router.push('/dashboard/admin/access-requests');}
-      else {router.push('/dashboard');}
+      // Final fallback: use context role
+      router.push('/dashboard');
     } catch (error: any) {
-      console.error('Login error:', error);
-      console.error('Login error details:', {
-        code: error.code,
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      // Centralized error handling using toast message catalog
+      let toastMessage;
 
-      // Improved error handling with specific messages
-      let errorTitle = 'Authentication Failed';
-      let errorMessage = 'Please check your email and password.';
-
-      // Check for backend API errors first (Axios response)
-      if (error.response) {
-        if (error.response.status === 401) {
-          errorTitle = 'Invalid Credentials';
-          errorMessage = error.response.data?.error || 'Email or password is incorrect.';
-        } else if (error.response.status === 400) {
-          errorTitle = 'Invalid Input';
-          errorMessage = error.response.data?.error || 'Please check your email and password format.';
-        } else if (error.response.status === 429) {
-          errorTitle = 'Too Many Attempts';
-          errorMessage = 'Too many failed login attempts. Please try again later.';
-        } else if (error.response.status >= 500) {
-          errorTitle = 'Server Error';
-          errorMessage = 'The server is temporarily unavailable. Please try again later.';
-        } else {
-          errorMessage = error.response.data?.error || error.message;
+      // Backend API errors (Axios response)
+      if (error.response?.status) {
+        toastMessage = getHttpErrorMessage(error.response.status);
+        // Use server message if available
+        if (error.response.data?.error) {
+          toastMessage.description = error.response.data.error;
         }
       }
-      // Firebase error codes with enhanced messaging
-      else if (error.code === 'auth/user-not-found') {
-        errorTitle = 'Account Not Found';
-        errorMessage = 'No account exists with this email address. Please check your email or sign up.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorTitle = 'Incorrect Password';
-        errorMessage = 'The password you entered is incorrect. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorTitle = 'Invalid Email';
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/user-disabled') {
-        errorTitle = 'Account Disabled';
-        errorMessage = 'This account has been disabled. Please contact support for assistance.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorTitle = 'Too Many Attempts';
-        errorMessage = 'Access temporarily blocked due to too many failed attempts. Please try again in a few minutes.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorTitle = 'Connection Error';
-        errorMessage = 'Unable to connect. Please check your internet connection.';
+      // Firebase errors
+      else if (error.code) {
+        toastMessage = getFirebaseErrorMessage(error.code);
+      }
+      // Network or unknown errors
+      else {
+        toastMessage = {
+          title: 'Login Failed',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive' as const,
+        };
       }
 
       toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: 'destructive',
+        ...toastMessage,
         duration: 5000,
       });
     } finally {
@@ -205,10 +152,12 @@ export default function LoginPage() {
   React.useEffect(() => {
     try {
       const current = auth.currentUser;
-      setCanResendInline(!!(current && !current.emailVerified));
+      if (current && !current.emailVerified) {
+        setShowInlineResend(true);
+      }
       // Listen for auth state changes to update UI
       const unsub = auth.onAuthStateChanged((u) => {
-        setCanResendInline(!!(u && !u.emailVerified));
+        setShowInlineResend(!!(u && !u.emailVerified));
       });
       return () => unsub();
     } catch (e) {
@@ -217,21 +166,29 @@ export default function LoginPage() {
   }, []);
 
   async function handleInlineResend() {
-    setResendSending(true);
     try {
       const current = auth.currentUser;
       if (!current) {
-        toast({ title: 'Not signed in', description: 'Please sign in first to resend verification email.', variant: 'destructive' });
-        setResendSending(false);
+        toast({
+          title: 'Not signed in',
+          description: 'Please sign in first to resend verification email.',
+          variant: 'destructive' as const,
+        });
         return;
       }
       await sendEmailVerification(current);
-      toast({ title: 'Verification Sent', description: 'A verification email was sent. Check your inbox and click the link to verify.', duration: 8000 });
+      toast({
+        title: 'Verification Sent',
+        description: 'Check your inbox for the verification link.',
+        duration: 8000,
+      });
     } catch (e) {
-      console.error('resend failed', e);
-      toast({ title: 'Failed to send', description: 'Could not send verification email. Try again later.', variant: 'destructive' });
-    } finally {
-      setResendSending(false);
+      toast({
+        title: 'Failed to send',
+        description: 'Could not send verification email. Try again later.',
+        variant: 'destructive' as const,
+        duration: 5000,
+      });
     }
   }
 
@@ -242,54 +199,104 @@ export default function LoginPage() {
       quote="The measure of intelligence is the ability to change. In AI, the measure of ethics is the willingness to be transparent."
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="name@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <fieldset className="space-y-4">
+            <legend className="sr-only">Login Form</legend>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="email">Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                      aria-describedby={form.formState.errors.email ? 'email-error' : undefined}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage id="email-error" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="password">Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      aria-describedby={form.formState.errors.password ? 'password-error' : undefined}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage id="password-error" />
+                </FormItem>
+              )}
+            />
+          </fieldset>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>
         </form>
       </Form>
       {/* Inline resend CTA for users who are signed-in but email unverified */}
-      <div className="mt-3 text-center">
-        {canResendInline ? (
+      {showInlineResend ? (
+        <div
+          className="mt-4 p-3 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800"
+          role="status"
+          aria-live="polite"
+          aria-label="Email verification status"
+        >
           <div className="space-y-2">
-            <p className="text-sm">Your email is not verified yet.</p>
-            <div className="flex items-center justify-center gap-2">
-              <Button size="sm" onClick={handleInlineResend} disabled={resendSending}>{resendSending ? 'Sending...' : 'Resend verification email'}</Button>
-              <Link href="/verify-email" className="underline text-sm">Verification instructions</Link>
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Email verification required
+            </p>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Please verify your email to access the dashboard.
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleInlineResend}
+                disabled={isSubmitting}
+                aria-label="Resend verification email to your inbox"
+              >
+                Resend email
+              </Button>
+              <Link
+                href="/verify-email"
+                className="text-sm text-primary hover:underline focus-ring rounded"
+                aria-label="Go to email verification page for more help"
+              >
+                Help
+              </Link>
             </div>
           </div>
-        ) : null}
-      </div>
-      <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{' '}
-        <Link href="/register" className="underline text-primary">
+        </div>
+      ) : null}
+      <div className="mt-6 text-center text-sm">
+        <span className="text-muted-foreground">Don&apos;t have an account?{' '}</span>
+        <Link
+          href="/register"
+          className="font-medium text-primary hover:underline focus-ring rounded"
+          aria-label="Create a new account"
+        >
           Sign up
         </Link>
       </div>

@@ -14,6 +14,7 @@
     "e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
     "lint": "next lint",
+    "type-check": "tsc --noEmit --skipLibCheck",
     "lint:security": "eslint src --ext .ts,.tsx --no-eslintrc -c .eslintrc.security.json"
   },
   "dependencies": {

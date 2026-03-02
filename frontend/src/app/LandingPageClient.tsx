@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,23 +7,25 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { ArrowRight, CheckCircle, BarChart, FileJson, ShieldCheck, Github, BookOpen, FileText } from 'lucide-react';
 import { Footer } from '@/components/layout/footer';
 import { Logo } from '@/components/logo';
+import { MobileHeader } from '@/components/layout/mobile-header';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { productionImages } from '@/lib/production-images';
 
 const features = [
   {
-    icon: <BarChart className="w-8 h-8 text-primary" />,
+    icon: <BarChart aria-label="Analytics for fairness" className="w-6 h-6 text-primary" />,
     title: 'Fairness Analysis',
     description: 'Detect and mitigate bias with 3 key metrics: Demographic Parity, Equal Opportunity, and Disparate Impact. Get instant fairness scores and actionable insights.',
     metrics: ['Demographic Parity ≤ 0.10', 'Equal Opportunity ≤ 0.10', 'Disparate Impact ≥ 0.80'],
   },
   {
-    icon: <FileJson className="w-8 h-8 text-primary" />,
+    icon: <FileJson aria-label="Model explanations" className="w-6 h-6 text-primary" />,
     title: 'Explainability',
     description: 'Understand model predictions with SHAP analysis. Visualize feature importance, force plots, and dependence plots for complete transparency.',
     metrics: ['SHAP Values', 'Feature Importance', 'Force Plots'],
   },
   {
-    icon: <ShieldCheck className="w-8 h-8 text-primary" />,
+    icon: <ShieldCheck aria-label="Compliance protection" className="w-6 h-6 text-primary" />,
     title: 'Compliance Reporting',
     description: 'Ensure your AI systems adhere to ECOA, GDPR, and FCRA regulations. Generate audit-ready reports with compliance scores and violation alerts.',
     metrics: ['ECOA Compliance', 'GDPR Ready', 'FCRA Aligned'],
@@ -33,25 +34,25 @@ const features = [
 
 const carouselFeatures = [
   {
-    id: PlaceHolderImages[0]?.id || '1',
+    id: 'fairlens',
     title: 'FairLens',
     description: 'Analyze disparate impact, statistical parity, and equal opportunity with interactive charts.',
-    image: PlaceHolderImages[0]?.imageUrl || 'https://picsum.photos/seed/fairlens/600/400',
-    imageHint: PlaceHolderImages[0]?.imageHint || 'data visualization',
+    image: productionImages.fairlens.url,
+    imageHint: productionImages.fairlens.description,
   },
   {
-    id: PlaceHolderImages[1]?.id || '2',
+    id: 'explainboard',
     title: 'ExplainBoard',
     description: 'Generate SHAP summary plots, force plots, and dependence plots to demystify your model\'s behavior.',
-    image: PlaceHolderImages[1]?.imageUrl || 'https://picsum.photos/seed/explainboard/600/400',
-    imageHint: PlaceHolderImages[1]?.imageHint || 'abstract graph',
+    image: productionImages.explainboard.url,
+    imageHint: productionImages.explainboard.description,
   },
   {
-    id: PlaceHolderImages[2]?.id || '3',
+    id: 'compliance',
     title: 'Compliance Reports',
     description: 'Automatically generate audit-ready reports with compliance scores and actionable recommendations.',
-    image: PlaceHolderImages[2]?.imageUrl || 'https://picsum.photos/seed/compliance/600/400',
-    imageHint: PlaceHolderImages[2]?.imageHint || 'document paper',
+    image: productionImages.compliance.url,
+    imageHint: productionImages.compliance.description,
   },
 ];
 
@@ -63,107 +64,18 @@ const frameworkLogos = [
   { name: 'PyTorch', logo: <span className="text-2xl font-bold">PyTorch</span> },
 ];
 
-function MobileHeader() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // Lock body scroll when menu is open to prevent background scrolling
-  useEffect(() => {
-    if (typeof document === 'undefined') {return;}
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = menuOpen ? 'hidden' : prev;
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [menuOpen]);
-  return (
-    <div className="container flex h-14 items-center px-4">
-      <Link href="/" className="mr-4 md:mr-6 flex items-center space-x-2">
-        <Logo />
-      </Link>
-      {/* Desktop nav */}
-      <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-        <Link href="#features" className="transition-colors hover:text-foreground/80 text-foreground/60">Features</Link>
-        <Link href="/docs" className="transition-colors hover:text-foreground/80 text-foreground/60">Docs</Link>
-        <Link href="/about" className="transition-colors hover:text-foreground/80 text-foreground/60">About</Link>
-        <Link href="/blog" className="transition-colors hover:text-foreground/80 text-foreground/60">Blog</Link>
-      </nav>
-      {/* Mobile hamburger */}
-      <button
-        className="md:hidden ml-auto flex items-center justify-center rounded p-2 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={menuOpen}
-        onClick={() => setMenuOpen(v => !v)}
-      >
-        <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-foreground">
-          {menuOpen ? (
-            <line x1="18" y1="6" x2="6" y2="18" />
-          ) : (
-            <line x1="3" y1="12" x2="21" y2="12" />
-          )}
-          {menuOpen ? (
-            <line x1="6" y1="6" x2="18" y2="18" />
-          ) : (
-            <line x1="3" y1="6" x2="21" y2="6" />
-          )}
-          {!menuOpen && <line x1="3" y1="18" x2="21" y2="18" />}
-        </svg>
-      </button>
-      {/* Mobile overlay (darker for better contrast) */}
-      <div
-        className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-md transition-opacity duration-200 ${menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        aria-hidden={!menuOpen}
-        onClick={() => setMenuOpen(false)}
-      />
-      {/* Mobile drawer: fully opaque background (light/dark) so content behind isn't visible */}
-      <nav
-        className={`fixed top-0 right-0 h-full w-72 !bg-white dark:!bg-slate-900 bg-white/100 dark:bg-slate-900/100 border-l border-border/10 text-foreground shadow-2xl z-50 transform transition-transform duration-200 ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}
-        aria-label="Main menu"
-        aria-hidden={!menuOpen}
-        tabIndex={menuOpen ? 0 : -1}
-      >
-        <div className="flex flex-col h-full p-6 gap-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-bold text-lg">Menu</span>
-            <button
-              className="rounded p-2 hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-primary"
-              aria-label="Close menu"
-              onClick={() => setMenuOpen(false)}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-foreground">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Link href="#features" className="py-3 px-4 rounded text-base font-medium transition-colors text-foreground hover:bg-card/20" onClick={() => setMenuOpen(false)}>Features</Link>
-            <Link href="/docs" className="py-3 px-4 rounded text-base font-medium transition-colors text-foreground hover:bg-card/20" onClick={() => setMenuOpen(false)}>Docs</Link>
-            <Link href="/about" className="py-3 px-4 rounded text-base font-medium transition-colors text-foreground hover:bg-card/20" onClick={() => setMenuOpen(false)}>About</Link>
-            <Link href="/blog" className="py-3 px-4 rounded text-base font-medium transition-colors text-foreground hover:bg-card/20" onClick={() => setMenuOpen(false)}>Blog</Link>
-          </div>
-          <div className="mt-auto flex flex-col gap-3">
-            <Button variant="ghost" asChild className="w-full">
-              <Link href="/login" onClick={() => setMenuOpen(false)} className="w-full text-center">Log In</Link>
-            </Button>
-            <Button asChild size="sm" className="w-full">
-              <Link href="/register" onClick={() => setMenuOpen(false)} className="w-full inline-flex items-center justify-center gap-2">
-                <span>Sign Up</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
-    </div>
-  );
-}
+const landingMenuItems = [
+  { label: 'Features', href: '#features' },
+  { label: 'Docs', href: '/docs' },
+  { label: 'About', href: '/about' },
+  { label: 'Blog', href: '/blog' },
+];
 
 export default function LandingPageClient() {
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <MobileHeader />
+        <MobileHeader logo={<Logo />} menuItems={landingMenuItems} ctaLabel="Sign Up" ctaHref="/register" />
       </header>
 
       <main className="flex-1">
@@ -173,8 +85,8 @@ export default function LandingPageClient() {
             aria-hidden="true"
             className="absolute inset-0 grid grid-cols-2 -space-x-52 opacity-20"
           >
-            <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700" />
-            <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600" />
+            <div className="blur-[80px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700 dark:to-purple-900 will-change-filter" style={{ contentVisibility: 'auto' }} />
+            <div className="blur-[80px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:from-indigo-600 dark:to-purple-800 will-change-filter" style={{ contentVisibility: 'auto' }} />
           </div>
           <div className="container relative z-10 text-center px-4">
             <Link href="/blog" className="inline-flex items-center rounded-full border px-3 md:px-4 py-1 md:py-1.5 mb-4 md:mb-6 text-xs md:text-sm font-medium bg-card/50 backdrop-blur-sm hover:bg-card transition-colors">
@@ -184,7 +96,7 @@ export default function LandingPageClient() {
             </Link>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter mb-4 md:mb-6 animate-fade-in-up px-4">
               Trustworthy AI starts with<br className="hidden sm:block" />
-              <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary to-purple-600 dark:from-primary dark:to-purple-800 bg-clip-text text-transparent">
                 measurable fairness
               </span>
             </h1>
@@ -195,12 +107,12 @@ export default function LandingPageClient() {
             <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-8 md:mb-12 px-4">
               <Button size="lg" asChild className="text-base md:text-lg px-6 md:px-8">
                 <Link href="/dashboard">
-                  Start Free Analysis <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+                  Start Free Analysis <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild className="text-base md:text-lg px-6 md:px-8">
                 <Link href="/docs">
-                  <BookOpen className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+                  <BookOpen className="mr-2 h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
                   View Docs
                 </Link>
               </Button>
@@ -240,7 +152,7 @@ export default function LandingPageClient() {
               {features.map((feature, index) => (
                 <Card key={index} className="text-center bg-card shadow-md hover:shadow-xl hover:shadow-primary/10 transition-all group">
                   <CardHeader>
-                    <div className="mx-auto bg-primary/10 p-3 rounded-lg w-fit group-hover:bg-primary/20 transition-colors">
+                    <div className="mx-auto bg-primary/10 p-3 rounded-lg w-fit group-hover:bg-primary/20 transition-colors flex items-center justify-center">
                       {feature.icon}
                     </div>
                     <CardTitle className="mt-4">{feature.title}</CardTitle>
@@ -250,7 +162,7 @@ export default function LandingPageClient() {
                     <div className="space-y-2">
                       {feature.metrics.map((metric, idx) => (
                         <div key={idx} className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                          <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" aria-hidden="true" />
                           <span className="text-muted-foreground">{metric}</span>
                         </div>
                       ))}
@@ -277,19 +189,34 @@ export default function LandingPageClient() {
                   <CarouselItem key={feature.id}>
                     <div className="p-1">
                       <Card className="overflow-hidden">
-                        <div className="grid md:grid-cols-2 items-center">
+                        <div className="grid md:grid-cols-2 items-center relative">
                           <div className="p-6 md:p-8">
                             <h3 className="text-xl md:text-2xl font-bold mb-2">{feature.title}</h3>
                             <p className="text-sm md:text-base text-muted-foreground">{feature.description}</p>
                           </div>
-                          <div className="bg-muted h-48 md:h-64 lg:h-full flex items-center justify-center">
+                          <div className="bg-muted h-48 md:h-64 lg:h-full flex items-center justify-center overflow-hidden">
                             <Image
                               src={feature.image}
-                              alt={feature.title}
+                              alt={`${feature.title}: ${feature.description}`}
                               width={600}
                               height={400}
                               data-ai-hint={feature.imageHint}
+                              loading="lazy"
+                              placeholder="blur"
+                              blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'%3E%3Crect fill='%23888' width='600' height='400'/%3E%3C/svg%3E"
                               className="object-cover w-full h-full"
+                              onError={(e) => {
+                                // Show error fallback instead of hiding
+                                const target = e.target as HTMLImageElement;
+                                const container = target.parentElement;
+                                if (container) {
+                                  target.style.display = 'none';
+                                  const fallback = document.createElement('div');
+                                  fallback.className = 'w-full h-full flex items-center justify-center bg-muted';
+                                  fallback.innerHTML = '<svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                  container.appendChild(fallback);
+                                }
+                              }}
                             />
                           </div>
                         </div>
@@ -298,9 +225,12 @@ export default function LandingPageClient() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex sm:left-0" />
-              <CarouselNext className="hidden sm:flex sm:right-0" />
+              <CarouselPrevious className="flex md:absolute left-0 bottom-0 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:-left-12 h-8 w-8 md:h-auto md:w-auto" />
+              <CarouselNext className="flex md:absolute right-0 bottom-0 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:-right-12 h-8 w-8 md:h-auto md:w-auto" />
             </Carousel>
+            <div className="flex justify-center gap-2 mt-4 md:mt-0">
+              {/* Carousel indicators for mobile */}
+            </div>
           </div>
         </section>
 
@@ -315,7 +245,7 @@ export default function LandingPageClient() {
                 <div className="space-y-4 md:space-y-6">
                   <div className="flex gap-3 md:gap-4">
                     <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Real-Time Analysis</h3>
@@ -326,7 +256,7 @@ export default function LandingPageClient() {
                   </div>
                   <div className="flex gap-3 md:gap-4">
                     <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Production-Ready</h3>
@@ -337,7 +267,7 @@ export default function LandingPageClient() {
                   </div>
                   <div className="flex gap-3 md:gap-4">
                     <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Open Source & Transparent</h3>
@@ -348,7 +278,7 @@ export default function LandingPageClient() {
                   </div>
                   <div className="flex gap-3 md:gap-4">
                     <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                      <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">Financial Industry Focused</h3>
@@ -360,7 +290,13 @@ export default function LandingPageClient() {
                 </div>
               </div>
               <div className="relative mt-8 lg:mt-0">
-                <div className="bg-gradient-to-br from-primary/20 to-purple-600/20 rounded-2xl p-4 md:p-6 lg:p-8 backdrop-blur-sm border border-primary/20">
+                <div className="absolute -top-2 -right-2 md:-top-3 md:-right-3 bg-yellow-500 dark:bg-yellow-600 text-black dark:text-gray-900 px-3 py-1 rounded-full text-xs font-semibold z-10 flex items-center gap-1">
+                  🔍 DEMO
+                </div>
+                <div className="bg-gradient-to-br from-primary/20 to-purple-600/20 dark:from-primary/30 dark:to-purple-800/30 rounded-2xl p-4 md:p-6 lg:p-8 backdrop-blur-sm border border-primary/20">
+                  <div className="mb-4 text-xs text-muted-foreground italic">
+                    Example values — your real results will vary based on your dataset
+                  </div>
                   <div className="space-y-3 md:space-y-4">
                     <div className="bg-card rounded-lg p-4 shadow-lg">
                       <div className="flex items-center justify-between mb-2">
@@ -425,18 +361,21 @@ export default function LandingPageClient() {
         <section className="py-12 md:py-20 bg-card/20">
           <div className="container px-4">
             <h2 className="text-center text-xl md:text-2xl font-bold mb-8 md:mb-12">
-              Trusted by Financial Institutions
+              Voices in Financial Governance
             </h2>
+            <p className="text-center text-xs md:text-sm text-muted-foreground mb-8 md:mb-12">
+              Illustrative personas based on common customer profiles
+            </p>
             <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
               <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold" aria-label="Avatar for Jane Doe">
                       JD
                     </div>
                     <div>
                       <div className="font-semibold">Jane Doe</div>
-                      <div className="text-xs text-muted-foreground">Chief Risk Officer, FinBank</div>
+                      <div className="text-xs text-muted-foreground"><span className="text-yellow-600 font-semibold">[Example]</span> Chief Risk Officer, FinBank</div>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground italic">
@@ -444,7 +383,7 @@ export default function LandingPageClient() {
                   </p>
                   <div className="flex gap-1 mt-4" aria-label="5 star rating">
                     {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-yellow-500">★</span>
+                      <span key={i} className="text-yellow-500 h-4 w-4 flex items-center justify-center" aria-hidden="true">★</span>
                     ))}
                   </div>
                 </CardContent>
@@ -452,12 +391,12 @@ export default function LandingPageClient() {
               <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold" aria-label="Avatar for Michael Smith">
                       MS
                     </div>
                     <div>
                       <div className="font-semibold">Michael Smith</div>
-                      <div className="text-xs text-muted-foreground">Head of AI, CreditTech</div>
+                      <div className="text-xs text-muted-foreground"><span className="text-yellow-600 font-semibold">[Example]</span> Head of AI, CreditTech</div>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground italic">
@@ -465,7 +404,7 @@ export default function LandingPageClient() {
                   </p>
                   <div className="flex gap-1 mt-4" aria-label="5 star rating">
                     {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-yellow-500">★</span>
+                      <span key={i} className="text-yellow-500 h-4 w-4 flex items-center justify-center" aria-hidden="true">★</span>
                     ))}
                   </div>
                 </CardContent>
@@ -473,12 +412,12 @@ export default function LandingPageClient() {
               <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg transition-shadow">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold" aria-label="Avatar for Sarah Chen">
                       SC
                     </div>
                     <div>
                       <div className="font-semibold">Sarah Chen</div>
-                      <div className="text-xs text-muted-foreground">VP Engineering, LoanAI</div>
+                      <div className="text-xs text-muted-foreground"><span className="text-yellow-600 font-semibold">[Example]</span> VP Engineering, LoanAI</div>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground italic">
@@ -486,7 +425,7 @@ export default function LandingPageClient() {
                   </p>
                   <div className="flex gap-1 mt-4" aria-label="5 star rating">
                     {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-yellow-500">★</span>
+                      <span key={i} className="text-yellow-500 h-4 w-4 flex items-center justify-center" aria-hidden="true">★</span>
                     ))}
                   </div>
                 </CardContent>
@@ -510,6 +449,7 @@ export default function LandingPageClient() {
                   key={fw.name}
                   className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title={`Built with ${fw.name}`}
+                  aria-label={fw.name}
                 >
                   {fw.logo}
                 </div>
@@ -526,19 +466,19 @@ export default function LandingPageClient() {
         {/* CTA Section */}
         <section className="py-12 md:py-20">
           <div className="container px-4">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-purple-600 p-8 md:p-12 text-center text-white shadow-2xl">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-purple-600 dark:from-blue-900 dark:to-purple-900 p-8 md:p-12 text-center text-white shadow-2xl">
               <div className="absolute inset-0 bg-grid-white/10" />
               <div className="relative z-10">
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
-                  Ready to Build Trustworthy AI?
+                  Ready to explore ethical AI?
                 </h2>
                 <p className="text-base md:text-lg lg:text-xl mb-6 md:mb-8 text-white/90 max-w-2xl mx-auto px-4">
                   Join financial institutions using EthixAI to ensure their AI models are fair, explainable, and compliant.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 px-4">
-                  <Button size="lg" variant="secondary" asChild className="text-base md:text-lg px-6 md:px-8">
+                  <Button size="lg" asChild className="text-base md:text-lg px-6 md:px-8">
                     <Link href="/dashboard">
-                      Start Free Analysis <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+                      Get Started Today <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                     </Link>
                   </Button>
                   <Button size="lg" variant="outline" asChild className="text-base md:text-lg px-6 md:px-8 bg-white/10 text-white border-white/20 hover:bg-white/20">

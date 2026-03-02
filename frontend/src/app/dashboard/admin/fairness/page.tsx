@@ -5,6 +5,7 @@ import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 export default function AdminFairnessPage() {
   const [thresholds, setThresholds] = useState<Array<{ metric: string; label?: string; threshold: number; applies_to?: string }>>([]);
@@ -54,15 +55,15 @@ export default function AdminFairnessPage() {
         <Breadcrumbs />
         <PageHeader title="Fairness thresholds" subtitle="Editable thresholds for monitored metrics" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4 sm:p-6">
+        <div className="mt-6 rounded-lg border bg-card p-4 sm:p-6">
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm table-auto">
               <thead className="text-xs text-muted-foreground border-b">
                 <tr>
-                  <th className="py-2 px-2 text-left">Metric</th>
-                  <th className="py-2 px-2 text-left hidden sm:table-cell">Threshold</th>
-                  <th className="py-2 px-2 text-left hidden md:table-cell">Applies to</th>
-                  <th className="py-2 px-2 text-left">Action</th>
+                  <th scope="col" className="py-2 px-2 text-left">Metric</th>
+                  <th scope="col" className="py-2 px-2 text-left hidden sm:table-cell">Threshold</th>
+                  <th scope="col" className="py-2 px-2 text-left hidden md:table-cell">Applies to</th>
+                  <th scope="col" className="py-2 px-2 text-left">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -73,23 +74,25 @@ export default function AdminFairnessPage() {
                     <td className="py-2 px-2 truncate">{t.label}</td>
                     <td className="py-2 px-2 hidden sm:table-cell">
                       <label htmlFor={`th-${t.metric}`} className="sr-only">Threshold for {t.label}</label>
-                      <input 
-                        id={`th-${t.metric}`} 
+                      <input
+                        id={`th-${t.metric}`}
                         type="number"
-                        className="border rounded px-2 py-1 w-20 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
-                        value={String(t.threshold)} 
-                        onChange={e => updateThreshold(t.metric, Number(e.target.value))} 
+                        className="border rounded px-2 py-1 w-20 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={String(t.threshold)}
+                        onChange={e => updateThreshold(t.metric, Number(e.target.value))}
                       />
                     </td>
                     <td className="py-2 px-2 hidden md:table-cell text-xs">{t.applies_to}</td>
                     <td className="py-2 px-2">
-                      <button 
-                        onClick={() => saveThreshold(t.metric)} 
-                        disabled={savingMetric === t.metric} 
-                        className="px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                      <Button
+                        size="sm"
+                        onClick={() => saveThreshold(t.metric)}
+                        disabled={savingMetric === t.metric}
+                        className="min-h-8 text-xs"
+                        aria-label={`Save threshold for ${t.label}`}
                       >
                         {savingMetric === t.metric ? 'Saving…' : 'Save'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -101,19 +104,22 @@ export default function AdminFairnessPage() {
             {thresholds.map(t => (
               <div key={t.metric} className="border p-3 rounded bg-muted/50 space-y-2">
                 <label className="text-xs font-medium">{t.label}</label>
-                <input 
+                <input
                   type="number"
-                  className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
-                  value={String(t.threshold)} 
-                  onChange={e => updateThreshold(t.metric, Number(e.target.value))} 
+                  className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={String(t.threshold)}
+                  onChange={e => updateThreshold(t.metric, Number(e.target.value))}
+                  aria-label={`Threshold value for ${t.label}`}
                 />
-                <button 
-                  onClick={() => saveThreshold(t.metric)} 
+                <Button
+                  size="sm"
+                  onClick={() => saveThreshold(t.metric)}
                   disabled={savingMetric === t.metric}
-                  className="w-full px-2 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50"
+                  className="w-full min-h-9"
+                  aria-label={`Save threshold for ${t.label}`}
                 >
                   {savingMetric === t.metric ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
               </div>
             ))}
           </div>

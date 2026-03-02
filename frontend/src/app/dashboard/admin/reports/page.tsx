@@ -5,6 +5,7 @@ import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<Array<any>>([]);
@@ -48,11 +49,11 @@ export default function AdminReportsPage() {
 
   return (
     <RoleProtected required={['admin']}>
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-6xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Admin reports" subtitle="Organization-level reports and exports" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4">
+        <div className="mt-6 rounded-lg border bg-card p-4 sm:p-6">
           <h4 className="font-medium mb-3">Available exports</h4>
           {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
           {!loading && reports.length === 0 && (
@@ -61,14 +62,19 @@ export default function AdminReportsPage() {
           {!loading && reports.length > 0 && (
             <ul className="space-y-3">
               {reports.map((r: any) => (
-                <li key={r.id} className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{r.name}</div>
-                    <div className="text-sm text-muted-foreground">{r.description}</div>
+                <li key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border bg-muted/50 hover:bg-muted/70 transition-colors">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm sm:text-base truncate">{r.name}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">{r.description}</div>
                   </div>
-                  <div>
-                    <button onClick={() => handleExport(r)} className="px-3 py-1 bg-primary text-white rounded">Export</button>
-                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleExport(r)} 
+                    className="min-h-9 shrink-0 w-full sm:w-auto"
+                    aria-label={`Export ${r.name}`}
+                  >
+                    Export
+                  </Button>
                 </li>
               ))}
             </ul>

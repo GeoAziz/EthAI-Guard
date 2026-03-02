@@ -36,8 +36,8 @@ describe('UserRunsPage pagination', () => {
 
     // test status filter resets to page 1 and includes status param
     mockGet.mockResolvedValueOnce({ data: { items: [], total: 0 } });
-  const statusSelect = screen.getByLabelText(/status/i);
-  fireEvent.change(statusSelect, { target: { value: 'queued' } });
+    const statusSelect = screen.getByLabelText(/status/i);
+    fireEvent.change(statusSelect, { target: { value: 'queued' } });
     await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10&status=queued'));
   });
 });

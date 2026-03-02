@@ -4,10 +4,30 @@ const firebaseAdmin = require('../services/firebaseAdmin');
 const logger = require('../logger');
 
 /**
- * Central auth guard middleware.
- * - If AUTH_PROVIDER === 'firebase', delegate to firebaseAuth (which initializes admin as needed).
- * - Otherwise verify a JWT access token from Authorization header or HttpOnly cookie named `accessToken`.
- * Attaches `req.user` (token payload) and allows downstream handlers to consult `req.user.sub` and `req.user.role`.
+ * Central Authentication Guard Middleware
+ * 
+ * AUTHENTICATION FLOW (SIMPLIFIED as of Feb 28, 2026):
+ * 
+ * 1. PRIMARY (Production): Firebase ID Token
+ *    - Frontend: User logs in via Firebase, gets ID token
+ *    - Frontend: Attaches Firebase ID token to Authorization header (Bearer token)
+ *    - Backend: Validates Firebase token via firebaseAuth middleware
+ *    - Backend: Extracts user info from Firebase token payload
+ *    - Result: req.user populated with uid, email, role claims
+ * 
+ * 2. FALLBACK (Dev/Testing): Local JWT
+ *    - Only when AUTH_PROVIDER !== 'firebase'
+ *    - Accepts token from Authorization header or 'accessToken' cookie
+ *    - Verifies against SECRET_KEY environment variable
+ * 
+ * 3. TEST MODE BYPASS:
+ *    - NODE_ENV=test allows requests without tokens (uses x-test-user-id header)
+ *    - CI/demo friendly; not for production
+ * 
+ * Usage:
+ *   - Apply authGuard to all protected routes
+ *   - Check req.user for authenticated user info
+ *   - Use requireRole() to enforce role-based access
  */
 function authGuard(req, res, next) {
   // Test-mode bypass to keep CI/tests and demo flows working when explicit auth is not enforced
@@ -17,29 +37,30 @@ function authGuard(req, res, next) {
     !(req.headers.authorization || '').startsWith('Bearer ')
   ) {
     // Allow tests to override the test user via headers for compatibility with
-    // legacy per-route `maybeAuth` behavior (some routes expected default 'user123').
+    // legacy per-route behavior
     const testSub = req.headers['x-test-user-id'] || 'user123';
     const testRole = req.headers['x-test-user-role'] || 'admin';
     req.user = { sub: String(testSub), role: testRole };
-    // mirror common convenience fields used across the codebase
     req.role = req.user.role || 'user';
-    req.userId = req.user.sub || req.userId;
+    req.userId = req.user.sub;
     return next();
   }
 
+  // PRIMARY: Firebase authentication (production recommended)
   if (process.env.AUTH_PROVIDER === 'firebase') {
     try {
-      // Ensure firebase admin is initialized via the centralized wrapper
+      // Ensure firebase admin is initialized via centralized wrapper
       firebaseAdmin.initFirebase();
     } catch (e) {
-      logger.warn({ err: e }, 'init_firebase_failed_in_authGuard');
+      logger.warn({ err: e }, 'Firebase admin init failed in authGuard');
     }
     return firebaseAuth(req, res, next);
   }
 
-  // JWT fallback: accept Authorization: Bearer <token> or cookie accessToken
+  // FALLBACK: Local JWT verification (development mode)
   let token = null;
   const auth = req.headers.authorization;
+  
   if (auth && auth.startsWith('Bearer ')) {
     token = auth.slice(7);
   } else if (req.cookies && req.cookies.accessToken) {
@@ -47,27 +68,44 @@ function authGuard(req, res, next) {
   }
 
   if (!token) {
-    return res.status(401).json({ error: 'No token' });
+    res.status(401);
+    return res.json({ 
+      error: 'no_token',
+      message: 'Authentication token required' 
+    });
   }
 
   try {
     const payload = jwt.verify(token, process.env.SECRET_KEY || 'secret');
     req.user = payload;
-    // Mirror convenience fields so RBAC middleware that checks req.role works
-    req.role = (payload && payload.role) || req.role || 'user';
-    req.userId = (payload && payload.sub) || req.userId;
+    req.role = (payload && payload.role) || 'user';
+    req.userId = (payload && payload.sub);
     return next();
   } catch (e) {
-    // token invalid or expired
-    return res.status(401).json({ error: 'Invalid token' });
+    // Token invalid or expired
+    res.status(401);
+    return res.json({ 
+      error: 'invalid_token',
+      message: 'Invalid or expired authentication token' 
+    });
   }
 }
 
+/**
+ * Role-based access control middleware
+ * Enforces that authenticated user has the required role
+ * 
+ * Usage: router.get('/admin-only', authGuard, requireRole('admin'), handler)
+ */
 function requireRole(role) {
   return (req, res, next) => {
     const userRole = (req.user && req.user.role) || req.role || 'user';
     if (userRole !== role) {
-      return res.status(403).json({ error: 'forbidden' });
+      res.status(403);
+      return res.json({ 
+        error: 'forbidden',
+        message: `This resource requires '${role}' role. You have '${userRole}'.`
+      });
     }
     return next();
   };

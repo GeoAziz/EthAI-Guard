@@ -53,71 +53,125 @@ export default function ReviewerReportDetail({ params }: Props) {
     }
   };
 
-  const handleAction = async (action: 'approve' | 'reject') => {
-    try {
-      await api.post(`/v1/reports/${id}/${action}`);
-      toast?.({ title: `Report ${action}ed` });
-      // after action, callers may navigate; we just show toast
-    } catch (err) {
-      console.error(`Failed to ${action} report`, err);
-      toast?.({ title: `Failed to ${action}`, variant: 'destructive' });
+  const handleCommentKeydown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Allow Ctrl/Cmd + Enter to submit
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleComment();
     }
   };
 
   return (
     <RoleProtected required={['reviewer','admin']}>
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-4xl mx-auto">
         <Breadcrumbs />
         <PageHeader title={report?.id || `Report ${id}`} subtitle="Review report and leave feedback" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4">
-          {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {!loading && report && (
-            <div>
-              <div className="mb-4">
-                <strong>Model:</strong> {report.modelId || report.model || '—'}
-              </div>
-              <div className="mb-4">
-                <strong>Dataset:</strong> {report.datasetId || report.dataset || '—'}
-              </div>
-              <div className="mb-4">
-                <strong>Status:</strong> {report.status}
-              </div>
-              <div className="mb-4">
-                <strong>Created:</strong> {formatDate(report.createdAt)}
-              </div>
+        <div className="mt-6">
+          {loading ? (
+            <div className="rounded-lg border bg-white p-4 sm:p-6 animate-pulse">
+              <div className="text-xs sm:text-sm text-muted-foreground">Loading…</div>
+            </div>
+          ) : report ? (
+            <div className="space-y-6">
+              <div className="rounded-lg border bg-white p-4 sm:p-6 animate-in fade-in slide-in-from-left-2 duration-500">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <strong className="text-xs sm:text-sm">Model:</strong>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{report.modelId || report.model || '—'}</p>
+                  </div>
+                  <div>
+                    <strong className="text-xs sm:text-sm">Dataset:</strong>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{report.datasetId || report.dataset || '—'}</p>
+                  </div>
+                  <div>
+                    <strong className="text-xs sm:text-sm">Status:</strong>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{report.status}</p>
+                  </div>
+                  <div>
+                    <strong className="text-xs sm:text-sm">Created:</strong>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{formatDate(report.createdAt)}</p>
+                  </div>
+                </div>
 
-              <div className="mb-4">
-                <h3 className="font-medium">Details</h3>
-                <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded">{JSON.stringify(report.payload || report.data || {}, null, 2)}</pre>
-              </div>
-
-              <div className="mb-4">
-                <h3 className="font-medium">Comments</h3>
-                <div className="space-y-2">
-                  {(report.comments || []).map((c: any, i: number) => (
-                    <div key={i} className="p-2 border rounded">
-                      <div className="text-xs text-muted-foreground">{c.author || 'unknown'} — {formatDate(c.createdAt)}</div>
-                      <div className="text-sm">{c.text}</div>
-                    </div>
-                  ))}
+                <div className="mt-6 pt-6 border-t">
+                  <h3 className="font-medium text-sm sm:text-base mb-3">Details</h3>
+                  <div className="overflow-x-auto bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm font-mono whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+                    {JSON.stringify(report.payload || report.data || {}, null, 2)}
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <textarea className="w-full p-2 border rounded" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add comment" />
-                <div className="mt-2 flex gap-2">
-                  <button className="btn btn-primary" onClick={handleComment}>Post comment</button>
-                  <button className="btn" onClick={() => setComment('')}>Clear</button>
+              <div className="rounded-lg border bg-white p-4 sm:p-6 animate-in fade-in slide-in-from-left-2 duration-500 delay-100">
+                <h3 className="font-medium text-sm sm:text-base mb-3">Comments</h3>
+                <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                  {(report.comments || []).length === 0 ? (
+                    <div className="text-xs sm:text-sm text-muted-foreground">No comments yet</div>
+                  ) : (
+                    (report.comments || []).map((c: any, i: number) => (
+                      <div key={i} className="p-3 border rounded bg-muted/30 animate-in fade-in duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {c.author || 'unknown'} — {formatDate(c.createdAt)}
+                        </div>
+                        <div className="text-xs sm:text-sm">{c.text}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+              <div className="border-t pt-4">
+                  <label htmlFor="comment-input" className="block text-xs sm:text-sm font-medium mb-2">
+                    Add comment
+                  </label>
+                  <textarea
+                    id="comment-input"
+                    className="w-full p-2 border rounded text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={handleCommentKeydown}
+                    placeholder="Share your feedback or notes... (Ctrl+Enter to submit)"
+                    rows={3}
+                  />
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    <button
+                      className="btn btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
+                      onClick={handleComment}
+                      aria-label="Post comment"
+                    >
+                      Post comment
+                    </button>
+                    <button
+                      className="btn text-xs sm:text-sm px-3 sm:px-4 py-2"
+                      onClick={() => setComment('')}
+                      aria-label="Clear comment"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button className="btn btn-success" onClick={() => handleAction('approve')}>Approve</button>
-                <button className="btn btn-destructive" onClick={() => handleAction('reject')}>Reject</button>
+              <div className="rounded-lg border bg-white p-4 sm:p-6 animate-in fade-in slide-in-from-left-2 duration-500 delay-200">
+                <h3 className="font-medium text-sm sm:text-base mb-4">Action</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    className="btn btn-success text-xs sm:text-sm px-3 sm:px-6 py-2 w-full sm:w-auto hover:scale-105 transition-transform duration-200"
+                    onClick={() => handleAction('approve')}
+                    aria-label="Approve report"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="btn btn-destructive text-xs sm:text-sm px-3 sm:px-6 py-2 w-full sm:w-auto hover:scale-105 transition-transform duration-200"
+                    onClick={() => handleAction('reject')}
+                    aria-label="Reject report"
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </RoleProtected>

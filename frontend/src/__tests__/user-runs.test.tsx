@@ -21,16 +21,16 @@ describe('UserRunsPage', () => {
 
   it('renders empty state', async () => {
     mockGet.mockResolvedValueOnce({ data: [] });
-  render(<UserRunsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
+    render(<UserRunsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
     expect(screen.getByText('No runs found')).toBeInTheDocument();
   });
 
   it('submits a new run and optimistic adds', async () => {
     mockGet.mockResolvedValueOnce({ data: [] });
     mockPost.mockResolvedValueOnce({ data: { runId: 'r-new', status: 'queued', modelId: 'm1', datasetId: 'd1', runType: 'baseline', createdAt: '2025-01-01T00:00:00Z' } });
-  render(<UserRunsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
+    render(<UserRunsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
 
     fireEvent.click(screen.getByText('Request analysis'));
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'm1' } });
@@ -45,8 +45,8 @@ describe('UserRunsPage', () => {
     const runs = [{ runId: 'r-1', modelId: 'm1', datasetId: 'd1', runType: 'baseline', status: 'running', createdAt: '2025-01-01T00:00:00Z' }];
     mockGet.mockResolvedValueOnce({ data: runs });
     mockPost.mockResolvedValueOnce({}); // cancel
-  render(<UserRunsPage />);
-  await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
+    render(<UserRunsPage />);
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/v1/analysis/history?page=1&limit=10'));
     expect(screen.getByText('r-1')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Cancel'));
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/v1/analysis/r-1/cancel'));

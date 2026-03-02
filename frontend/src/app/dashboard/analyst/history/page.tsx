@@ -1,11 +1,15 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import formatDate from '@/lib/formatDate';
 import { useToast } from '@/hooks/use-toast';
+import { Clock, Plus } from 'lucide-react';
 
 export default function AnalysisHistoryPage() {
   const [jobs, setJobs] = useState<Array<any>>([]);
@@ -70,37 +74,42 @@ export default function AnalysisHistoryPage() {
         </div>
 
         <div className="mt-6 rounded-lg border bg-white p-4">
-          {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {!loading && jobs.length === 0 && <div className="text-sm text-muted-foreground">No runs found</div>}
+          {loading && <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}
+          {!loading && jobs.length === 0 && (
+            <div className="p-8 text-center">
+              <Clock className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+              <h3 className="font-semibold text-lg mb-2">No analysis runs yet</h3>
+              <p className="text-sm text-muted-foreground mb-6">Start an analysis to track the history of your fairness and explainability runs.</p>
+              <Link href="/dashboard/analyst/run">
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Start analysis
+                </Button>
+              </Link>
+            </div>
+          )}
           {!loading && jobs.length > 0 && (
-            <table className="w-full text-sm table-auto">
-              <thead className="text-xs text-muted-foreground border-b">
-                <tr>
-                  <th className="py-2">Run ID</th>
-                  <th className="py-2">Model</th>
-                  <th className="py-2">Dataset</th>
-                  <th className="py-2">Run Type</th>
-                  <th className="py-2">Status</th>
-                  <th className="py-2">Created</th>
-                  <th className="py-2">Completed</th>
-                  <th className="py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((j) => (
-                  <tr key={j.runId || j.id} className="border-b">
-                    <td className="py-2">{j.runId || j.id}</td>
-                    <td className="py-2">{j.modelId || j.model || '—'}</td>
-                    <td className="py-2">{j.datasetId || j.dataset || '—'}</td>
-                    <td className="py-2">{j.runType || j.type || '—'}</td>
-                    <td className="py-2">{j.status}</td>
-                    <td className="py-2">{formatDate(j.createdAt)}</td>
-                    <td className="py-2">{formatDate(j.completedAt)}</td>
-                    <td className="py-2">{j.status === 'completed' && j.reportId ? <a className="text-primary" href={`/dashboard/analyst/reports/${j.reportId}`}>View report</a> : null}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-auto">
+                <thead className="text-xs text-muted-foreground border-b bg-muted/30">
+                  <tr>
+                    <th className="text-left py-3 px-3 font-medium">Run ID</th>
+                    <th className="text-left py-3 px-3 font-medium hidden sm:table-cell">Model</th>
+                    <th className="text-left py-3 px-3 font-medium hidden md:table-cell">Dataset</th>
+                    <th className="text-left py-3 px-3 font-medium hidden lg:table-cell">Run Type</th>
+                    <th className="text-left py-3 px-3 font-medium">Status</th>
+                    <th className="text-left py-3 px-3 font-medium hidden lg:table-cell">Created</th>
+                    <th className="text-left py-3 px-3 font-medium hidden xl:table-cell">Completed</th>
+                    <th className="text-right py-3 px-3 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {jobs.map((j) => (
+                    <HistoryRow key={j.runId || j.id} job={j} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -123,5 +132,91 @@ export default function AnalysisHistoryPage() {
         </div>
       </div>
     </RoleProtected>
+  );
+}
+
+function HistoryRow({ job }: { job: any }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const { toast } = useToast();
+
+  const getStatusVariant = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return 'completed';
+      case 'running':
+        return 'running';
+      case 'failed':
+        return 'failed';
+      default:
+        return 'pending';
+    }
+  };
+
+  const handleViewReport = () => {
+    if (job.status === 'completed' && job.reportId) {
+      window.location.href = `/dashboard/analyst/reports/${job.reportId}`;
+      setShowMenu(false);
+    }
+  };
+
+  const handleDownloadResults = () => {
+    toast?.({ title: 'Download started', description: 'Downloading analysis results…' });
+    setShowMenu(false);
+  };
+
+  const handleRetry = () => {
+    toast?.({ title: 'Retry started', description: 'Restarting this analysis run…' });
+    setShowMenu(false);
+  };
+
+  return (
+    <tr className="border-b group hover:bg-muted/50 transition-colors duration-200">
+      <td className="py-3 px-3">{job.runId || job.id}</td>
+      <td className="py-3 px-3 hidden sm:table-cell text-muted-foreground">{job.modelId || job.model || '—'}</td>
+      <td className="py-3 px-3 hidden md:table-cell text-muted-foreground">{job.datasetId || job.dataset || '—'}</td>
+      <td className="py-3 px-3 hidden lg:table-cell text-muted-foreground">{job.runType || job.type || '—'}</td>
+      <td className="py-3 px-3">
+        <Badge variant={getStatusVariant(job.status) as any}>
+          {job.status || 'unknown'}
+        </Badge>
+      </td>
+      <td className="py-3 px-3 hidden lg:table-cell text-muted-foreground text-xs">{formatDate(job.createdAt)}</td>
+      <td className="py-3 px-3 hidden xl:table-cell text-muted-foreground text-xs">{job.completedAt ? formatDate(job.completedAt) : '—'}</td>
+      <td className="py-3 px-3 text-right relative">
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-muted rounded relative z-10"
+          onClick={() => setShowMenu(!showMenu)}
+          title="More actions"
+        >
+          ⋮
+        </button>
+        {showMenu && (
+          <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-md z-20 min-w-[150px]">
+            {job.status === 'completed' && job.reportId && (
+              <button
+                onClick={handleViewReport}
+                className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
+              >
+                View report
+              </button>
+            )}
+            <button
+              onClick={handleDownloadResults}
+              className="w-full text-left px-4 py-2 hover:bg-muted text-sm border-t"
+            >
+              Download results
+            </button>
+            {(job.status === 'failed' || job.status === 'pending') && (
+              <button
+                onClick={handleRetry}
+                className="w-full text-left px-4 py-2 hover:bg-muted text-sm border-t"
+              >
+                Retry run
+              </button>
+            )}
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }

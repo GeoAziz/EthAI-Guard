@@ -128,9 +128,9 @@ export default function StatusPage() {
                       <div className="min-w-0">
                         <h3 className="font-semibold truncate" title={service.name}>{service.name}</h3>
                         <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                      <span>Uptime: {service.uptime}</span>
-                      <span>Latency: {service.latency}</span>
-                    </div>
+                          <span>Uptime: {service.uptime}</span>
+                          <span>Latency: {service.latency}</span>
+                        </div>
                       </div>
                     </div>
                     <Badge className={statusToBadge(service.status).className}>

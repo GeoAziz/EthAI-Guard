@@ -11,13 +11,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AuthLayout } from '@/components/auth/auth-layout';
+import { PasswordField } from '@/components/auth/password-field';
+import { TermsCheckbox } from '@/components/auth/terms-checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFirebaseErrorMessage, getHttpErrorMessage } from '@/lib/toast-messages';
+import api from '@/lib/api';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }).max(100),
+  email: z.string().email({ message: 'Please enter a valid email.' }).toLowerCase().trim(),
+  password: z.string().min(12, { message: 'Password must be at least 12 characters.' }),
+  passwordConfirm: z.string(),
+  termsAccepted: z.boolean().refine(val => val === true, {
+    message: 'You must accept the Terms of Service and Privacy Policy',
+  }),
+}).refine((data) => data.password === data.passwordConfirm, {
+  message: "Passwords don't match",
+  path: ['passwordConfirm'],
 });
 
 export default function RegisterPage() {
@@ -29,8 +41,11 @@ export default function RegisterPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       email: '',
       password: '',
+      passwordConfirm: '',
+      termsAccepted: false,
     },
   });
 
@@ -38,45 +53,84 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
+      // First, create Firebase user via AuthContext
       await registerUser(values.email, values.password);
+
+      // Then, create backend user record with name
+      try {
+        await api.post('/auth/register', {
+          name: values.name,
+          email: values.email,
+          password: values.password,
+        });
+      } catch (backendError: any) {
+        // Backend registration failed, but Firebase user was created
+        // Log error but continue - user can still login via Firebase
+        console.error('Backend registration error:', backendError);
+      }
 
       toast({
         title: 'Account Created Successfully! 🎉',
         description: 'Welcome to EthixAI! Setting up your dashboard...',
-        duration: 2500,
+        duration: 3000,
       });
 
-      // Small delay for better UX
-      setTimeout(() => router.push('/dashboard'), 600);
+      // Redirect after toast completes
+      setTimeout(() => router.push('/dashboard'), 3000);
     } catch (error: any) {
-      console.error('Registration error:', error);
+      let toastMessage;
 
-      // Improved error handling with specific messages
-      let errorTitle = 'Registration Failed';
-      let errorMessage = 'Unable to create your account. Please try again.';
-
-      // Firebase error codes with enhanced messaging
-      if (error.code === 'auth/email-already-in-use') {
-        errorTitle = 'Email Already Registered';
-        errorMessage = 'An account with this email already exists. Please log in instead.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorTitle = 'Invalid Email';
-        errorMessage = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/weak-password') {
-        errorTitle = 'Weak Password';
-        errorMessage = 'Please choose a stronger password with at least 8 characters, including numbers and symbols.';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorTitle = 'Service Unavailable';
-        errorMessage = 'Account creation is temporarily disabled. Please contact support.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorTitle = 'Connection Error';
-        errorMessage = 'Unable to connect. Please check your internet connection.';
+      // Backend API errors (if registration attempted backend-first)
+      if (error.response?.status) {
+        if (error.response.status === 429) {
+          toastMessage = {
+            title: 'Too Many Registration Attempts',
+            description: 'Please wait a moment before creating another account.',
+            variant: 'destructive' as const,
+          };
+        } else if (error.response.status === 400 && error.response.data?.error === 'User exists') {
+          toastMessage = {
+            title: 'Email Already Registered',
+            description: 'An account with this email already exists. Please sign in instead.',
+            variant: 'destructive' as const,
+          };
+        } else {
+          toastMessage = getHttpErrorMessage(error.response.status);
+          // Override with server message if available
+          if (error.response.data?.error) {
+            toastMessage.description = error.response.data.error;
+          }
+        }
+      }
+      // Firebase errors
+      else if (error.code) {
+        if (error.code === 'auth/email-already-in-use') {
+          toastMessage = {
+            title: 'Email Already Registered',
+            description: 'An account with this email already exists. Please sign in instead.',
+            variant: 'destructive' as const,
+          };
+        } else if (error.code === 'auth/weak-password') {
+          toastMessage = {
+            title: 'Password Too Weak',
+            description: 'Password must be at least 12 characters with uppercase, number, and special characters.',
+            variant: 'destructive' as const,
+          };
+        } else {
+          toastMessage = getFirebaseErrorMessage(error.code);
+        }
+      }
+      // Network or unknown errors
+      else {
+        toastMessage = {
+          title: 'Registration Failed',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive' as const,
+        };
       }
 
       toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: 'destructive',
+        ...toastMessage,
         duration: 5000,
       });
     } finally {
@@ -91,42 +145,107 @@ export default function RegisterPage() {
       quote="Transparency is not about sharing every detail; it's about providing the right details to build trust."
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="name@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <fieldset className="space-y-4">
+            <legend className="sr-only">Registration Form</legend>
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="name">Full Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      autoComplete="name"
+                      aria-describedby={form.formState.errors.name ? 'name-error' : undefined}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage id="name-error" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="email">Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                      aria-describedby={form.formState.errors.email ? 'email-error' : undefined}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage id="email-error" />
+                </FormItem>
+              )}
+            />
+
+            <PasswordField
+              control={form.control}
+              name="password"
+              label="Password"
+              placeholder="••••••••"
+              showRequirements
+            />
+
+            <FormField
+              control={form.control}
+              name="passwordConfirm"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="passwordConfirm">Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="passwordConfirm"
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      aria-describedby={form.formState.errors.passwordConfirm ? 'passwordConfirm-error' : undefined}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage id="passwordConfirm-error" />
+                </FormItem>
+              )}
+            />
+
+            <TermsCheckbox
+              control={form.control}
+              name="termsAccepted"
+              termsUrl="/docs/terms"
+              privacyUrl="/docs/privacy"
+            />
+          </fieldset>
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
           </Button>
         </form>
       </Form>
-      <div className="mt-4 text-center text-sm">
-        Already have an account?{' '}
-        <Link href="/login" className="underline text-primary">
+      <div className="mt-6 text-center text-sm">
+        <span className="text-muted-foreground">Already have an account?{' '}</span>
+        <Link
+          href="/login"
+          className="font-medium text-primary hover:underline focus-ring rounded"
+          aria-label="Sign in to your account"
+        >
           Sign in
         </Link>
       </div>

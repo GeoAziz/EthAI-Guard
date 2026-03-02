@@ -22,12 +22,32 @@ export const toastMessages = {
       variant: 'destructive' as const,
     },
     registerSuccess: {
-      title: 'Account Created',
-      description: 'Welcome to EthixAI! Your account is ready.',
+      title: 'Account Created Successfully! 🎉',
+      description: 'Welcome to EthixAI! Setting up your dashboard...',
     },
     registerFailed: {
       title: 'Registration Failed',
       description: 'Unable to create your account. Please try again.',
+      variant: 'destructive' as const,
+    },
+    emailAlreadyExists: {
+      title: 'Email Already Registered',
+      description: 'An account with this email already exists. Try logging in instead.',
+      variant: 'destructive' as const,
+    },
+    weakPassword: {
+      title: 'Password Too Weak',
+      description: 'Password must be at least 12 characters with uppercase, number, and special characters.',
+      variant: 'destructive' as const,
+    },
+    invalidEmail: {
+      title: 'Invalid Email Address',
+      description: 'Please enter a valid email address.',
+      variant: 'destructive' as const,
+    },
+    registrationRateLimit: {
+      title: 'Too Many Registration Attempts',
+      description: 'Please wait a moment before creating another account.',
       variant: 'destructive' as const,
     },
     sessionExpired: {
@@ -116,6 +136,45 @@ export const toastMessages = {
     serverError: {
       title: 'Server Error',
       description: 'Something went wrong. Our team has been notified.',
+      variant: 'destructive' as const,
+    },
+  },
+
+  // Email verification messages
+  verifyEmail: {
+    resendSuccess: {
+      title: 'Verification Email Sent',
+      description: 'Check your inbox for the verification link. You can resend again in 5 minutes.',
+      duration: 8000,
+    },
+    resendFailure: {
+      title: 'Failed to Send Verification Email',
+      description: 'Unable to send the verification email. Please try again or contact support.',
+      variant: 'destructive' as const,
+    },
+    tooManyAttempts: {
+      title: 'Too Many Resend Attempts',
+      description: 'Please wait 5 minutes before resending the verification email.',
+      variant: 'destructive' as const,
+    },
+    networkError: {
+      title: 'Connection Error',
+      description: 'Unable to send verification email. Check your internet connection and try again.',
+      variant: 'destructive' as const,
+    },
+    notSignedIn: {
+      title: 'Not Signed In',
+      description: 'Please sign in first to resend verification email.',
+      variant: 'destructive' as const,
+    },
+    verificationDetected: {
+      title: 'Email Verified!',
+      description: 'Your email has been verified. Redirecting to your dashboard...',
+      duration: 3000,
+    },
+    sessionExpiredVerify: {
+      title: 'Session Expired',
+      description: 'Your session has ended. Please sign in again.',
       variant: 'destructive' as const,
     },
   },

@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
 import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
+import { Button } from '@/components/ui/button';
 
 export default function AdminDatasetsPage() {
   const [name, setName] = useState('');
@@ -81,16 +82,31 @@ export default function AdminDatasetsPage() {
 
   return (
     <RoleProtected required={['admin']}>
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-4xl mx-auto">
         <Breadcrumbs />
         <PageHeader title="Datasets (Admin)" subtitle="Upload, version, and manage datasets" />
 
-        <div className="mt-6 rounded-lg border bg-white p-4">
+        <div className="mt-6 rounded-lg border bg-card p-4 sm:p-6">
           <h4 className="font-medium mb-3">Upload dataset (MVP)</h4>
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <button onClick={() => setShowCreate(true)} className="px-3 py-1 border rounded">Create dataset</button>
-              <button onClick={() => setShowUpload(true)} className="px-3 py-1 bg-primary text-white rounded">Upload file</button>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowCreate(true)} 
+                className="min-h-9"
+                aria-label="Create new dataset"
+              >
+                Create dataset
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={() => setShowUpload(true)} 
+                className="min-h-9"
+                aria-label="Upload dataset file"
+              >
+                Upload file
+              </Button>
             </div>
             {status && <div className="text-sm text-muted-foreground">{status}</div>}
           </div>
@@ -100,12 +116,12 @@ export default function AdminDatasetsPage() {
               <h5 className="font-medium">Preview</h5>
               <div className="overflow-auto mt-2">
                 <table className="min-w-full text-sm table-auto border">
-                  <thead className="bg-gray-50">
-                    <tr>{preview.header.map(h => <th key={h} className="p-2 text-left">{h}</th>)}</tr>
+                  <thead className="bg-muted/50">
+                    <tr>{preview.header.map(h => <th scope="col" key={h} className="p-2 text-left">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {preview.rows.map((r, i) => (
-                      <tr key={i} className="border-t">{r.map((c, j) => <td key={j} className="p-2">{c}</td>)}</tr>
+                      <tr key={i} className="border-t hover:bg-muted/30">{r.map((c, j) => <td key={j} className="p-2">{c}</td>)}</tr>
                     ))}
                   </tbody>
                 </table>
@@ -121,11 +137,11 @@ export default function AdminDatasetsPage() {
               ) : (
                 <div className="mt-2">
                   <table className="min-w-full text-sm table-auto border">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-muted/50">
                       <tr>
-                        <th className="p-2 text-left">Filename</th>
-                        <th className="p-2 text-left">Rows</th>
-                        <th className="p-2 text-left">Actions</th>
+                        <th scope="col" className="p-2 text-left">Filename</th>
+                        <th scope="col" className="p-2 text-left">Rows</th>
+                        <th scope="col" className="p-2 text-left">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -208,50 +224,60 @@ export default function AdminDatasetsPage() {
           ) : (
             <div className="overflow-auto">
               <table className="min-w-full text-sm table-auto border">
-                <thead className="bg-gray-50">
+                <thead className="bg-muted/50">
                   <tr>
-                    <th className="p-2 text-left">Name</th>
-                    <th className="p-2 text-left">Versions</th>
-                    <th className="p-2 text-left">Actions</th>
+                    <th scope="col" className="p-2 text-left">Name</th>
+                    <th scope="col" className="p-2 text-left">Versions</th>
+                    <th scope="col" className="p-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {datasets.map((ds: any) => (
-                    <tr key={ds.datasetId} className="border-t">
+                    <tr key={ds.datasetId} className="border-t hover:bg-muted/30">
                       <td className="p-2">{ds.name}</td>
                       <td className="p-2">{ds.versions}</td>
                       <td className="p-2">
-                        <button
-                          className="mr-2 text-sm text-primary"
-                          onClick={async () => {
-                            setSelectedDataset(ds.datasetId);
-                            setDatasetId(ds.datasetId);
-                            try {
-                              const vres = await api.get(`/v1/datasets/${ds.datasetId}/versions`);
-                              setVersions(vres.data.versions || []);
-                            } catch (e) { console.error(e); }
-                          }}
-                        >View
-                        </button>
-                        <button
-                          className="text-sm text-red-600"
-                          onClick={() => {
-                            setConfirmMessage('Delete dataset and all versions?');
-                            setConfirmAction(() => async () => {
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={async () => {
+                              setSelectedDataset(ds.datasetId);
+                              setDatasetId(ds.datasetId);
                               try {
-                                await api.delete(`/v1/datasets/${ds.datasetId}`);
-                                await loadDatasets();
-                                if (selectedDataset === ds.datasetId) {
-                                  setSelectedDataset(null);
-                                  setVersions([]);
-                                  setPreview(null);
-                                }
-                              } catch (e) { console.error('delete failed', e); }
-                            });
-                            setConfirmOpen(true);
-                          }}
-                        >Delete
-                        </button>
+                                const vres = await api.get(`/v1/datasets/${ds.datasetId}/versions`);
+                                setVersions(vres.data.versions || []);
+                              } catch (e) { console.error(e); }
+                            }}
+                            aria-label={`View dataset ${ds.name}`}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setConfirmMessage('Delete dataset and all versions?');
+                              setConfirmAction(() => async () => {
+                                try {
+                                  await api.delete(`/v1/datasets/${ds.datasetId}`);
+                                  await loadDatasets();
+                                  if (selectedDataset === ds.datasetId) {
+                                    setSelectedDataset(null);
+                                    setVersions([]);
+                                    setPreview(null);
+                                  }
+                                } catch (e) { console.error('delete failed', e); }
+                              });
+                              setConfirmOpen(true);
+                            }}
+                            aria-label={`Delete dataset ${ds.name}`}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

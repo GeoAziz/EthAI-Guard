@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { productionImages } from '@/lib/production-images';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src="https://picsum.photos/seed/avatar/40/40" alt="User avatar" data-ai-hint="person face" />
+            <AvatarImage src={productionImages.avatarPlaceholder} alt="User avatar" data-ai-hint="person face" />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>

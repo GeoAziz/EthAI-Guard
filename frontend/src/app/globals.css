@@ -103,10 +103,16 @@ body {
 }
 
 /* Day 30 Polish: Smooth transitions and animations */
-@layer utilities {
-  .animate-fade-in-up {
-    animation: fadeInUp 0.8s ease-out;
+@layer components {
+  /* Button utility class for pagination and action buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md border border-input bg-background text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-9 min-w-max;
   }
+
+  .btn-active {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+}
   
   .animate-fade-in {
     animation: fadeIn 0.6s ease-out;

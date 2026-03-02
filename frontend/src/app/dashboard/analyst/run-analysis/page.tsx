@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -76,37 +77,37 @@ export default function RunAnalysisPage() {
         <Breadcrumbs />
         <PageHeader title="Run analysis" subtitle="Start a new explainability or fairness analysis" />
 
-        <form className="mt-6 rounded-lg border bg-white p-4" onSubmit={handleStart}>
-          <div className="grid grid-cols-1 gap-4">
+        <form className="mt-6 rounded-lg border bg-white p-6" onSubmit={handleStart}>
+          <div className="grid grid-cols-1 gap-5">
             <label className="block">
-              <div className="text-sm font-medium">Model ID</div>
-              <input className="mt-1 w-full" value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model-id" />
+              <div className="text-sm font-medium mb-2">Model ID</div>
+              <input className="w-full border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model-id" />
             </label>
 
             <label className="block">
-              <div className="text-sm font-medium">Dataset ID</div>
-              <input className="mt-1 w-full" value={datasetId} onChange={(e) => setDatasetId(e.target.value)} placeholder="dataset-id" />
+              <div className="text-sm font-medium mb-2">Dataset ID</div>
+              <input className="w-full border rounded-md px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={datasetId} onChange={(e) => setDatasetId(e.target.value)} placeholder="dataset-id" />
             </label>
 
             <label className="block">
-              <div className="text-sm font-medium">Run type</div>
-              <select className="mt-1" value={runType} onChange={(e) => setRunType(e.target.value)}>
+              <div className="text-sm font-medium mb-2">Run type</div>
+              <select className="w-full border rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={runType} onChange={(e) => setRunType(e.target.value)}>
                 <option value="full">Full</option>
                 <option value="quick">Quick</option>
               </select>
             </label>
 
-            <div className="flex items-center gap-3">
-              <button type="submit" disabled={loading} className="px-3 py-1 bg-primary text-white rounded">{loading ? 'Starting…' : 'Start run'}</button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <Button type="submit" disabled={loading}>{loading ? 'Starting…' : 'Start run'}</Button>
               {runId && <div className="text-sm text-muted-foreground">Run ID: {runId}</div>}
             </div>
 
             <div className="mt-2">
-              {status === 'running' && <div className="text-sm">Status: running…</div>}
+              {status === 'running' && <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded-md">Status: running…</div>}
               {status === 'completed' && reportId && (
-                <div className="text-sm">Status: completed — <a className="text-primary" href={`/dashboard/analyst/reports/${reportId}`}>View report</a></div>
+                <div className="text-sm text-green-700 bg-green-50 p-3 rounded-md">Status: completed — <a className="font-semibold hover:underline" href={`/dashboard/analyst/reports/${reportId}`}>View report</a></div>
               )}
-              {status === 'failed' && <div className="text-sm text-destructive">Status: failed</div>}
+              {status === 'failed' && <div className="text-sm text-destructive bg-red-50 p-3 rounded-md">Status: failed</div>}
             </div>
           </div>
         </form>

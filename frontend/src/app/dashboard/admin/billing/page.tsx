@@ -38,14 +38,14 @@ export default function AdminBillingPage() {
         <PageHeader title="Billing & usage" subtitle="Summary of costs and analysis usage" />
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <div className="rounded-lg border bg-white p-4 sm:p-6">
+          <div className="rounded-lg border bg-card p-4 sm:p-6">
             <h4 className="font-medium text-sm sm:text-base">Monthly spend</h4>
             <div className="mt-4">
               {usageSummary ? <ChartPlaceholder title="Monthly spend" height={180} {...({ data: usageSummary.monthly } as any)} /> : <ChartPlaceholder title="Monthly spend" height={180} />}
             </div>
           </div>
 
-          <div className="rounded-lg border bg-white p-4 sm:p-6">
+          <div className="rounded-lg border bg-card p-4 sm:p-6">
             <h4 className="font-medium text-sm sm:text-base">Recent invoices</h4>
             {loading && <div className="text-xs sm:text-sm text-muted-foreground py-8 text-center">Loading…</div>}
             {!loading && invoices.length === 0 && <div className="text-xs sm:text-sm text-muted-foreground py-8 text-center">No invoices found</div>}

@@ -30,13 +30,13 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
 
   // Compute primary role using RBAC priority (fixes relying on array order)
   const primaryRole = rbac.pickPrimaryRole(roles) ?? 'guest';
-  
+
   React.useEffect(() => {
     console.log('[AppShellLayout] LAYOUT STATE:', { roles, user: user?.email, primaryRole });
   }, [primaryRole, roles, user]);
 
   const isActive = (path: string) => pathname?.startsWith(path) ?? false;
-  
+
   // Check if we're in a dashboard route (which has its own layout)
   const isDashboardRoute = pathname?.startsWith('/dashboard');
 

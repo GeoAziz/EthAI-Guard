@@ -15,6 +15,19 @@ const badgeVariants = cva(
         destructive:
           'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
         outline: 'text-foreground',
+        // Status variants
+        completed: 'border-transparent bg-green-100 text-green-700 hover:bg-green-200',
+        running: 'border-transparent bg-blue-100 text-blue-700 hover:bg-blue-200',
+        failed: 'border-transparent bg-red-100 text-red-700 hover:bg-red-200',
+        pending: 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
+        // Active status variants
+        active: 'border-transparent bg-green-100 text-green-700 hover:bg-green-200',
+        inactive: 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
+        // Severity variants
+        high: 'border-transparent bg-red-100 text-red-700 hover:bg-red-200',
+        medium: 'border-transparent bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+        low: 'border-transparent bg-green-100 text-green-700 hover:bg-green-200',
+        unknown: 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
       },
     },
     defaultVariants: {

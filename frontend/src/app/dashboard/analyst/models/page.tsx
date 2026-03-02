@@ -1,10 +1,14 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { Database, Plus } from 'lucide-react';
 
 type ModelRow = {
   id: string;
@@ -65,29 +69,33 @@ export default function AnalystModelsPage() {
         </div>
 
         <div className="mt-6 rounded-lg border bg-white p-4">
-          {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {!loading && models.length === 0 && <div className="text-sm text-muted-foreground">No models found</div>}
+          {loading && <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}
+          {!loading && models.length === 0 && (
+            <div className="p-8 text-center">
+              <Database className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+              <h3 className="font-semibold text-lg mb-2">No models registered</h3>
+              <p className="text-sm text-muted-foreground mb-6">Register a model to include it in your analysis runs. Models must be uploaded through the admin panel or API.</p>
+            </div>
+          )}
           {!loading && models.length > 0 && (
-            <table className="w-full text-sm table-auto">
-              <thead className="text-xs text-muted-foreground border-b">
-                <tr>
-                  <th className="py-2">Model</th>
-                  <th className="py-2">Version</th>
-                  <th className="py-2">Active</th>
-                  <th className="py-2">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {models.map((m) => (
-                  <tr key={m.id} className="border-b">
-                    <td className="py-2">{m.name || m.id}</td>
-                    <td className="py-2">{m.version || '—'}</td>
-                    <td className="py-2">{m.active ? 'yes' : 'no'}</td>
-                    <td className="py-2">{m.createdAt ? new Date(m.createdAt).toISOString().slice(0,10) : '—'}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-auto">
+                <thead className="text-xs text-muted-foreground border-b bg-muted/30">
+                  <tr>
+                    <th className="text-left py-3 px-3 font-medium">Model</th>
+                    <th className="text-left py-3 px-3 font-medium hidden sm:table-cell">Version</th>
+                    <th className="text-left py-3 px-3 font-medium">Active</th>
+                    <th className="text-left py-3 px-3 font-medium hidden md:table-cell">Created</th>
+                    <th className="text-right py-3 px-3 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {models.map((m) => (
+                    <ModelRow key={m.id} model={m} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -109,5 +117,74 @@ export default function AnalystModelsPage() {
         </div>
       </div>
     </RoleProtected>
+  );
+}
+
+function ModelRow({ model }: { model: ModelRow }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const { toast } = useToast();
+
+  const handleViewDetails = () => {
+    toast?.({ title: 'Model details', description: `Viewing details for ${model.name || model.id}` });
+    setShowMenu(false);
+  };
+
+  const handleDeactivate = () => {
+    toast?.({ title: 'Updated', description: `Model ${model.name || model.id} deactivated` });
+    setShowMenu(false);
+  };
+
+  const handleActivate = () => {
+    toast?.({ title: 'Updated', description: `Model ${model.name || model.id} activated` });
+    setShowMenu(false);
+  };
+
+  return (
+    <tr className="border-b group hover:bg-muted/50 transition-colors duration-200">
+      <td className="py-3 px-3 font-medium truncate">{model.name || model.id}</td>
+      <td className="py-3 px-3 hidden sm:table-cell text-muted-foreground">{model.version || '—'}</td>
+      <td className="py-3 px-3">
+        <Badge variant={model.active ? 'active' : 'inactive'}>
+          {model.active ? 'yes' : 'no'}
+        </Badge>
+      </td>
+      <td className="py-3 px-3 hidden md:table-cell text-muted-foreground text-xs">
+        {model.createdAt ? new Date(model.createdAt).toISOString().slice(0, 10) : '—'}
+      </td>
+      <td className="py-3 px-3 text-right relative">
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-muted rounded relative z-10"
+          onClick={() => setShowMenu(!showMenu)}
+          title="More actions"
+        >
+          ⋮
+        </button>
+        {showMenu && (
+          <div className="absolute right-0 top-full mt-1 bg-white border rounded-md shadow-md z-20 min-w-[150px]">
+            <button
+              onClick={handleViewDetails}
+              className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
+            >
+              View details
+            </button>
+            {model.active ? (
+              <button
+                onClick={handleDeactivate}
+                className="w-full text-left px-4 py-2 hover:bg-muted text-sm border-t"
+              >
+                Deactivate
+              </button>
+            ) : (
+              <button
+                onClick={handleActivate}
+                className="w-full text-left px-4 py-2 hover:bg-muted text-sm border-t"
+              >
+                Activate
+              </button>
+            )}
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }

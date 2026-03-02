@@ -15,17 +15,13 @@ const ROLE_DEFAULT_ROUTE: Record<UserRole, string> = {
  * Pick a primary role from a list of roles according to priority.
  */
 export function pickPrimaryRole(roles: string[] | undefined): UserRole | null {
-  // Debug: print incoming roles so we can trace RBAC issues in running app
-  try { console.debug('[rbac] pickPrimaryRole called with roles:', roles, 'ROLE_PRIORITY:', ROLE_PRIORITY); } catch (e) {}
   if (!roles || roles.length === 0) {return null;}
   for (const r of ROLE_PRIORITY) {
     if (roles.includes(r)) {
-      try { console.debug('[rbac] pickPrimaryRole ->', r); } catch (e) {}
       return r;
     }
   }
   // If none of the known roles match, return the first declared role.
-  try { console.debug('[rbac] pickPrimaryRole -> fallback', roles[0]); } catch (e) {}
   return (roles[0] as UserRole) || null;
 }
 
