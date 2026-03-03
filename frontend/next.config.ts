@@ -57,27 +57,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack(config, { isServer }) {
-    if (!isServer) {
-      // Prevent Node.js-only built-in modules from being bundled into the
-      // client bundle. `server-only` guards db-client / firebase-admin at
-      // build time, but explicit browser fallbacks stop webpack from trying
-      // to polyfill heavy native modules if they ever appear in the dep tree.
-      config.resolve = config.resolve ?? {};
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-        crypto: false,
-        path: false,
-        stream: false,
-        os: false,
-      };
-    }
-    return config;
-  },
 };
 
 export default nextConfig;
