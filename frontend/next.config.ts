@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    const staticCacheControl =
+      process.env.NODE_ENV === 'production'
+        ? 'public, max-age=31536000, immutable'
+        : 'no-store, max-age=0';
+
     return [
       {
         source: '/sw.js',
@@ -45,7 +50,7 @@ const nextConfig: NextConfig = {
       {
         source: '/_next/static/(.*)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'Cache-Control', value: staticCacheControl },
         ],
       },
       {
@@ -56,27 +61,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  webpack(config, { isServer }) {
-    if (!isServer) {
-      // Prevent Node.js-only built-in modules from being bundled into the
-      // client bundle. `server-only` guards db-client / firebase-admin at
-      // build time, but explicit browser fallbacks stop webpack from trying
-      // to polyfill heavy native modules if they ever appear in the dep tree.
-      config.resolve = config.resolve ?? {};
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-        crypto: false,
-        path: false,
-        stream: false,
-        os: false,
-      };
-    }
-    return config;
   },
 };
 
