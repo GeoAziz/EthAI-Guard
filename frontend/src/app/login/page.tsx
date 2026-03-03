@@ -24,6 +24,7 @@ import {
   getRedirectAfterLogin,
   type AuthUser,
 } from '@/lib/auth-routing';
+import { debugLogger } from '@/lib/debug-logger';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -47,23 +48,45 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
+    
+    // Log login attempt
+    debugLogger.info('LOGIN', 'Login attempt started', {
+      email: values.email,
+      timestamp: new Date().toISOString(),
+    });
 
     try {
+      debugLogger.debug('LOGIN', 'Calling Firebase login', { email: values.email });
+      
       // Perform login
       const cred = await login(values.email, values.password);
       const current = auth.currentUser || (cred && (cred as any).user);
 
+      debugLogger.success('LOGIN', 'Firebase authentication successful', {
+        uid: current?.uid,
+        email: current?.email,
+      });
+
       // Check email verification requirement for non-privileged users
       try {
         if (current) {
+          debugLogger.debug('LOGIN', 'Fetching user roles from backend');
           const me = await api.get('/v1/users/me');
           const backendRoles = me?.data?.role;
           const roles = extractRoles(backendRoles);
 
+          debugLogger.info('LOGIN', 'User roles retrieved', {
+            roles,
+            rawRole: backendRoles,
+          });
+
           if (shouldEnforceEmailVerification(current as AuthUser, roles)) {
+            debugLogger.info('LOGIN', 'Email verification required');
             try {
               await sendEmailVerification(current);
-            } catch (_) {
+              debugLogger.success('LOGIN', 'Verification email sent');
+            } catch (err) {
+              debugLogger.warn('LOGIN', 'Failed to send verification email', err);
               // Best-effort; continue even if send fails
             }
             router.push('/verify-email');
@@ -71,7 +94,8 @@ export default function LoginPage() {
             return;
           }
         }
-      } catch (_) {
+      } catch (err) {
+        debugLogger.warn('LOGIN', 'Error checking email verification', err);
         // If we can't fetch user info, proceed and let server-side auth handle it
       }
 
@@ -83,55 +107,91 @@ export default function LoginPage() {
 
       // Refresh roles from backend
       try {
+        debugLogger.debug('LOGIN', 'Refreshing roles');
         await refreshRoles();
-      } catch (_) {
+        debugLogger.success('LOGIN', 'Roles refreshed');
+      } catch (err) {
+        debugLogger.warn('LOGIN', 'Failed to refresh roles', err);
         // Continue on error
       }
 
       // Detect redirect destination with priority: backend → token → context
       try {
+        debugLogger.debug('LOGIN', 'Determining redirect destination');
         const me = await api.get('/v1/users/me');
         const backendRoles = me?.data?.role;
         if (backendRoles) {
-          router.push(getRedirectAfterLogin(backendRoles));
+          const redirectPath = getRedirectAfterLogin(backendRoles);
+          debugLogger.success('LOGIN', 'Redirecting based on backend roles', {
+            redirectPath,
+            roles: backendRoles,
+          });
+          router.push(redirectPath);
           return;
         }
-      } catch (_) {
+      } catch (err) {
+        debugLogger.warn('LOGIN', 'Failed to get backend roles for redirect', err);
         // Fall through to token claims
       }
 
       // Try Firebase ID token claims
       try {
         if (current) {
+          debugLogger.debug('LOGIN', 'Checking Firebase ID token claims');
           const idTokenResult = await current.getIdTokenResult(true);
           const claims = idTokenResult?.claims || {};
-          router.push(getRedirectAfterLogin(undefined, claims));
+          const redirectPath = getRedirectAfterLogin(undefined, claims);
+          debugLogger.success('LOGIN', 'Redirecting based on ID token claims', {
+            redirectPath,
+            claims: Object.keys(claims),
+          });
+          router.push(redirectPath);
           return;
         }
-      } catch (_) {
+      } catch (err) {
+        debugLogger.warn('LOGIN', 'Failed to get ID token claims', err);
         // Fall through to context-based routing
       }
 
       // Final fallback: use context role
+      debugLogger.info('LOGIN', 'Using default redirect to dashboard');
       router.push('/dashboard');
     } catch (error: any) {
       // Centralized error handling using toast message catalog
+      debugLogger.error('LOGIN', 'Login failed with error', error);
+
       let toastMessage;
 
       // Backend API errors (Axios response)
       if (error.response?.status) {
+        debugLogger.warn('LOGIN', 'Backend API error', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+        });
         toastMessage = getHttpErrorMessage(error.response.status);
         // Use server message if available
         if (error.response.data?.error) {
           toastMessage.description = error.response.data.error;
+          debugLogger.debug('LOGIN', 'Using server error message', {
+            message: error.response.data.error,
+          });
         }
       }
       // Firebase errors
       else if (error.code) {
+        debugLogger.warn('LOGIN', 'Firebase authentication error', {
+          code: error.code,
+          message: error.message,
+        });
         toastMessage = getFirebaseErrorMessage(error.code);
       }
       // Network or unknown errors
       else {
+        debugLogger.error('LOGIN', 'Unknown error occurred', {
+          message: error.message,
+          stack: error.stack,
+        });
         toastMessage = {
           title: 'Login Failed',
           description: 'An unexpected error occurred. Please try again.',
@@ -150,25 +210,56 @@ export default function LoginPage() {
 
   // Inline resend support: show a small CTA when there's a signed-in but unverified user
   React.useEffect(() => {
+    debugLogger.info('LOGIN_PAGE', 'Component mounted');
+    debugLogger.debug('LOGIN_PAGE', 'Browser environment check', {
+      hasNavigator: typeof navigator !== 'undefined',
+      hasWindow: typeof window !== 'undefined',
+    });
+
     try {
       const current = auth.currentUser;
-      if (current && !current.emailVerified) {
-        setShowInlineResend(true);
+      if (current) {
+        debugLogger.info('LOGIN_PAGE', 'User already signed in', {
+          uid: current.uid,
+          email: current.email,
+          emailVerified: current.emailVerified,
+        });
+        if (!current.emailVerified) {
+          setShowInlineResend(true);
+          debugLogger.debug('LOGIN_PAGE', 'Email not verified - showing inline resend');
+        }
+      } else {
+        debugLogger.debug('LOGIN_PAGE', 'No user currently signed in');
       }
+
       // Listen for auth state changes to update UI
       const unsub = auth.onAuthStateChanged((u) => {
-        setShowInlineResend(!!(u && !u.emailVerified));
+        if (u) {
+          debugLogger.info('LOGIN_PAGE', 'Auth state changed - user signed in', {
+            uid: u.uid,
+            emailVerified: u.emailVerified,
+          });
+          setShowInlineResend(!u.emailVerified);
+        } else {
+          debugLogger.debug('LOGIN_PAGE', 'Auth state changed - user signed out');
+          setShowInlineResend(false);
+        }
       });
       return () => unsub();
     } catch (e) {
-      // ignore
+      debugLogger.error('LOGIN_PAGE', 'Error in auth state setup', e);
     }
   }, []);
 
   async function handleInlineResend() {
+    debugLogger.info('LOGIN', 'Inline resend initiated');
+    
     try {
       const current = auth.currentUser;
       if (!current) {
+        debugLogger.warn('LOGIN', 'No user found for resend', {
+          timestamp: new Date().toISOString(),
+        });
         toast({
           title: 'Not signed in',
           description: 'Please sign in first to resend verification email.',
@@ -176,13 +267,29 @@ export default function LoginPage() {
         });
         return;
       }
+
+      debugLogger.debug('LOGIN', 'Sending verification email', {
+        email: current.email,
+        uid: current.uid,
+      });
+
       await sendEmailVerification(current);
+      
+      debugLogger.success('LOGIN', 'Verification email resent successfully', {
+        email: current.email,
+      });
+
       toast({
         title: 'Verification Sent',
         description: 'Check your inbox for the verification link.',
         duration: 8000,
       });
-    } catch (e) {
+    } catch (e: any) {
+      debugLogger.error('LOGIN', 'Failed to resend verification email', {
+        message: e.message,
+        code: e.code,
+      });
+
       toast({
         title: 'Failed to send',
         description: 'Could not send verification email. Try again later.',

@@ -184,7 +184,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             </Button>
 
             {/* Fallback Recovery */}
-            {isRecoverable && (
+            {isRecoverable && typeof reset === 'function' && (
               <Button
                 onClick={() => reset()}
                 className="w-full"

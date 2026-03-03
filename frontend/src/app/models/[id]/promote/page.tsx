@@ -9,7 +9,7 @@ export default function PromotePage() {
   const params = useParams();
   const sp = useSearchParams();
   const modelId = params?.id as string;
-  const versionParam = sp.get('version') || '';
+  const versionParam = sp?.get('version') || '';
   const [version, setVersion] = useState(versionParam);
   const [requestId, setRequestId] = useState('');
   const [confirm, setConfirm] = useState('');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,6 +63,14 @@ const ERROR_MESSAGES: Record<ErrorContext, ErrorDetails> = {
 };
 
 export default function UnauthorizedPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <UnauthorizedPageContent />
+    </Suspense>
+  );
+}
+
+function UnauthorizedPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, roles, loading } = useAuth();
@@ -76,8 +84,8 @@ export default function UnauthorizedPage() {
 
   // Parse URL parameters to determine error context
   useEffect(() => {
-    const context = searchParams.get('context') as ErrorContext | null;
-    const resource = searchParams.get('resource');
+    const context = searchParams?.get('context') as ErrorContext | null;
+    const resource = searchParams?.get('resource');
 
     if (context && Object.keys(ERROR_MESSAGES).includes(context)) {
       setErrorContext(context);

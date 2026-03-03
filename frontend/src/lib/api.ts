@@ -25,7 +25,7 @@ const api = axios.create({
  */
 api.interceptors.request.use(async (config) => {
   try {
-    if (typeof window !== 'undefined' && auth.currentUser) {
+    if (typeof window !== 'undefined' && auth && auth.currentUser) {
       const idToken = await auth.currentUser.getIdToken();
       if (idToken && config.headers) {
         config.headers.Authorization = `Bearer ${idToken}`;
@@ -92,7 +92,7 @@ api.interceptors.response.use(
 
       try {
         // Attempt to refresh Firebase ID token by getting a fresh one
-        if (auth.currentUser) {
+        if (auth && auth.currentUser) {
           await auth.currentUser.getIdToken(true); // Force refresh
           const newToken = await auth.currentUser.getIdToken();
 
@@ -112,7 +112,9 @@ api.interceptors.response.use(
         isRefreshing = false;
 
         try {
-          await auth.signOut();
+          if (auth) {
+            await auth.signOut();
+          }
         } catch (e) {
           // ignore signout errors
         }

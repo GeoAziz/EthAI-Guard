@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { AnnounceProvider } from '@/contexts/AnnounceContext';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'EthixAI Dashboard',
@@ -30,21 +28,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased min-h-screen bg-background">
         <a className="skip-link sr-only focus:not-sr-only" href="#content">Skip to content</a>
-        <AuthProvider>
-          <AnnounceProvider>
-            <div id="content" tabIndex={-1}>
-              {children}
-            </div>
-          </AnnounceProvider>
-        </AuthProvider>
+        <Providers>
+          <div id="content" tabIndex={-1}>
+            {children}
+          </div>
+        </Providers>
         <Toaster />
-        <Script
-          id="sw-register"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }`,
-          }}
-        />
+        {/* TODO: Service worker registration will be re-enabled in production with proper CSP nonce */}
       </body>
     </html>
   );

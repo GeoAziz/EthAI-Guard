@@ -230,7 +230,9 @@ export default function SettingsPage() {
           >
             {isUpdatingProfile ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+                <span className="mr-2 inline-block">
+                  <LoadingSpinner size="sm" />
+                </span>
                 Updating...
               </>
             ) : (
@@ -315,7 +317,9 @@ export default function SettingsPage() {
           >
             {isRegenerating ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
+                <span className="mr-2 inline-block">
+                  <LoadingSpinner size="sm" />
+                </span>
                 Generating...
               </>
             ) : (
@@ -370,7 +374,9 @@ export default function SettingsPage() {
                 >
                   {isDeleting ? (
                     <>
-                      <LoadingSpinner size="sm" className="mr-2" />
+                      <span className="mr-2 inline-block">
+                        <LoadingSpinner size="sm" />
+                      </span>
                       Deleting...
                     </>
                   ) : (

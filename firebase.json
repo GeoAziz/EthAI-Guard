@@ -1,14 +1,37 @@
 {
+  "functions": [
+    {
+      "source": "backend/functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-functions-debug.log"
+      ]
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
   "emulators": {
+    "functions": {
+      "port": 5001
+    },
     "auth": {
       "port": 9099
     },
+    "firestore": {
+      "port": 8080
+    },
     "ui": {
-      "enabled": false
+      "enabled": true,
+      "host": "localhost",
+      "port": 4000
     }
+  },
+  "remoteConfig": {
+    "template": "remoteconfig.template.json"
   }
 }

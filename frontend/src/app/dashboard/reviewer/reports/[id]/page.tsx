@@ -61,6 +61,19 @@ export default function ReviewerReportDetail({ params }: Props) {
     }
   };
 
+  const handleAction = async (action: 'approve' | 'reject') => {
+    try {
+      await api.post(`/v1/reports/${id}/${action}`, {});
+      toast?.({ title: `Report ${action}d successfully` });
+      // reload
+      const res = await api.get(`/v1/reports/${id}`);
+      setReport(res?.data);
+    } catch (err) {
+      console.error(`Failed to ${action} report`, err);
+      toast?.({ title: `Failed to ${action} report`, variant: 'destructive' });
+    }
+  };
+
   return (
     <RoleProtected required={['reviewer','admin']}>
       <div className="p-4 sm:p-6 lg:p-8 w-full max-w-4xl mx-auto">

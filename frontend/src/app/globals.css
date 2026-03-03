@@ -112,7 +112,6 @@ body {
   .btn-active {
     @apply bg-primary text-primary-foreground hover:bg-primary/90;
   }
-}
   
   .animate-fade-in {
     animation: fadeIn 0.6s ease-out;

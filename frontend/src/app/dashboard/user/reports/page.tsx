@@ -117,7 +117,7 @@ export default function UserReportsPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      format: (value: string) => <StatusBadge status={value} />,
+      format: (value: string) => <StatusBadge status={value as 'completed' | 'running' | 'failed' | 'queued' | 'cancelled' | 'processing'} />,
     },
     {
       key: 'createdAt',

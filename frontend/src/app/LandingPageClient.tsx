@@ -1,6 +1,8 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -10,6 +12,8 @@ import { Logo } from '@/components/logo';
 import { MobileHeader } from '@/components/layout/mobile-header';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { productionImages } from '@/lib/production-images';
+import { debugLogger } from '@/lib/debug-logger';
+import { DebugPanel } from '@/components/debug/debug-panel';
 
 const features = [
   {
@@ -72,6 +76,46 @@ const landingMenuItems = [
 ];
 
 export default function LandingPageClient() {
+  const searchParams = useSearchParams();
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  useEffect(() => {
+    // Initialize debug logging
+    debugLogger.info('LANDING_PAGE', 'Landing page mounted');
+    debugLogger.debug('LANDING_PAGE', 'User agent', { userAgent: navigator.userAgent });
+    debugLogger.debug('LANDING_PAGE', 'Browser language', { language: navigator.language });
+
+    // Check if debug panel should be shown
+    if (searchParams?.get('show-logs') === '1') {
+      debugLogger.enable();
+      setShowDebugPanel(true);
+      debugLogger.info('DEBUG_UI', 'Debug panel enabled via query parameter');
+    }
+
+    // Check localStorage for debug mode
+    if (typeof window !== 'undefined' && localStorage.getItem('DEBUG_MODE') === '1') {
+      debugLogger.enable();
+    }
+
+    // Log page visibility changes
+    const handleVisibilityChange = () => {
+      const state = document.hidden ? 'hidden' : 'visible';
+      debugLogger.info('PAGE_VISIBILITY', `Page became ${state}`);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('offline', () => {
+      debugLogger.warn('NETWORK', 'Device went offline');
+    });
+    window.addEventListener('online', () => {
+      debugLogger.success('NETWORK', 'Device came online');
+    });
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [searchParams]);
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -498,6 +542,22 @@ export default function LandingPageClient() {
       </main>
 
       <Footer />
+
+      {/* Debug Panel */}
+      {showDebugPanel && (
+        <DebugPanel onClose={() => setShowDebugPanel(false)} />
+      )}
+
+      {/* Debug Mode Toggle - only visible if debug mode is enabled */}
+      {debugLogger.isDebugMode() && !showDebugPanel && (
+        <button
+          onClick={() => setShowDebugPanel(true)}
+          className="fixed bottom-4 right-4 z-[9998] p-2 rounded-full bg-orange-500/80 text-white hover:bg-orange-600 shadow-lg"
+          title="Show debug panel"
+        >
+          🐛
+        </button>
+      )}
     </div>
   );
 }

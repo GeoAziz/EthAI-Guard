@@ -10,6 +10,22 @@ export const metadata: Metadata = {
   description: 'Join the EthixAI Discord community to connect with other developers building ethical AI systems.',
 };
 
+function DiscordNotificationForm() {
+  return (
+    <form className="flex flex-col sm:flex-row gap-2">
+      <input
+        type="email"
+        placeholder="Enter your email"
+        className="flex-1 px-4 py-2 rounded-md border border-input bg-background text-sm"
+        required
+      />
+      <Button type="submit" className="sm:w-auto">
+        Notify Me
+      </Button>
+    </form>
+  );
+}
+
 export default function DiscordComingSoonPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-card/20 p-4">
@@ -96,25 +112,7 @@ export default function DiscordComingSoonPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Be the first to join when our Discord server goes live.
               </p>
-              <form className="flex gap-2 max-w-md mx-auto" onSubmit={(e) => {
-                e.preventDefault();
-                const email = (e.target as HTMLFormElement).email?.value;
-                if (email) {
-                  alert(`Thank you! We'll notify ${email} when Discord launches.`);
-                  (e.target as HTMLFormElement).reset();
-                }
-              }}>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="your.email@example.com"
-                  className="flex-1 px-4 py-2 rounded-md border bg-background text-sm"
-                  required
-                />
-                <Button type="submit">
-                  Notify Me
-                </Button>
-              </form>
+              <DiscordNotificationForm />
               <p className="text-xs text-muted-foreground mt-3">
                 We respect your privacy. Unsubscribe at any time.
               </p>

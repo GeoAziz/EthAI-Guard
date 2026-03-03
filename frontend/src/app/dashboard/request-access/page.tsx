@@ -172,7 +172,9 @@ export default function RequestAccessPage() {
             >
               {status === 'submitting' ? (
                 <>
-                  <LoadingSpinner size="sm" className="mr-2" />
+                  <span className="mr-2 inline-block">
+                    <LoadingSpinner size="sm" />
+                  </span>
                   Submitting...
                 </>
               ) : (

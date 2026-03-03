@@ -12,8 +12,8 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (singleton pattern)
-let app: FirebaseApp;
-let auth: Auth;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
 
 // Only initialize Firebase in a real browser environment and not during tests.
 // Many test environments (jsdom) expose `window` but don't provide real
@@ -25,7 +25,9 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test' && firebase
   } else {
     app = getApps()[0];
   }
-  auth = getAuth(app);
+  if (app) {
+    auth = getAuth(app);
+  }
 }
 
 export { app, auth };

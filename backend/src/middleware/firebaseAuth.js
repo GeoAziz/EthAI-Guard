@@ -17,16 +17,22 @@ async function firebaseAuth(req, res, next) {
 
     const decoded = await firebaseAdmin.verifyIdToken(token);
     // Enforce that the Firebase user's email is verified. If not, reject with 403.
-    // decoded.email_verified is provided by firebase-admin verifyIdToken
     if (decoded && decoded.email_verified === false) {
       return res.status(403).json({ error: 'email_not_verified' });
     }
+    
+    // Extract role from Firebase custom claims (single source of truth)
+    // Roles are set via Firebase setCustomUserClaims() and embedded in ID token
+    const firebaseRole = decoded.role || (decoded.claims && decoded.claims.role) || 'user';
+    
     // Attach common fields for downstream code
-    req.user = { sub: decoded.uid, email: decoded.email, role: 'user' };
+    req.user = { sub: decoded.uid, email: decoded.email, role: firebaseRole };
     req.userId = decoded.uid;
-    req.role = 'user';
+    req.role = firebaseRole;
 
-    // Optionally load user role from DB if available; auto-provision user if missing
+    // Auto-provision minimal user record for audit trails (NOT for auth)
+    // NOTE: MongoDB User is now purely a data store, NOT an auth source
+    // Role authority comes from Firebase custom claims only
     try {
       const mongoose = require('mongoose');
       if (mongoose.connection && mongoose.connection.readyState === 1) {
@@ -41,7 +47,7 @@ async function firebaseAuth(req, res, next) {
               email: decoded.email,
               password_hash: null,
               firebase_uid: decoded.uid,
-              role: 'user',
+              // Note: role is NOT stored here; it lives in Firebase custom claims
             });
           } catch (createErr) {
             // Race: if another request created it first, fetch again by firebase_uid
@@ -49,13 +55,13 @@ async function firebaseAuth(req, res, next) {
           }
         }
         if (userDoc) {
-          req.role = userDoc.role || 'user';
-          req.userId = String(userDoc._id);
-          req.user.sub = String(userDoc._id);
+          // Store MongoDB ID for audit trails, but role comes from Firebase
+          req.mongoUserId = String(userDoc._id);
         }
       }
     } catch (e) {
-      // non-fatal
+      // non-fatal; continue with Firebase UID
+      logger.debug({ err: e }, 'mongo_auto_provision_failed');
     }
 
     return next();

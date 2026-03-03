@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import api from '@/lib/api';
+import { debugLogger } from '@/lib/debug-logger';
 
 const COOKIE_MODE = process.env.NEXT_PUBLIC_USE_COOKIE_REFRESH === '1';
 
@@ -35,67 +36,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Listen for auth state changes
+    if (!auth) {
+      debugLogger.error('AUTH_CONTEXT', 'Firebase auth not initialized');
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      debugLogger.debug('AUTH_CONTEXT', 'Auth state changed', {
+        hasUser: !!user,
+        uid: user?.uid,
+        email: user?.email,
+      });
+
       setUser(user);
       // extract custom claims (roles) from the ID token if available
       (async () => {
         if (user) {
           try {
-            // Try to exchange Firebase ID token for backend tokens so api calls use backend JWTs
-            const idToken = await user.getIdToken();
-            if (idToken) {
-              try {
-                const resp = await api.post('/auth/firebase/exchange', { idToken });
-                // If backend is in cookie mode it will set HttpOnly cookies and
-                // respond with a minimal { status: 'ok' } payload. Only persist
-                // tokens client-side for the legacy JSON response path.
-                if (COOKIE_MODE) {
-                  // no-op: cookies were set by server; refreshRoles can read role
-                  // from backend when needed.
-                } else {
-                  const access = resp.data?.accessToken || resp.data?.access_token;
-                  const refresh = resp.data?.refreshToken || resp.data?.refresh_token;
-                  if (access) {
-                    try { localStorage.setItem('backend_access_token', access); } catch (e) {}
-                  }
-                  if (refresh) {
-                    try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
-                  }
-                }
-              } catch (e) {
-                // Exchange may fail in dev/test; that's OK — fallback to token claims
-              }
-
-              // Best-effort: ask backend for authoritative role immediately after exchange
-              try {
-                const meResp = await api.get('/v1/users/me');
-                const roleFromBackend = meResp?.data?.role;
-                if (Array.isArray(roleFromBackend)) { setRoles(roleFromBackend as string[]); }
-                else if (typeof roleFromBackend === 'string') { setRoles(roleFromBackend.split(',').map(s => s.trim()).filter(Boolean)); }
-              } catch (__) {
-                // ignore: roles will be populated from token claims or refreshRoles later
-              }
-
-            }
-
+            // PHASE 2 REFACTOR: Firebase tokens are used directly
+            // No backend token exchange needed anymore
+            // Backend validates Firebase ID token via firebaseAuth middleware
+            // Roles come from Firebase custom claims embedded in ID token
+            
+            debugLogger.debug('AUTH_CONTEXT', 'Extracting roles from ID token');
             const idTokenResult = await user.getIdTokenResult();
             const claims = idTokenResult?.claims || {};
 
-            // support either `role` (string) or `roles` (array) claims
+            // Extract role from Firebase custom claims (single source of truth)
             if (Array.isArray(claims.roles)) {
               setRoles(claims.roles as string[]);
+              debugLogger.info('AUTH_CONTEXT', 'Roles extracted from claims', {
+                roles: claims.roles,
+              });
             } else if (typeof claims.role === 'string') {
               // comma separated or single role
               const r = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
               setRoles(r);
+              debugLogger.info('AUTH_CONTEXT', 'Roles parsed from string', {
+                roles: r,
+                raw: claims.role,
+              });
             } else {
               setRoles([]);
+              debugLogger.debug('AUTH_CONTEXT', 'No roles found in claims');
             }
           } catch (err) {
+            debugLogger.warn('AUTH_CONTEXT', 'Error extracting roles', err);
             setRoles([]);
           }
         } else {
-          // clear any stored backend tokens when signed out
+          // clear any stored backend tokens when signed out (legacy cleanup)
+          debugLogger.debug('AUTH_CONTEXT', 'Clearing tokens on sign out');
           if (!COOKIE_MODE) {
             try { localStorage.removeItem('backend_access_token'); } catch (e) {}
             try { localStorage.removeItem('backend_refresh_token'); } catch (e) {}
@@ -111,157 +103,160 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = async (email: string, password: string): Promise<UserCredential> => {
-    return createUserWithEmailAndPassword(auth, email, password);
+    debugLogger.info('AUTH_CONTEXT', 'Register attempt started', {
+      email,
+      timestamp: new Date().toISOString(),
+    });
+    
+    if (!auth) {
+      const error = new Error('Firebase auth not initialized');
+      debugLogger.error('AUTH_CONTEXT', 'Registration failed - auth not initialized', error);
+      throw error;
+    }
+    
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      debugLogger.success('AUTH_CONTEXT', 'Registration successful', {
+        uid: result.user.uid,
+        email: result.user.email,
+      });
+      return result;
+    } catch (error: any) {
+      debugLogger.error('AUTH_CONTEXT', 'Registration failed', {
+        code: error.code,
+        message: error.message,
+      });
+      throw error;
+    }
   };
 
   const login = async (email: string, password: string): Promise<any> => {
-    // Backend-login toggle (explicit opt-in). When NEXT_PUBLIC_USE_BACKEND_LOGIN=1,
-    // allow falling back to POST /auth/login if Firebase isn't initialized.
-    const BACKEND_LOGIN_ENABLED = process.env.NEXT_PUBLIC_USE_BACKEND_LOGIN === '1';
-    // If Firebase auth is not initialized (e.g. local dev without Firebase),
-    // fall back to backend /auth/login only when BACKEND_LOGIN_ENABLED is set.
-    if (BACKEND_LOGIN_ENABLED) {
-      // Backend-login toggle (explicit opt-in). When NEXT_PUBLIC_USE_BACKEND_LOGIN=1,
-      // prefer backend /auth/login regardless of Firebase client state. This avoids
-      // relying on server-side Firebase admin configuration for token exchange in dev.
-      let access: string | undefined;
-      let refresh: string | undefined;
-
-      try {
-        const resp = await api.post('/auth/login', { email, password, deviceName: 'frontend' });
-        access = resp.data?.accessToken || resp.data?.access_token;
-        refresh = resp.data?.refreshToken || resp.data?.refresh_token;
-
-        if (access) {
-          try { localStorage.setItem('backend_access_token', access); } catch (e) { }
-        }
-
-        if (refresh) {
-          try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) { }
-        }
-      } catch (loginErr) {
-        throw loginErr;
-      }
-
-      // Populate roles from backend authoritative endpoint
-      try {
-        const me = await api.get('/v1/users/me');
-        const roleFromBackend = me?.data?.role;
-        if (Array.isArray(roleFromBackend)) {
-          setRoles(roleFromBackend as string[]);
-        }
-        else if (typeof roleFromBackend === 'string') {
-          const roles = roleFromBackend.split(',').map(s => s.trim()).filter(Boolean);
-          setRoles(roles);
-        }
-
-        // Set synthetic user object so frontend knows we're logged in
-        // (Firebase flow sets this via onAuthStateChanged, backend flow needs it here)
-        setUser({
-          uid: me?.data?._id || me?.data?.id || 'backend-user',
-          email: email,
-          displayName: me?.data?.displayName || me?.data?.name || email.split('@')[0],
-          photoURL: me?.data?.photoURL || null,
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          phoneNumber: null,
-          createdAt: new Date().toISOString(),
-          lastSignInTime: new Date().toISOString(),
-          tenantId: null,
-          delete: async () => {},
-          getIdToken: async () => access || '',
-          getIdTokenResult: async () => ({ token: access, claims: { role: roleFromBackend }, expirationTime: new Date().toISOString(), issuedAtTime: new Date().toISOString(), signInProvider: null, signInSecond: undefined }),
-          reload: async () => {},
-          toJSON: () => ({}),
-        } as any);
-      } catch (e) {
-        // ignore role fetch failure, but still set a minimal user object
-        setUser({
-          uid: 'backend-user',
-          email: email,
-          displayName: email.split('@')[0],
-          photoURL: null,
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          phoneNumber: null,
-          createdAt: new Date().toISOString(),
-          lastSignInTime: new Date().toISOString(),
-          tenantId: null,
-          delete: async () => {},
-          getIdToken: async () => access || '',
-          getIdTokenResult: async () => ({ token: access, claims: {}, expirationTime: new Date().toISOString(), issuedAtTime: new Date().toISOString(), signInProvider: null, signInSecond: undefined }),
-          reload: async () => {},
-          toJSON: () => ({}),
-        } as any);
-      }
-
-      return { accessToken: access, refreshToken: refresh } as any;
+    // PHASE 2 REFACTOR (Free-Tier Production Hunt):
+    // Firebase-only authentication. No backend login processing.
+    // Frontend: Use Firebase SDK to authenticate user
+    // Backend: Validates Firebase ID token on every request via firebaseAuth middleware
+    // Role authority: Firebase custom claims (set via admin setCustomUserClaims on approval)
+    
+    debugLogger.info('AUTH_CONTEXT', 'Login attempt started', {
+      email,
+      timestamp: new Date().toISOString(),
+    });
+    
+    if (!auth) {
+      const error = new Error('Firebase auth not initialized');
+      debugLogger.error('AUTH_CONTEXT', 'Login failed - auth not initialized', error);
+      throw error;
     }
-
-    // If Firebase is not initialized and backend-login is not enabled, fail early
-    if (typeof window !== 'undefined' && !auth && !BACKEND_LOGIN_ENABLED) {
-      throw new Error('Firebase not configured and backend-login fallback is disabled. Set NEXT_PUBLIC_USE_BACKEND_LOGIN=1 for local dev or configure Firebase.');
-    }
-
-    // Default (Firebase) flow
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    // After sign-in, exchange ID token for backend access/refresh tokens (best-effort)
+    
     try {
-      const idToken = await cred.user.getIdToken();
-      const resp = await api.post('/auth/firebase/exchange', { idToken });
-      const access = resp.data?.accessToken || resp.data?.access_token;
-      const refresh = resp.data?.refreshToken || resp.data?.refresh_token;
-      if (access) {
-        try { localStorage.setItem('backend_access_token', access); } catch (e) {}
-      }
-      if (refresh) {
-        try { localStorage.setItem('backend_refresh_token', refresh); } catch (e) {}
-      }
-    } catch (e) {
-      // don't block login on exchange failure
+      debugLogger.debug('AUTH_CONTEXT', 'Calling Firebase signInWithEmailAndPassword');
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      
+      debugLogger.success('AUTH_CONTEXT', 'Firebase login successful', {
+        uid: cred.user.uid,
+        email: cred.user.email,
+        emailVerified: cred.user.emailVerified,
+      });
+      
+      // Firebase SDK handles token storage automatically (used by api client via getIdToken)
+      // onAuthStateChanged listener will extract roles from ID token claims
+      return cred;
+    } catch (error: any) {
+      debugLogger.error('AUTH_CONTEXT', 'Firebase login failed', {
+        code: error.code,
+        message: error.message,
+      });
+      throw error;
     }
-    return cred;
   };
 
   const logout = async (): Promise<void> => {
+    debugLogger.info('AUTH_CONTEXT', 'Logout initiated');
+    
     if (!COOKIE_MODE) {
-      try { localStorage.removeItem('backend_access_token'); } catch (e) {}
+      try { 
+        debugLogger.debug('AUTH_CONTEXT', 'Removing legacy tokens');
+        localStorage.removeItem('backend_access_token'); 
+      } catch (e) {}
       try { localStorage.removeItem('backend_refresh_token'); } catch (e) {}
     } else {
       // In cookie mode we rely on server cookies; attempt to clear server-side
       // refresh cookie by calling logout-cookie endpoint where possible (best-effort).
-      try { await api.post('/auth/logout-cookie'); } catch (_) { /* ignore */ }
+      try { 
+        debugLogger.debug('AUTH_CONTEXT', 'Calling server logout endpoint (cookie mode)');
+        await api.post('/auth/logout-cookie'); 
+      } catch (_) { 
+        debugLogger.warn('AUTH_CONTEXT', 'Server logout endpoint failed');
+      }
     }
-    return signOut(auth);
+    
+    try {
+      if (!auth) {
+        throw new Error('Firebase auth not initialized');
+      }
+      await signOut(auth);
+      debugLogger.success('AUTH_CONTEXT', 'Firebase logout successful');
+    } catch (error: any) {
+      debugLogger.error('AUTH_CONTEXT', 'Firebase logout failed', error);
+      throw error;
+    }
   };
 
   const getIdToken = async (): Promise<string | null> => {
-    if (!user) {return null;}
+    if (!user) {
+      debugLogger.debug('AUTH_CONTEXT', 'getIdToken: No user found');
+      return null;
+    }
+    
     try {
-      return await user.getIdToken();
+      debugLogger.debug('AUTH_CONTEXT', 'Getting ID token for user', { uid: user.uid });
+      const token = await user.getIdToken();
+      debugLogger.success('AUTH_CONTEXT', 'ID token retrieved successfully');
+      return token;
     } catch (error) {
+      debugLogger.error('AUTH_CONTEXT', 'Failed to get ID token', error);
       return null;
     }
   };
 
   const refreshRoles = async (): Promise<boolean> => {
+    debugLogger.info('AUTH_CONTEXT', 'Refreshing user roles');
+    
     try {
+      debugLogger.debug('AUTH_CONTEXT', 'Fetching user data from /v1/users/me');
       const res = await api.get('/v1/users/me');
       const role = res.data?.role;
+
       if (Array.isArray(role)) {
         setRoles(role as string[]);
+        debugLogger.success('AUTH_CONTEXT', 'Roles refreshed from backend (array)', {
+          roles: role,
+        });
+        return true;
       } else if (typeof role === 'string') {
-        setRoles(role.split(',').map((s: string) => s.trim()).filter(Boolean));
+        const parsedRoles = role.split(',').map((s: string) => s.trim()).filter(Boolean);
+        setRoles(parsedRoles);
+        debugLogger.success('AUTH_CONTEXT', 'Roles refreshed from backend (string)', {
+          roles: parsedRoles,
+          raw: role,
+        });
+        return true;
       } else if (res.data && res.data.role) {
         setRoles([String(res.data.role)]);
+        debugLogger.success('AUTH_CONTEXT', 'Roles refreshed from backend (single)', {
+          role: res.data.role,
+        });
+        return true;
       } else {
         // fallback to token claims
+        debugLogger.debug('AUTH_CONTEXT', 'No role in backend response, trying token claims');
+        if (!auth) {
+          debugLogger.error('AUTH_CONTEXT', 'Firebase auth not initialized');
+          return false;
+        }
         const u = auth.currentUser;
         if (!u) {
+          debugLogger.warn('AUTH_CONTEXT', 'No user found for token refresh');
           setRoles([]);
           return false;
         }
@@ -269,28 +264,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const claims = idTokenResult?.claims || {};
         if (Array.isArray(claims.roles)) {
           setRoles(claims.roles as string[]);
+          debugLogger.info('AUTH_CONTEXT', 'Roles refreshed from token claims (array)', {
+            roles: claims.roles,
+          });
         } else if (typeof claims.role === 'string') {
-          setRoles((claims.role as string).split(',').map(s => s.trim()).filter(Boolean));
+          const parsedRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
+          setRoles(parsedRoles);
+          debugLogger.info('AUTH_CONTEXT', 'Roles refreshed from token claims (string)', {
+            roles: parsedRoles,
+          });
         } else {
           setRoles([]);
+          debugLogger.debug('AUTH_CONTEXT', 'No roles in token claims');
         }
+        return true;
       }
-      return true;
-    } catch (e) {
+    } catch (e: any) {
+      debugLogger.warn('AUTH_CONTEXT', 'Error fetching from /v1/users/me', {
+        status: e.response?.status,
+        message: e.message,
+      });
+
       try {
+        debugLogger.debug('AUTH_CONTEXT', 'Attempting to refresh roles from token');
+        if (!auth) {
+          debugLogger.error('AUTH_CONTEXT', 'Firebase auth not initialized for token refresh fallback');
+          return false;
+        }
         const u = auth.currentUser;
-        if (!u) {return false;}
+        if (!u) {
+          debugLogger.error('AUTH_CONTEXT', 'No user found for token refresh fallback');
+          return false;
+        }
         const idTokenResult = await u.getIdTokenResult(true);
         const claims = idTokenResult?.claims || {};
         if (Array.isArray(claims.roles)) {
           setRoles(claims.roles as string[]);
+          debugLogger.success('AUTH_CONTEXT', 'Roles refreshed from token (fallback, array)', {
+            roles: claims.roles,
+          });
         } else if (typeof claims.role === 'string') {
-          setRoles((claims.role as string).split(',').map(s => s.trim()).filter(Boolean));
+          const parsedRoles = (claims.role as string).split(',').map(s => s.trim()).filter(Boolean);
+          setRoles(parsedRoles);
+          debugLogger.success('AUTH_CONTEXT', 'Roles refreshed from token (fallback, string)', {
+            roles: parsedRoles,
+          });
         } else {
           setRoles([]);
+          debugLogger.debug('AUTH_CONTEXT', 'No roles in token claims (fallback)');
         }
         return true;
-      } catch (err) {
+      } catch (err: any) {
+        debugLogger.error('AUTH_CONTEXT', 'Failed to refresh roles from token', {
+          code: err.code,
+          message: err.message,
+        });
         return false;
       }
     }

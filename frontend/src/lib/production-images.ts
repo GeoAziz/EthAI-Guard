@@ -12,12 +12,12 @@ export const productionImages = {
   },
   explainboard: {
     id: 'explainboard',
-    url: 'https://images.unsplash.com/photo-1631897713948-b0e0d8f2277f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080',
+    url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080',
     description: 'Abstract network graph for ExplainBoard feature',
   },
   compliance: {
     id: 'compliance',
-    url: 'https://images.unsplash.com/photo-1554821552-7acbed8a0f3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080',
+    url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080',
     description: 'Document and compliance reporting image',
   },
 

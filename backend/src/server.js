@@ -740,135 +740,24 @@ app.post(
 
 app.use(cookieParser());
 
-const loginLimiter = rateLimit({
-  windowMs: 5 * 60_000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts, try later' },
-  // Allow test harness / load scripts to bypass to avoid artificial 429 under load
-  skip: (req) => (process.env.DISABLE_RATE_LIMIT === '1') || (req.headers['x-test-bypass-ratelimit'] === '1'),
-});
+// ================================================================
+// PHASE 1 REFACTOR: Auth System Simplification
+// ================================================================
+// Removed: POST /auth/login (backend-only auth)
+// Firebase Auth is now the sole authentication provider
+// Frontend signs in using Firebase SDK directly
+// All API requests include Firebase ID token in Authorization header
+// Backend validates token via firebaseAuth middleware
+// ================================================================
 
-app.post(
-  '/auth/login',
-  loginLimiter,
-  body('email').isEmail().normalizeEmail(),
-  body('password').isString(),
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      const { email, password, deviceName } = req.body;
-      const user = await findUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid' });
-      }
-      const ok = await bcrypt.compare(password, user.password_hash);
-      if (!ok) {
-        return res.status(401).json({ error: 'Invalid' });
-      }
-
-      const accessToken = jwt.sign({ sub: user._id, role: user.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
-
-      // Generate and store refresh token (use unique jti for determinism)
-      const refreshTokenPayload = { sub: user._id, jti: uuidv4() };
-      const refreshTokenJwt = jwt.sign(refreshTokenPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
-      const storedToken = await storeRefreshToken(user._id, refreshTokenJwt, req, deviceName);
-
-      // Optionally set refresh token as secure HttpOnly cookie in production
-      if (process.env.USE_COOKIE_REFRESH === '1') {
-        const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 7 * 24 * 3600 * 1000 };
-        res.cookie('refreshToken', refreshTokenJwt, cookieOpts);
-        return res.json({ accessToken });
-      }
-      return res.json({ accessToken, refreshToken: refreshTokenJwt });
-    } catch (err) {
-      logger.error({ err }, 'Error during login');
-      return res.status(500).json({ error: 'Login failed' });
-    }
-  },
-);
-
-// Exchange Firebase ID token (client-side sign-in) for backend access/refresh tokens
-// Allows frontend to use Firebase Auth (client SDK) and then obtain backend JWTs
-app.post('/auth/firebase/exchange', async (req, res) => {
-  const idToken = req.body.idToken || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
-  if (!idToken) {
-    return res.status(400).json({ error: 'id_token_required' });
-  }
-  try {
-    // Ensure firebase is initialized via centralized helper
-    const firebaseAdmin = require('./services/firebaseAdmin');
-    firebaseAdmin.initFirebase();
-    const decoded = await firebaseAdmin.verifyIdToken(idToken);
-
-    // Reject exchange if the Firebase account email is not verified
-    if (decoded && decoded.email_verified === false) {
-      return res.status(403).json({ error: 'email_not_verified' });
-    }
-
-    // Find or provision a local user record (so backend can store role, devices, refresh tokens)
-    let userDoc;
-    // Provision or find local user; prefer copying role from Firebase custom claims when present
-    const firebaseRole = decoded.role || (decoded.claims && decoded.claims.role) || null;
-    if (USE_IN_MEMORY) {
-      userDoc = _users.find(u => u.firebase_uid === decoded.uid) || _users.find(u => u.email === decoded.email);
-      if (!userDoc) {
-        const id = String(_users.length + 1);
-        userDoc = { _id: id, name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' };
-        _users.push(userDoc);
-      } else if (firebaseRole && userDoc.role !== firebaseRole) {
-        userDoc.role = firebaseRole; // keep in-memory role in sync with Firebase claim
-      }
-    } else {
-      const User = require('./models/User');
-      userDoc = await User.findOne({ firebase_uid: { $eq: decoded.uid } }) || await User.findOne({ email: { $eq: decoded.email } });
-      if (!userDoc) {
-        userDoc = await User.create({ name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'firebase-user'), email: decoded.email, firebase_uid: decoded.uid, role: firebaseRole || 'user' });
-      } else {
-        let changed = false;
-        if (!userDoc.firebase_uid) {
-          userDoc.firebase_uid = decoded.uid;
-          changed = true;
-        }
-        if (firebaseRole && userDoc.role !== firebaseRole) {
-          userDoc.role = firebaseRole;
-          changed = true;
-        }
-        if (changed) {
-          await userDoc.save();
-        }
-      }
-    }
-
-    // Issue backend tokens (access + refresh)
-    const accessToken = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
-    const refreshPayload = { sub: userDoc._id, jti: uuidv4() };
-    const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
-    await storeRefreshToken(userDoc._id, refreshTokenJwt, req);
-
-    // If cookie-based sessions are enabled, set HttpOnly cookies for refresh and access tokens
-    if (process.env.USE_COOKIE_REFRESH === '1') {
-      const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' };
-      // access token life matches jwt expiration (15 minutes)
-      cookieOpts.maxAge = 15 * 60 * 1000;
-      res.cookie('accessToken', accessToken, cookieOpts);
-      // refresh token longer-lived
-      const refreshCookieOpts = { ...cookieOpts, maxAge: 7 * 24 * 3600 * 1000 };
-      res.cookie('refreshToken', refreshTokenJwt, refreshCookieOpts);
-      // Return minimal payload to client; client will not need the raw tokens when cookies are used
-      return res.json({ status: 'ok' });
-    }
-
-    return res.json({ accessToken, refreshToken: refreshTokenJwt });
-  } catch (e) {
-    logger.error({ err: e }, 'firebase_exchange_failed');
-    return res.status(401).json({ error: 'invalid_id_token' });
-  }
-});
+// ================================================================
+// PHASE 1 REFACTOR: Removed token exchange endpoint
+// ================================================================
+// Removed: POST /auth/firebase/exchange
+// Frontend now sends Firebase ID token directly with each request
+// Backend validates token via firebaseAuth middleware
+// No need for backend token conversion
+// ================================================================
 
 // Lightweight verify endpoint used by frontend middleware to obtain minimal auth info (uid + role)
 // Reads HttpOnly cookies (accessToken or refreshToken) and returns { userId, role }

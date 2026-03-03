@@ -1,4 +1,4 @@
-
+import { Suspense } from 'react';
 import LandingPageClient from './LandingPageClient';
 import type { Metadata } from 'next';
 
@@ -15,5 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <LandingPageClient />;
+  return (
+    <Suspense fallback={null}>
+      <LandingPageClient />
+    </Suspense>
+  );
 }

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Github, BookOpen, FileText } from 'lucide-react';

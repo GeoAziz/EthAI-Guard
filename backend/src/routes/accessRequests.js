@@ -147,25 +147,26 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
       await ar.save();
     }
 
-    // assign role to user if email present (best-effort; may be noop in in-memory mode)
+    // Assign role to user via Firebase custom claims (Firebase is the sole auth provider)
+    // PHASE 3 REFACTOR: Only sync to Firebase, don't update MongoDB role field
     let claimsSync = { status: 'skipped', message: 'no-email-or-not-configured' };
     if (ar.email) {
       try {
         if (!USE_IN_MEMORY) {
+          // Ensure MongoDB user record exists for audit trails, but don't store role there
           let u = await User.findOne({ email: ar.email });
           if (!u) {
-            u = await User.create({ name: ar.name || ar.email.split('@')[0], email: ar.email, role: 'admin' });
-          } else {
-            u.role = 'admin';
-            await u.save();
+            u = await User.create({ 
+              name: ar.name || ar.email.split('@')[0], 
+              email: ar.email,
+              // NOTE: role field removed; roles live in Firebase custom claims only
+            });
           }
-          await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, target_user: u._id, details: { requestId: ar._id } });
+          // Log audit trail with MongoDB user ID
+          await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, target_user: u._id, details: { requestId: ar._id, newRole: 'admin' } });
 
-          // Try to sync role to Firebase custom claims (best-effort).
+          // Sync role to Firebase custom claims (this is the single source of truth)
           try {
-            // Use centralized firebaseAdmin wrapper (best-effort). This avoids
-            // duplicating initialization logic in many routes and centralizes
-            // error handling for missing credentials.
             const firebaseAdmin = require('../services/firebaseAdmin');
             // Determine uid: prefer stored firebase_uid, else lookup by email
             let uid = u.firebase_uid;
@@ -175,8 +176,9 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
                 uid = fbUser && fbUser.uid;
               }
               if (uid) {
+                // Set the role in Firebase custom claims (the ONLY place roles are stored)
                 await firebaseAdmin.setCustomUserClaims(uid, { role: 'admin' });
-                logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set');
+                logger.info({ uid, email: ar.email }, 'firebase_custom_claims_set_for_role_approval');
                 claimsSync = { status: 'success', message: 'custom_claims_set' };
                 try {
                   if (claimsSyncSuccessTotal) {
@@ -201,20 +203,20 @@ router.post('/v1/access-requests/:id/approve', authGuard, requireRole('admin'), 
               } catch (mErr) { }
             }
           } catch (e) {
-            logger.warn({ err: e }, 'firebase_custom_claims_best_effort_failed');
+            logger.warn({ err: e }, 'firebase_custom_claims_sync_failed');
             claimsSync = { status: 'failed', message: e.message || String(e) };
           }
         } else {
           // in-memory mode: just log audit
-          await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, details: { requestId: ar._id } });
+          await auditLogger.log({ event_type: 'ACCESS_REQUEST_APPROVED', actor: req.user.sub, details: { requestId: ar._id, newRole: 'admin' } });
           claimsSync = { status: 'skipped', message: 'in_memory_mode' };
         }
       } catch (e) {
-        logger.warn({ err: e }, 'assign_role_best_effort_failed');
+        logger.warn({ err: e }, 'role_approval_failed');
         claimsSync = { status: 'failed', message: e.message || String(e) };
         try {
           if (claimsSyncFailureTotal) {
-            claimsSyncFailureTotal.inc({ reason: 'assign_role_failed' });
+            claimsSyncFailureTotal.inc({ reason: 'role_approval_error' });
           }
         } catch (mErr) { }
       }
@@ -398,23 +400,53 @@ router.patch('/v1/users/:id/role', authGuard, requireRole('admin'), body('role')
 router.get('/v1/users/me', authGuard, async (req, res) => {
   try {
     const mongoose = require('mongoose');
+    
+    // PHASE 2 REFACTOR: Role comes from Firebase custom claims, not MongoDB
+    // Return role from req.role (set by firebaseAuth middleware from custom claims)
     if (process.env.USE_IN_MEMORY === '1' || process.env.NODE_ENV === 'test') {
-      // in-memory: try to respond with minimal stub
-      return res.json({ id: req.user?.sub || null, email: req.user?.email || null, role: req.role || 'user', name: null });
+      // in-memory: respond with minimal stub using Firebase role
+      return res.json({ 
+        id: req.user?.sub || null, 
+        email: req.user?.email || null, 
+        role: req.role || 'user',  // Role from Firebase custom claims
+        name: null 
+      });
     }
+    
     const User = require('../models/User');
-    const id = req.user && req.user.sub ? String(req.user.sub) : null;
+    // Try to find user by mongoUserId (set by firebaseAuth middleware) or Firebase UID
+    const mongoUserId = req.mongoUserId;
+    const firebaseUid = req.userId;
+    
     let u = null;
-    if (id) {
-      u = await User.findById(id).select('name email role firebase_uid').lean();
+    if (mongoUserId) {
+      u = await User.findById(mongoUserId).select('name email firebase_uid').lean();
+    }
+    if (!u && firebaseUid) {
+      u = await User.findOne({ firebase_uid: firebaseUid }).select('name email firebase_uid').lean();
     }
     if (!u && req.user && req.user.email) {
-      u = await User.findOne({ email: req.user.email }).select('name email role firebase_uid').lean();
+      u = await User.findOne({ email: req.user.email }).select('name email firebase_uid').lean();
     }
+    
     if (!u) {
-      return res.status(404).json({ error: 'not_found' });
+      // Return minimal response even if user not in MongoDB
+      // (auto-provision happens on first login with firebaseAuth middleware)
+      return res.json({ 
+        id: firebaseUid, 
+        email: req.user?.email || null, 
+        name: null,
+        role: req.role || 'user'  // Role from Firebase, not MongoDB
+      });
     }
-    return res.json({ id: u._id || u.id, email: u.email, name: u.name, role: u.role });
+    
+    // Return user data with role from Firebase custom claims (never from MongoDB)
+    return res.json({ 
+      id: u._id || firebaseUid, 
+      email: u.email, 
+      name: u.name, 
+      role: req.role || 'user'  // ALWAYS use Firebase role, never MongoDB
+    });
   } catch (e) {
     logger.error({ err: e }, 'users_me_failed');
     return res.status(500).json({ error: 'failed' });
