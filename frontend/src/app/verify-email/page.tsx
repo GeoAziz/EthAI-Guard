@@ -37,8 +37,10 @@ export default function VerifyEmailPage() {
 
     const checkEmailVerified = async () => {
       try {
+        const currentUser = auth?.currentUser;
+
         // Refresh the current user to check email status
-        if (!auth.currentUser) {
+        if (!currentUser) {
           if (isMounted) {
             toast(toastMessages.verifyEmail.sessionExpiredVerify);
             announce('Your session has ended. Please sign in again.');
@@ -48,13 +50,14 @@ export default function VerifyEmailPage() {
         }
 
         // Reload to get fresh emailVerified state
-        await auth.currentUser.reload();
+        await currentUser.reload();
+        const refreshedUser = auth?.currentUser ?? currentUser;
 
         if (isMounted) {
-          setUserEmail(auth.currentUser.email || '');
+          setUserEmail(refreshedUser.email || '');
         }
 
-        if (auth.currentUser.emailVerified) {
+        if (refreshedUser.emailVerified) {
           // Email verified! Get fresh roles and redirect
           if (isMounted) {
             try {
@@ -168,7 +171,9 @@ export default function VerifyEmailPage() {
     }
 
     // Check if user is still logged in
-    if (!auth.currentUser) {
+    const currentUser = auth?.currentUser;
+
+    if (!currentUser) {
       toast(toastMessages.verifyEmail.sessionExpiredVerify);
       announce('Your session has ended. Redirecting to sign in.');
       setTimeout(() => router.push('/login'), 1500);
@@ -177,7 +182,7 @@ export default function VerifyEmailPage() {
 
     setSending(true);
     try {
-      await sendEmailVerification(auth.currentUser);
+      await sendEmailVerification(currentUser);
 
       // Set 5-minute cooldown
       const cooldownEnd = Date.now() + 5 * 60 * 1000;

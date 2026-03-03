@@ -77,9 +77,12 @@ const landingMenuItems = [
 
 export default function LandingPageClient() {
   const searchParams = useSearchParams();
+  const [isClientReady, setIsClientReady] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   useEffect(() => {
+    setIsClientReady(true);
+
     // Initialize debug logging
     debugLogger.info('LANDING_PAGE', 'Landing page mounted');
     debugLogger.debug('LANDING_PAGE', 'User agent', { userAgent: navigator.userAgent });
@@ -544,12 +547,12 @@ export default function LandingPageClient() {
       <Footer />
 
       {/* Debug Panel */}
-      {showDebugPanel && (
+      {isClientReady && showDebugPanel && (
         <DebugPanel onClose={() => setShowDebugPanel(false)} />
       )}
 
       {/* Debug Mode Toggle - only visible if debug mode is enabled */}
-      {debugLogger.isDebugMode() && !showDebugPanel && (
+      {isClientReady && debugLogger.isDebugMode() && !showDebugPanel && (
         <button
           onClick={() => setShowDebugPanel(true)}
           className="fixed bottom-4 right-4 z-[9998] p-2 rounded-full bg-orange-500/80 text-white hover:bg-orange-600 shadow-lg"

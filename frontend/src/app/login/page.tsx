@@ -60,7 +60,7 @@ export default function LoginPage() {
       
       // Perform login
       const cred = await login(values.email, values.password);
-      const current = auth.currentUser || (cred && (cred as any).user);
+      const current = auth?.currentUser ?? (cred as any)?.user;
 
       debugLogger.success('LOGIN', 'Firebase authentication successful', {
         uid: current?.uid,
@@ -217,7 +217,7 @@ export default function LoginPage() {
     });
 
     try {
-      const current = auth.currentUser;
+      const current = auth?.currentUser;
       if (current) {
         debugLogger.info('LOGIN_PAGE', 'User already signed in', {
           uid: current.uid,
@@ -233,6 +233,11 @@ export default function LoginPage() {
       }
 
       // Listen for auth state changes to update UI
+      if (!auth) {
+        debugLogger.warn('LOGIN_PAGE', 'Firebase auth not initialized for auth state subscription');
+        return;
+      }
+
       const unsub = auth.onAuthStateChanged((u) => {
         if (u) {
           debugLogger.info('LOGIN_PAGE', 'Auth state changed - user signed in', {
@@ -255,7 +260,7 @@ export default function LoginPage() {
     debugLogger.info('LOGIN', 'Inline resend initiated');
     
     try {
-      const current = auth.currentUser;
+      const current = auth?.currentUser;
       if (!current) {
         debugLogger.warn('LOGIN', 'No user found for resend', {
           timestamp: new Date().toISOString(),
