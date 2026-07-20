@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { LoadingState } from '@/components/ui/loading-state';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
@@ -117,12 +118,9 @@ export default function ReviewerProfilePage() {
         </div>
 
         <div className="mt-6">
-          {loading ? (
-            <div className="rounded-lg border bg-white p-4 sm:p-6">
-              <div className="text-xs sm:text-sm text-muted-foreground">Loading profile…</div>
-            </div>
-          ) : profile ? (
-            <div className="space-y-6">
+          <LoadingState loading={loading} onRetry={() => window.location.reload()} loadingText="Loading profile...">
+            {profile ? (
+              <div className="space-y-6">
               {/* Profile Information */}
               <div className="rounded-lg border bg-white p-4 sm:p-6">
                 <h3 className="font-semibold text-sm sm:text-base mb-4">Profile Information</h3>
@@ -244,12 +242,13 @@ export default function ReviewerProfilePage() {
                   </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="rounded-lg border bg-white p-4 sm:p-6 text-center">
-              <p className="text-xs sm:text-sm text-muted-foreground">Profile not available</p>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="rounded-lg border bg-white p-4 sm:p-6 text-center">
+                <p className="text-xs sm:text-sm text-muted-foreground">Profile not available</p>
+              </div>
+            )}
+          </LoadingState>
         </div>
       </div>
     </RoleProtected>

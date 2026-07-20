@@ -1,5 +1,8 @@
 name: Security Scanning (SAST + Dependency Check + Advanced Analysis)
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, develop]
@@ -46,24 +49,33 @@ jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ai_core/requirements.txt
 
       - name: npm audit (backend)
         working-directory: ./backend
         run: |
-          npm install
+          npm ci
+          npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: npm audit (frontend)
+        working-directory: ./frontend
+        run: |
+          npm ci
           npm audit --audit-level=high
         continue-on-error: true
 
@@ -94,6 +106,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Optional
+          GITLEAKS_CONFIG: .gitleaks.toml
 
       - name: Check Gitleaks SARIF exists
         id: check-gitleaks-sarif
@@ -132,7 +145,7 @@ jobs:
 
       - name: Run Trivy (backend)
         id: trivy_backend
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ethixai/backend:${{ github.sha }}
           format: 'sarif'
@@ -155,7 +168,7 @@ jobs:
 
       - name: Run Trivy (ai_core)
         id: trivy_ai_core
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ethixai/ai_core:${{ github.sha }}
           format: 'sarif'
@@ -196,7 +209,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Setup Python
         uses: actions/setup-python@v4

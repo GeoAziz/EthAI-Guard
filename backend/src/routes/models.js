@@ -13,8 +13,10 @@ const {
   listModelVersions,
   promoteModel,
   writeAudit,
+  getRetrainMetrics,
+  listRetrainRequestsByModel,
 } = require('../storage/models');
-const { startRetrain } = require('../jobs/retrain');
+const { triggerRetrain, completeExternalRetrain } = require('../jobs/retrain');
 const { asyncHandler, validationError, notFoundError } = require('../errorHandler');
 
 // Conditional auth: use Firebase when configured; else local JWT
@@ -46,18 +48,69 @@ router.post(
     
     const created = await createRetrainRequest(modelId, payload);
     await writeAudit('retrain_requested', { reason: payload.reason }, actor, modelId, created.requestId);
-    
-    // Kick off worker asynchronously
+
+    // Kick off worker asynchronously (GitHub Actions if configured, else local simulated pipeline)
     setImmediate(() => {
-      const { startRetrainWithId } = require('../jobs/retrain');
-      startRetrainWithId(modelId, payload, created.requestId, actor)
+      triggerRetrain(modelId, payload, created.requestId, actor)
         .catch(e => logger.error({ err: e?.message }, 'retrain_async_failed'));
     });
-    
-    res.status(202).json({ 
-      status: 'queued', 
-      requestId: created.requestId 
+
+    res.status(202).json({
+      status: 'queued',
+      requestId: created.requestId
     });
+  }),
+);
+
+// External runner (e.g. GitHub Actions workflow) reports completion + performance metrics.
+// Authenticated with a shared secret rather than a user token since the caller is CI, not a user.
+router.post(
+  '/v1/retrain/:requestId/complete',
+  body('status').optional().isString(),
+  body('performance_metrics').optional().isObject(),
+  asyncHandler(async (req, res) => {
+    const secret = process.env.RETRAIN_CALLBACK_SECRET;
+    if (secret && req.headers['x-retrain-secret'] !== secret) {
+      res.status(401);
+      throw new Error('unauthorized');
+    }
+    const updated = await completeExternalRetrain(req.params.requestId, req.body || {});
+    if (!updated) {
+      res.status(404);
+      throw notFoundError('Retrain request');
+    }
+    res.json({ status: 'ok', requestId: req.params.requestId });
+  }),
+);
+
+// Performance metrics for a completed retrain request (admin only)
+router.get(
+  '/v1/retrain/:requestId/performance',
+  authGuard,
+  requireRole('admin'),
+  asyncHandler(async (req, res) => {
+    const metrics = await getRetrainMetrics(req.params.requestId);
+    if (!metrics) {
+      res.status(404);
+      throw notFoundError('Performance metrics');
+    }
+    res.json({ requestId: req.params.requestId, metrics: metrics.metrics, recordedAt: metrics.recordedAt });
+  }),
+);
+
+// Retrain history for a model, enriched with performance metrics (admin only)
+router.get(
+  '/v1/models/:id/retrain-history',
+  authGuard,
+  requireRole('admin'),
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 100);
+    const requests = await listRetrainRequestsByModel(req.params.id, limit);
+    const enriched = await Promise.all(requests.map(async (r) => ({
+      ...r,
+      performance_metrics: (await getRetrainMetrics(r.requestId))?.metrics || null,
+    })));
+    res.json({ model_id: req.params.id, count: enriched.length, retrainHistory: enriched });
   }),
 );
 

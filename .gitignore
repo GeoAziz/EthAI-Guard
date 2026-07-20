@@ -1,17 +1,24 @@
-# Repo-level ignores
-# Ignore node_modules everywhere
+# Dependencies
 node_modules/
 **/node_modules/
 
-# Environment
+# Environment & secrets
 .env
 .env.*
-
-# Credentials and secret baselines
+!.env.example
 credentials*
-.secrets.baseline
 *.secret
 *.secrets
+serviceAccountKey.json
+creds.md
+
+# Python
+.venv/
+.venv_*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
 
 # OS
 .DS_Store
@@ -19,31 +26,25 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Editor
 .vscode/
 .idea/
 
-# Python virtual envs
-.venv/
-venv/
-
-# Local virtualenv used by tests
-.venv_ai_core/
-.venv/
-venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-
 # Temporary
 *.tmp
-serviceAccountKey.json
-creds.md
-PRE_DEMO_CHECKLIST.md
-STATIC_TO_DYNAMIC_TRANSFORMATION.md
-docs/monitoring/monitoring_infrastructure.md
-diagnose-firebase.sh
-docs/deploy/secrets-management.md
-docs/SECRETS_MANAGEMENT.md
-docs/SECRET_MANAGEMENT_QUICK_REF.md
+*.bak
+*.orig
+*.swp
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+
+# Runtime job artifacts / local scratch
+backend/tmp/
+tmp/
+reports/
+*.tmp.js

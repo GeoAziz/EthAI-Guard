@@ -1,0 +1,43 @@
+# Snyk Configuration File
+# Scan for vulnerabilities in dependencies and code
+
+version: v1.1341.0
+
+# Vulnerability severity threshold
+fail-on: high
+
+# Exclude specific paths
+exclude:
+  - node_modules
+  - .venv_verify
+  - coverage
+  - dist
+  - build
+  - .git
+
+# Ignore specific vulnerabilities (use sparingly, document why)
+ignore:
+  # Example: SNYK-JS-LODASH-XXX: "Until lodash updates to v4.18.21"
+
+# Enable SAST (Static Application Security Testing)
+sast: true
+
+# Test settings
+test:
+  # Fail on vulnerabilities
+  fail-on-vulnerabilities: true
+
+  # Severity threshold
+  severity-threshold: high
+
+  # Monitor for new vulnerabilities
+  monitor: true
+
+# Development dependencies scanning
+dev-dependencies: true
+
+# License compliance
+# license-policy:
+#   - MIT: allow
+#   - Apache-2.0: allow
+#   - GPL-2.0: deny

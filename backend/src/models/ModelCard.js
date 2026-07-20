@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
+const tenantScopePlugin = require('./plugins/tenantScope');
 
 /**
  * Model Card Schema
  * Stores comprehensive AI model documentation per the Model Cards design spec
  */
 const ModelCardSchema = new mongoose.Schema({
+  tenantId: { type: String, index: true },
   // Section 1: Model Metadata
   model_metadata: {
     model_id: {
@@ -403,6 +405,8 @@ ModelCardSchema.pre('save', function (next) {
   next();
 });
 
-const ModelCard = mongoose.model('ModelCard', ModelCardSchema);
+ModelCardSchema.plugin(tenantScopePlugin);
+
+const ModelCard = mongoose.models?.ModelCard || mongoose.model('ModelCard', ModelCardSchema);
 
 module.exports = ModelCard;

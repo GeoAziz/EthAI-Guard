@@ -1,11 +1,258 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: EthixAI API
-  version: '0.1.0'
+  description: |
+    Ethical AI Governance Platform API - Real-time bias detection, SHAP explanations,
+    and comprehensive monitoring for financial decision-making systems.
+  version: '1.0.0'
+  contact:
+    name: EthixAI Support
+    email: support@ethixai.com
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://api.ethixai.com
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication and authorization
+  - name: Analysis
+    description: Bias detection and fairness analysis
+  - name: Models
+    description: Model management and retraining
+  - name: Governance
+    description: Approval workflows and compliance
+  - name: Audit
+    description: Audit logs and compliance trails
+  - name: Reports
+    description: Compliance report generation
+  - name: Evaluation
+    description: Model evaluation and risk scoring
+  - name: Policies
+    description: Policy management and enforcement
+  - name: Health
+    description: Service health and metrics
+
 paths:
+  # ==================== HEALTH & METRICS ====================
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                  version:
+                    type: string
+
+  /metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ==================== AUTHENTICATION ====================
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already exists
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with credentials
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '401':
+          description: Invalid refresh token
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and revoke refresh token
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/devices:
+    get:
+      tags: [Auth]
+      summary: List active sessions/devices
+      operationId: listDevices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of active devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/devices/{deviceId}:
+    delete:
+      tags: [Auth]
+      summary: Revoke device session
+      operationId: revokeDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device session revoked
+        '404':
+          description: Device not found
+
+  # ==================== ANALYSIS ====================
+  /api/analyze:
+    post:
+      tags: [Analysis]
+      summary: Perform bias analysis on dataset
+      operationId: analyzeDataset
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisInput'
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisOutput'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          description: Dataset too large or invalid
+        '500':
+          description: Analysis failed
+
   /ai_core/analyze:
     post:
-      summary: Perform bias analysis on dataset
+      tags: [Analysis]
+      summary: Direct AI Core analysis endpoint
+      description: Internal endpoint for direct AI Core communication
+      operationId: analyzeDirect
       requestBody:
         required: true
         content:
@@ -19,15 +266,723 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalysisOutput'
+
+  # ==================== MODELS ====================
+  /api/v1/models/{id}/trigger-retrain:
+    post:
+      tags: [Models]
+      summary: Trigger model retraining
+      operationId: triggerRetrain
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Model ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                baseline_snapshot_id:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '202':
+          description: Retraining queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: queued
+                  requestId:
+                    type: string
+        '403':
+          description: Admin role required
+
+  /api/v1/retrain/{requestId}/complete:
+    post:
+      tags: [Models]
+      summary: Report retraining completion (CI callback)
+      operationId: completeRetrain
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                performance_metrics:
+                  type: object
+      responses:
+        '200':
+          description: Retraining marked complete
+        '401':
+          description: Invalid callback secret
+        '404':
+          description: Request not found
+
+  /api/v1/models/{id}/versions:
+    get:
+      tags: [Models]
+      summary: List model versions
+      operationId: listModelVersions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of model versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelVersion'
+
+  /api/v1/models/{id}/versions/{version}/promote:
+    post:
+      tags: [Models]
+      summary: Promote model version to production
+      operationId: promoteModel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model promoted
+        '403':
+          description: Admin role required
+
+  # ==================== EVALUATION ====================
+  /api/v1/evaluate:
+    post:
+      tags: [Evaluation]
+      summary: Evaluate model decision with risk scoring
+      operationId: evaluateDecision
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationInput'
+      responses:
+        '200':
+          description: Evaluation results with risk score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationOutput'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== GOVERNANCE ====================
+  /api/governance/approval-workflows:
+    post:
+      tags: [Governance]
+      summary: Create approval workflow
+      operationId: createWorkflow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowInput'
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      tags: [Governance]
+      summary: List approval workflows
+      operationId: listWorkflows
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, completed]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /api/governance/approval-workflows/{workflowId}:
+    get:
+      tags: [Governance]
+      summary: Get workflow details
+      operationId: getWorkflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workflow details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          description: Workflow not found
+
+  /api/governance/approval-workflows/{workflowId}/approvals/{approvalRequestId}:
+    post:
+      tags: [Governance]
+      summary: Submit approval decision
+      operationId: submitApproval
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: approvalRequestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved:
+                  type: boolean
+                reason:
+                  type: string
+                comments:
+                  type: string
+      responses:
+        '200':
+          description: Approval recorded
+        '404':
+          description: Request not found
+
+  /api/governance/compliance-signoffs:
+    post:
+      tags: [Governance]
+      summary: Create compliance sign-off request
+      operationId: createSignOff
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignOffInput'
+      responses:
+        '201':
+          description: Sign-off request created
+
+  /api/governance/audit-callbacks:
+    post:
+      tags: [Governance]
+      summary: Submit audit callback
+      operationId: submitAuditCallback
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                callback_type:
+                  type: string
+                payload:
+                  type: object
+      responses:
+        '200':
+          description: Callback processed
+
+  # ==================== AUDIT LOGS ====================
+  /api/audit/logs:
+    get:
+      tags: [Audit]
+      summary: Query audit logs
+      operationId: queryAuditLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: model_id
+          in: query
+          schema:
+            type: string
+        - name: event_type
+          in: query
+          schema:
+            type: string
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: result
+          in: query
+          schema:
+            type: string
+        - name: compliance_status
+          in: query
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: '-timestamp'
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /api/audit/logs/{model_id}/trail:
+    get:
+      tags: [Audit]
+      summary: Get audit trail for specific model
+      operationId: getModelAuditTrail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: model_version
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+
+  # ==================== POLICIES ====================
+  /api/policies:
+    get:
+      tags: [Policies]
+      summary: List policies
+      operationId: listPolicies
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Policy'
+
+    post:
+      tags: [Policies]
+      summary: Create policy
+      operationId: createPolicy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyInput'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+
+  /api/policies/{policyId}:
+    get:
+      tags: [Policies]
+      summary: Get policy details
+      operationId: getPolicy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy details
+        '404':
+          description: Policy not found
+
+    put:
+      tags: [Policies]
+      summary: Update policy
+      operationId: updatePolicy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyInput'
+      responses:
+        '200':
+          description: Policy updated
+        '404':
+          description: Policy not found
+
+    delete:
+      tags: [Policies]
+      summary: Delete policy
+      operationId: deletePolicy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Policy deleted
+        '404':
+          description: Policy not found
+
+  # ==================== REPORTS ====================
+  /api/reports:
+    get:
+      tags: [Reports]
+      summary: List compliance reports
+      operationId: listReports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+
+  /api/reports/{reportId}:
+    get:
+      tags: [Reports]
+      summary: Get report details
+      operationId: getReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report details
+        '404':
+          description: Report not found
+
+  # ==================== DRIFT DETECTION ====================
+  /api/drift/{modelId}:
+    get:
+      tags: [Analysis]
+      summary: Get drift detection results for model
+      operationId: getDriftResults
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Drift analysis results
+
+  # ==================== MULTI-TENANT ====================
+  /api/tenants:
+    get:
+      tags: [Auth]
+      summary: List tenants (admin only)
+      operationId: listTenants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tenant'
+
+    post:
+      tags: [Auth]
+      summary: Create tenant (admin only)
+      operationId: createTenant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                settings:
+                  type: object
+      responses:
+        '201':
+          description: Tenant created
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
+    # ==================== AUTH SCHEMAS ====================
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, analyst, reviewer, user]
+        tenantId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        userAgent:
+          type: string
+        ip:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    # ==================== ANALYSIS SCHEMAS ====================
     AnalysisInput:
       type: object
+      required: [dataset_name, data]
       properties:
         dataset_name:
           type: string
         data:
           type: object
+          description: Dataset columns and values
+        protected_attribute:
+          type: string
+          description: Column name for protected attribute
+        model_type:
+          type: string
+          enum: [credit_scoring, loan_approval, hiring]
+        target_column:
+          type: string
+
     AnalysisOutput:
       type: object
       properties:
@@ -35,3 +990,328 @@ components:
           type: string
         summary:
           type: object
+          properties:
+            fairness_score:
+              type: number
+              minimum: 0
+              maximum: 100
+            demographic_parity_difference:
+              type: number
+            equal_opportunity_difference:
+              type: number
+            equalized_odds_difference:
+              type: number
+            disparate_impact_ratio:
+              type: number
+            bias_detected:
+              type: boolean
+            violations:
+              type: array
+              items:
+                type: string
+        shap_explanations:
+          type: object
+        recommendations:
+          type: array
+          items:
+            type: string
+
+    # ==================== EVALUATION SCHEMAS ====================
+    EvaluationInput:
+      type: object
+      required: [user_id, model_id, input_features]
+      properties:
+        user_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        model_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        input_features:
+          type: object
+        context:
+          type: object
+        decision_timestamp:
+          type: string
+          format: date-time
+
+    EvaluationOutput:
+      type: object
+      properties:
+        request_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        model_id:
+          type: string
+        simulation:
+          type: object
+        rules:
+          type: object
+        risk:
+          type: object
+          properties:
+            score:
+              type: number
+            level:
+              type: string
+              enum: [low, medium, high, critical]
+        explanation:
+          type: object
+        storage_id:
+          type: string
+
+    # ==================== MODEL SCHEMAS ====================
+    ModelVersion:
+      type: object
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+          enum: [draft, staging, production, archived]
+        created_at:
+          type: string
+          format: date-time
+        performance_metrics:
+          type: object
+
+    # ==================== GOVERNANCE SCHEMAS ====================
+    WorkflowInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [model_approval, policy_change, compliance_review]
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              approvers:
+                type: array
+                items:
+                  type: string
+              required_approvals:
+                type: integer
+        entityType:
+          type: string
+        entityId:
+          type: string
+        entityVersion:
+          type: string
+
+    Workflow:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, approved, rejected, completed]
+        stages:
+          type: array
+          items:
+            type: object
+        initiatedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SignOffInput:
+      type: object
+      required: [type, entity_id, signee]
+      properties:
+        type:
+          type: string
+        entity_id:
+          type: string
+        signee:
+          type: string
+        comments:
+          type: string
+
+    # ==================== AUDIT SCHEMAS ====================
+    AuditLog:
+      type: object
+      properties:
+        _id:
+          type: string
+        model_id:
+          type: string
+        event_type:
+          type: string
+        actor:
+          type: string
+        result:
+          type: string
+        compliance_status:
+          type: string
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    # ==================== POLICY SCHEMAS ====================
+    PolicyInput:
+      type: object
+      required: [name, rules]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              metric:
+                type: string
+              threshold:
+                type: number
+              operator:
+                type: string
+                enum: [gt, gte, lt, lte, eq, neq]
+        enforcement:
+          type: string
+          enum: [block, warn, log]
+        enabled:
+          type: boolean
+          default: true
+
+    Policy:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        rules:
+          type: array
+        enforcement:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # ==================== REPORT SCHEMAS ====================
+    Report:
+      type: object
+      properties:
+        _id:
+          type: string
+        analysisId:
+          type: string
+        userId:
+          type: string
+        summary:
+          type: object
+        fairnessScore:
+          type: number
+        biasMetrics:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    # ==================== TENANT SCHEMAS ====================
+    Tenant:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        settings:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    # ==================== COMMON SCHEMAS ====================
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        total_pages:
+          type: integer
+        total_records:
+          type: integer
+        per_page:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: validation_failed
+            message: 'Invalid input parameters'
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: unauthorized
+            message: 'Authentication required'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: forbidden
+            message: 'Insufficient permissions'

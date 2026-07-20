@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const tenantScopePlugin = require('./plugins/tenantScope');
 
 const AccessRequestSchema = new mongoose.Schema({
   name: { type: String },
@@ -8,6 +9,7 @@ const AccessRequestSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   handledBy: { type: String, default: null },
   handledAt: { type: Date, default: null },
+  tenantId: { type: String, index: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
@@ -17,4 +19,6 @@ AccessRequestSchema.pre('save', function (next) {
   next();
 });
 
-module.exports = mongoose.model('AccessRequest', AccessRequestSchema);
+AccessRequestSchema.plugin(tenantScopePlugin);
+
+module.exports = mongoose.models?.AccessRequest || mongoose.model('AccessRequest', AccessRequestSchema);

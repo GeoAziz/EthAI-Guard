@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { LoadingState } from '@/components/ui/loading-state';
 import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
@@ -172,17 +173,9 @@ export default function DashboardLayout({
           </div>
         </header>
         <main className="flex-1">
-          {/* Show spinner while checking auth */}
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[400px]">
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Loading dashboard...</p>
-              </div>
-            </div>
-          ) : (
-            children
-          )}
+          <LoadingState loading={loading} loadingText="Loading dashboard...">
+            {children}
+          </LoadingState>
         </main>
       </SidebarInset>
     </SidebarProvider>

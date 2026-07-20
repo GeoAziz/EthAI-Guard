@@ -17,6 +17,12 @@ from .algorithms import (  # type: ignore
     compute_explanation_stability,
     aggregate_drift_metrics
 )
+from .advanced import (  # type: ignore
+    compute_multivariate_drift,
+    detect_anomalies_isolation_forest,
+    detect_anomalies_lof,
+    compute_causal_drift
+)
 from .baseline import BaselineManager  # type: ignore
 from .alerts import AlertManager  # type: ignore
 from .worker import DriftWorker  # type: ignore
@@ -32,6 +38,10 @@ __all__ = [
     'compute_data_quality_drift',
     'compute_explanation_stability',
     'aggregate_drift_metrics',
+    'compute_multivariate_drift',
+    'detect_anomalies_isolation_forest',
+    'detect_anomalies_lof',
+    'compute_causal_drift',
     'BaselineManager',
     'AlertManager',
     'DriftWorker'

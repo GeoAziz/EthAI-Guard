@@ -2,15 +2,13 @@
 
 **Empowering Ethical, Transparent, and Inclusive Financial Decisions Through AI**
 
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-passing-brightgreen)](https://github.com/yourusername/ethixai)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-passing-brightgreen)](https://github.com/GeoAziz/EthAI-Guard)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Performance](https://img.shields.io/badge/Response%20Time-17ms-success)](DAY30_COMPLETION.md)
+[![Performance](https://img.shields.io/badge/Response%20Time-<15ms-success)](PERFORMANCE_REPORT.md)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-green)](https://codecov.io)
-[![Production Ready](https://img.shields.io/badge/Production%20Ready-90%25-blue)](DAY30_COMPLETION.md)
-[![Demo Ready](https://img.shields.io/badge/Demo%20Ready-100%25-brightgreen)](tools/demo/full_demo_sequence.sh)
+[![Production Ready](https://img.shields.io/badge/Production%20Ready-Yes-blue)](docs/guides/DEPLOYMENT_GUIDE.md)
 
-> **Production-ready ethical AI governance engine with real-time bias detection, SHAP explanations, and comprehensive monitoring.**  
-> 🚀 **Day 30 Polish Complete**: Professional UI, unified error handling, automated demos, and performance-tested.
+> **Production-ready ethical AI governance engine with real-time bias detection, SHAP explanations, and comprehensive monitoring.**
 
 ---
 
@@ -56,7 +54,7 @@
 
 | Component | Technology | Purpose | Port |
 |-----------|-----------|---------|------|
-| **Frontend** | Next.js 14, Tailwind CSS | User dashboard | 3000 |
+| **Frontend** | Next.js 15, Tailwind CSS | User dashboard | 3000 |
 | **Backend** | Node.js 20, Express | API gateway, auth | 5000 |
 | **AI Core** | Python 3.11, FastAPI | ML analysis | 8100 |
 | **MongoDB** | v6 | Reports, audit logs | 27018 |
@@ -78,8 +76,8 @@
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/ethixai.git
-cd ethixai
+git clone https://github.com/GeoAziz/EthAI-Guard.git
+cd EthAI-Guard
 ```
 
 2. **Configure environment**
@@ -129,7 +127,7 @@ curl -X POST http://localhost:5000/api/analyze \
 - **[Performance Report](PERFORMANCE_REPORT.md)** - Load testing results
 - **[User Manual](docs/USER_MANUAL.md)** - Complete feature guide
 - **[API Documentation](docs/api-spec.yaml)** - OpenAPI specification
-- **[Deployment Guide](docs/deploy/DEPLOYMENT_GUIDE.md)** - Production setup
+- **[Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md)** - Production setup
 
 ### Development Guides
 - **[Day 24 Completion](DAY24_FINAL_COMPLETION.md)** - Stress testing implementation
@@ -328,7 +326,7 @@ kubectl apply -f k8s/
 - **Google Cloud:** Cloud Run or GKE
 - **Azure:** Container Instances or AKS
 
-See [DEPLOYMENT_GUIDE.md](docs/deploy/DEPLOYMENT_GUIDE.md) for platform-specific instructions.
+See [DEPLOYMENT_GUIDE.md](docs/guides/DEPLOYMENT_GUIDE.md) for platform-specific instructions.
 
 ---
 
@@ -378,25 +376,25 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 ---
 
-## 🎬 Day 30: Demo & Performance (NEW!)
+## 🎬 Demo & Performance
 
 ### Quick Demo
 
-Run the complete 5-minute demo sequence:
+Run the complete demo sequence:
 
 ```bash
 ./tools/demo/full_demo_sequence.sh
 ```
 
 **Demo includes:**
-- ✅ User registration and authentication
-- ✅ Dataset upload (demo loan data)
-- ✅ AI fairness analysis
-- ✅ Risk score and metrics
-- ✅ Compliance report generation
-- ✅ Token refresh testing
-- ✅ Audit logs validation
-- ✅ Prometheus metrics
+- User registration and authentication
+- Dataset upload (demo loan data)
+- AI fairness analysis
+- Risk score and metrics
+- Compliance report generation
+- Token refresh testing
+- Audit logs validation
+- Prometheus metrics
 
 **Demo credentials:**
 - Email: `demo@ethixai.com`
@@ -433,16 +431,11 @@ Run comprehensive performance tests:
 ```
 
 **Tested areas:**
-- Health endpoint performance (17ms avg)
-- Authentication performance (23ms avg)
-- Metrics endpoint (22ms avg)
-- Large payload handling (1000 rows)
-- Concurrent request handling (5 parallel)
-
-**Current Performance:** �
-- Response Time: **17ms average**
-- Throughput: **58 req/sec** (health endpoint)
-- Performance Score: **80/100** ✅
+- Health endpoint performance
+- Authentication performance
+- Metrics endpoint
+- Large payload handling
+- Concurrent request handling
 
 ### Demo Data
 
@@ -455,42 +448,15 @@ docs/example_data/demo_loan_dataset.csv
 - 25 realistic loan applications
 - Protected attributes: gender, race
 - Demonstrates fairness metrics
-- Perfect for investor demos
-
-### Day 30 Improvements
-
-**Frontend:**
-- ✅ Professional animations and transitions
-- ✅ Enhanced error messages (Firebase-aware)
-- ✅ Smooth loading states
-- ✅ Focus rings for accessibility
-- ✅ Card hover effects
-
-**Backend:**
-- ✅ Unified error handler system
-- ✅ Structured error responses
-- ✅ Request ID tracking
-- ✅ Semantic error codes (401/403/422/429/500)
-- ✅ Async error wrapper
-
-**Testing & Demo:**
-- ✅ Automated demo script (10 steps)
-- ✅ Performance test suite
-- ✅ Realistic demo data
-- ✅ Color-coded terminal output
-- ✅ 5-minute presentation flow
-
-See [DAY30_COMPLETION.md](DAY30_COMPLETION.md) for full details.
 
 ---
 
-## �📞 Support
+## 📞 Support
 
 - **Documentation:** [Full docs](docs/)
-- **Day 30 Report:** [DAY30_COMPLETION.md](DAY30_COMPLETION.md)
 - **Demo Scripts:** [tools/demo/](tools/demo/)
-- **Issues:** [GitHub Issues](https://github.com/yourusername/ethixai/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/ethixai/discussions)
+- **Issues:** [GitHub Issues](https://github.com/GeoAziz/EthAI-Guard/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/GeoAziz/EthAI-Guard/discussions)
 - **Email:** support@ethixai.com
 
 ---
@@ -540,4 +506,4 @@ If you find EthixAI useful, please consider giving us a star! ⭐
 
 *Building a more ethical, transparent, and inclusive AI future.*
 
-[🚀 Get Started](docs/USER_MANUAL.md) | [📖 Read Docs](docs/) | [🐛 Report Bug](https://github.com/yourusername/ethixai/issues)
+[🚀 Get Started](docs/USER_MANUAL.md) | [📖 Read Docs](docs/) | [🐛 Report Bug](https://github.com/GeoAziz/EthAI-Guard/issues)

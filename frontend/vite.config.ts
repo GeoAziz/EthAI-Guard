@@ -11,7 +11,22 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/setupTests.ts'],
-  // exclude e2e Playwright specs and node_modules tests from the unit test runner
-  exclude: ['e2e/**', 'node_modules/**'],
+    exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html', 'json', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+      ],
+      lines: 75,
+      functions: 75,
+      branches: 70,
+      statements: 75,
+      all: true,
+    },
   },
 });

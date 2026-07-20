@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAnnounce } from '@/contexts/AnnounceContext';
+import { LoadingState } from '@/components/ui/loading-state';
 
 export default function UsersAdminPage() {
   const [email, setEmail] = useState('');
@@ -136,10 +137,10 @@ export default function UsersAdminPage() {
 
         <div className="mt-6">
           <h2 className="text-lg font-medium mb-3">Users</h2>
-          {loading && <div className="py-8 text-center text-muted-foreground">Loading…</div>}
-          {!loading && users && users.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No users found.</div>}
-          <div className="space-y-2">
-            {users && users.map(u => (
+          <LoadingState loading={loading} onRetry={() => loadUsers()} loadingText="Loading users...">
+            {users && users.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No users found.</div>}
+            <div className="space-y-2">
+              {users && users.map(u => (
               <Card key={u._id}>
                 <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
@@ -154,25 +155,26 @@ export default function UsersAdminPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-          {/* Pagination controls */}
-          <div className="mt-4 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between text-xs sm:text-sm">
-            <div className="text-muted-foreground">Showing {users ? users.length : 0} of {totalCount} users</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.max(1, page - 1))} disabled={loading || page <= 1} className="min-h-8">Prev</Button>
-              <div className="text-xs sm:text-sm whitespace-nowrap">Page {page} / {totalPages}</div>
-              <Button size="sm" variant="outline" onClick={() => loadUsers(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages} className="min-h-8">Next</Button>
-              {totalPages > 1 && totalPages <= 10 && (
-                <div className="flex gap-1 items-center flex-wrap ml-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                    <Button key={n} size="sm" variant={n === page ? 'default' : 'ghost'} onClick={() => loadUsers(n)} disabled={n === page || loading} className="min-h-8 px-2">{String(n)}</Button>
-                  ))}
+              ))}
+              </div>
+              {/* Pagination controls */}
+              <div className="mt-4 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between text-xs sm:text-sm">
+                <div className="text-muted-foreground">Showing {users ? users.length : 0} of {totalCount} users</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => loadUsers(Math.max(1, page - 1))} disabled={loading || page <= 1} className="min-h-8">Prev</Button>
+                  <div className="text-xs sm:text-sm whitespace-nowrap">Page {page} / {totalPages}</div>
+                  <Button size="sm" variant="outline" onClick={() => loadUsers(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages} className="min-h-8">Next</Button>
+                  {totalPages > 1 && totalPages <= 10 && (
+                    <div className="flex gap-1 items-center flex-wrap ml-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                        <Button key={n} size="sm" variant={n === page ? 'default' : 'ghost'} onClick={() => loadUsers(n)} disabled={n === page || loading} className="min-h-8 px-2">{String(n)}</Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            </LoadingState>
           </div>
-        </div>
 
         {/* History modal */}
         {selectedHistory && (
@@ -182,8 +184,8 @@ export default function UsersAdminPage() {
                 <h3 className="font-semibold text-sm sm:text-base">User history</h3>
                 <Button variant="ghost" onClick={() => setSelectedHistory(null)} size="sm">Close</Button>
               </div>
-              {historyLoading && <div className="py-8 text-center text-muted-foreground">Loading…</div>}
-              {!historyLoading && selectedHistory && selectedHistory.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No history found.</div>}
+              <LoadingState loading={historyLoading} onRetry={() => selectedHistory && loadHistory(selectedHistory[0]?.user_id)} loadingText="Loading history...">
+                {selectedHistory && selectedHistory.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No history found.</div>}
               <div className="space-y-3">
                 {selectedHistory && selectedHistory.map((l:any) => (
                   <div key={l._id} className="border-b pb-3 last:border-b-0">
@@ -193,7 +195,8 @@ export default function UsersAdminPage() {
                     <pre className="text-xs mt-2 bg-muted p-2 rounded overflow-auto max-h-40">{JSON.stringify(l.details || {}, null, 2)}</pre>
                   </div>
                 ))}
-              </div>
+                </div>
+              </LoadingState>
             </div>
           </div>
         )}

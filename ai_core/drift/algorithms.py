@@ -321,7 +321,10 @@ def aggregate_drift_metrics(
     score_drift: Dict[str, Any],
     fairness_drift: Dict[str, Any],
     data_quality_drift: Dict[str, Any],
-    explanation_stability: Dict[str, Any]
+    explanation_stability: Dict[str, Any],
+    multivariate_drift: Dict[str, Any] | None = None,
+    anomaly_detection: Dict[str, Any] | None = None,
+    causal_drift: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
     """
     Aggregate all drift metrics into summary.
@@ -332,6 +335,9 @@ def aggregate_drift_metrics(
         fairness_drift: Fairness metrics drift
         data_quality_drift: Data quality alerts
         explanation_stability: Explanation stability metrics
+        multivariate_drift: Optional joint-distribution drift (Mahalanobis + classifier AUC)
+        anomaly_detection: Optional anomaly detection results (Isolation Forest / LOF)
+        causal_drift: Optional feature-target relationship drift
 
     Returns:
         Aggregated drift summary with overall status
@@ -374,6 +380,36 @@ def aggregate_drift_metrics(
     elif explanation_stability.get('severity') == 'warning':
         warning_count += 1
 
+    # Multivariate drift (joint distribution shift)
+    if multivariate_drift and 'error' not in multivariate_drift:
+        if multivariate_drift.get('severity') == 'critical':
+            critical_count += 1
+        elif multivariate_drift.get('severity') == 'warning':
+            warning_count += 1
+
+    # Anomaly detection: Isolation Forest and LOF both flag the same underlying
+    # phenomenon (anomalous samples in the current window) via different
+    # algorithms, so treat them as one combined signal (worst-of-both) rather
+    # than counting each detector separately -- otherwise a single anomalous
+    # batch can double-count towards needs_retraining just because two
+    # detectors agree on it.
+    if anomaly_detection:
+        detector_severities = [
+            r.get('severity') for r in anomaly_detection.values()
+            if isinstance(r, dict) and 'error' not in r
+        ]
+        if 'critical' in detector_severities:
+            critical_count += 1
+        elif 'warning' in detector_severities:
+            warning_count += 1
+
+    # Causal drift (feature-target relationship shift)
+    if causal_drift and 'error' not in causal_drift:
+        if causal_drift.get('severity') == 'critical':
+            critical_count += 1
+        elif causal_drift.get('severity') == 'warning':
+            warning_count += 1
+
     # Determine overall status
     if critical_count > 0:
         overall_status = 'critical'
@@ -391,5 +427,8 @@ def aggregate_drift_metrics(
         'fairness_drift': fairness_drift,
         'data_quality_drift': data_quality_drift,
         'explanation_stability': explanation_stability,
+        'multivariate_drift': multivariate_drift or {},
+        'anomaly_detection': anomaly_detection or {},
+        'causal_drift': causal_drift or {},
         'needs_retraining': critical_count >= 2  # Flag if 2+ critical alerts
     }

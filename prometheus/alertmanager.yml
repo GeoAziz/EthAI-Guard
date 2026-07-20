@@ -1,15 +1,66 @@
-global: {}
+global:
+  resolve_timeout: 5m
 
 route:
-  receiver: 'backend-webhook'
+  receiver: 'slack-critical'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - match:
+        severity: warning
+      receiver: 'slack-warning'
+      repeat_interval: 12h
+    - match:
+        severity: info
+      receiver: 'slack-info'
+      repeat_interval: 24h
 
 receivers:
+  - name: 'slack-critical'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-critical'
+        title: '{{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Severity:* {{ .Labels.severity }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        send_resolved: true
+        color: '{{ if eq .Status "resolved" }}good{{ else }}danger{{ end }}'
+
+  - name: 'slack-warning'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-warning'
+        title: '{{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Severity:* {{ .Labels.severity }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+        color: '{{ if eq .Status "resolved" }}good{{ else }}warning{{ end }}'
+
+  - name: 'slack-info'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts-info'
+        title: '{{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+        color: '{{ if eq .Status "resolved" }}good{{ else }}#439FE0{{ end }}'
+
   - name: 'backend-webhook'
     webhook_configs:
-      - url: 'https://your-backend.example.com/alerts/webhook'
+      - url: 'http://backend:5000/api/alerts/webhook'
         send_resolved: true
-        http_config:
-          # Add a secret header to authenticate with backend
-          # Replace REPLACE_WITH_SECRET with the value of ALERT_WEBHOOK_SECRET set in the backend
-          headers:
-            X-Alert-Secret: 'REPLACE_WITH_SECRET'

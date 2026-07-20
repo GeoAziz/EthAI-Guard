@@ -5,6 +5,7 @@
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const logger = require('../logger');
 
 /**
  * Security headers middleware
@@ -15,11 +16,11 @@ function securityHeaders() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts for development
+        scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        connectSrc: ["'self'", 'http://localhost:*', 'ws://localhost:*'], // Allow local connections
+        connectSrc: ["'self'"],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
@@ -150,7 +151,7 @@ function corsOptions() {
         ? process.env.ALLOWED_ORIGINS.split(',')
         : ['http://localhost:3000', 'http://localhost:5000'];
 
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         logger.warn(`[Security] CORS blocked origin: ${origin}`);

@@ -8,12 +8,19 @@ from prometheus_client import Histogram, Counter, Gauge
 import logging
 import os
 import time
+import uuid
+
+# Import tracing utilities
+try:
+    from ai_core.utils.tracing import TraceContext, init_tracing
+except ImportError:
+    from utils.tracing import TraceContext, init_tracing
 
 # Use package-relative imports so tests and runtime can import this module whether
 # the package is loaded as `ai_core` or the module is executed directly.
 try:
     # Prefer package-relative import when running as a package
-    from .routers import analyze, reports
+    from .routers import analyze, reports, federated, retraining
     import importlib
     # Import the validation submodule explicitly in case routers.__init__ does not
     # expose the validation symbol (avoid relying on package __init__ exports).
@@ -22,7 +29,7 @@ except Exception:
     # Fallback to top-level import when module is executed directly in Docker
     # Import analyze and reports directly, and load validation explicitly to avoid
     # cases where the package __init__ does not expose the validation symbol.
-    from routers import analyze, reports
+    from routers import analyze, reports, federated, retraining
     import importlib
     validation = importlib.import_module("routers.validation")
 
@@ -31,8 +38,12 @@ _STARTUP_COMPLETE = False
 _STARTUP_AT = time.perf_counter()
 
 # CORS configuration: restrict in production using AI_CORE_ALLOWED_ORIGINS (CSV)
-allowed = os.environ.get("AI_CORE_ALLOWED_ORIGINS", "*")
-if allowed.strip() == "*":
+# In production, default to same-origin only; in dev, allow all
+_env = os.environ.get("ENVIRONMENT", os.environ.get("NODE_ENV", "development"))
+allowed = os.environ.get("AI_CORE_ALLOWED_ORIGINS", "")
+if not allowed.strip():
+    allow_origins = ["*"] if _env != "production" else ["http://localhost:3000", "http://localhost:5000"]
+elif allowed.strip() == "*":
     allow_origins = ["*"]
 else:
     allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
@@ -59,6 +70,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.include_router(analyze.router)
 app.include_router(reports.router)
+app.include_router(federated.router)
+app.include_router(retraining.router)
 app.include_router(validation.router, prefix="/validation", tags=["validation"])
 
 # Mount Prometheus metrics endpoint
@@ -81,6 +94,27 @@ AI_CORE_INPROGRESS = Gauge(
     'ai_core_http_requests_in_progress',
     'Number of AI Core HTTP requests in progress'
 )
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    # Add request_id to scope so it's available throughout the request
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.scope["request_id"] = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@app.middleware("http")
+async def tracing_middleware(request: Request, call_next):
+    # Extract trace context from headers and propagate to response
+    trace = TraceContext.from_headers(dict(request.headers))
+    request.scope["trace"] = trace
+    response = await call_next(request)
+    for header, value in trace.to_headers().items():
+        response.headers[header] = value
+    return response
 
 
 @app.middleware("http")
@@ -143,6 +177,15 @@ try:
 except Exception:
     # persistence module not available in minimal test environments
     pass
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Log all unhandled exceptions with request context."""
+    from fastapi.responses import JSONResponse
+    request_id = request.scope.get("request_id", "unknown")
+    logger.error({"msg": "unhandled_exception", "request_id": request_id, "error": str(exc), "error_type": type(exc).__name__}, exc_info=True)
+    return JSONResponse(status_code=500, content={"error": "internal_error", "request_id": request_id})
 
 
 @app.get("/health")

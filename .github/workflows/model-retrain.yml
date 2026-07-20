@@ -1,0 +1,263 @@
+name: Model Retraining Pipeline
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: 'Model ID to retrain'
+        required: true
+        type: string
+      request_id:
+        description: 'Retrain request ID'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for retraining'
+        required: false
+        type: string
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install AI Core dependencies
+        run: |
+          cd ai_core
+          pip install -r requirements.txt
+
+      - name: Prepare training data
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          API_URL: ${{ secrets.API_URL }}
+        run: |
+          cd ai_core
+          python -m scripts.prepare_training_data \
+            --model-id "$MODEL_ID" \
+            --request-id "$REQUEST_ID" \
+            --output ./training_data.jsonl
+
+      - name: Upload training data
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-data
+          path: ai_core/training_data.jsonl
+
+  train:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download training data
+        uses: actions/download-artifact@v4
+        with:
+          name: training-data
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install AI Core dependencies
+        run: |
+          cd ai_core
+          pip install -r requirements.txt
+
+      - name: Train model
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          TRAINING_DATA: ./training_data.jsonl
+        run: |
+          cd ai_core
+          python -m scripts.train_model \
+            --model-id "$MODEL_ID" \
+            --request-id "$REQUEST_ID" \
+            --data-path "$TRAINING_DATA" \
+            --output-dir ./models
+
+      - name: Upload trained model
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model
+          path: ai_core/models/
+
+  validate:
+    needs: train
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install AI Core dependencies
+        run: |
+          cd ai_core
+          pip install -r requirements.txt
+
+      - name: Run validation tests
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+        run: |
+          cd ai_core
+          python -m pytest scripts/validation_tests.py \
+            --model-id "$MODEL_ID" \
+            --request-id "$REQUEST_ID" \
+            -v --tb=short
+
+      - name: Generate validation report
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+        run: |
+          cd ai_core
+          python -m scripts.generate_validation_report \
+            --model-id "$MODEL_ID" \
+            --request-id "$REQUEST_ID" \
+            --output-dir ./validation
+
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: ai_core/validation/
+
+  update-baseline:
+    needs: [train, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download training data
+        uses: actions/download-artifact@v4
+        with:
+          name: training-data
+          path: ai_core/
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install AI Core dependencies
+        run: |
+          cd ai_core
+          pip install -r requirements.txt
+
+      - name: Update baseline
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+        run: |
+          cd ai_core
+          python -m scripts.update_baseline \
+            --model-id "$MODEL_ID" \
+            --request-id "$REQUEST_ID" \
+            --data-path ./training_data.jsonl
+
+  report:
+    needs: [update-baseline]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests python-dotenv
+
+      - name: Report completion
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          MODEL_ID: ${{ github.event.inputs.model_id }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          API_URL: ${{ secrets.API_URL }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          python -c "
+          import os
+          import json
+          import requests
+
+          request_id = os.environ['REQUEST_ID']
+          model_id = os.environ['MODEL_ID']
+          api_url = os.environ.get('API_URL', 'http://localhost:5000')
+          run_url = f\"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\"
+          status = 'success' if ${{ job.status == 'success' }} else 'failed'
+
+          payload = {
+              'status': status,
+              'request_id': request_id,
+              'model_id': model_id,
+              'workflow_url': run_url,
+              'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
+          }
+
+          try:
+              response = requests.post(
+                  f'{api_url}/v1/retrain/{request_id}/complete',
+                  json=payload,
+                  timeout=10
+              )
+              print(f'Reported status {status} to API: {response.status_code}')
+          except Exception as e:
+              print(f'Warning: Failed to report completion: {e}')
+          "
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-logs
+          path: .
+          retention-days: 7

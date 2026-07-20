@@ -1,11 +1,14 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
 import ChartPlaceholder from '@/components/ui/chart-placeholder';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingState } from '@/components/ui/loading-state';
 
 export default function AdminBillingPage() {
   const [usageSummary, setUsageSummary] = useState<any>(null);
@@ -35,7 +38,16 @@ export default function AdminBillingPage() {
     <RoleProtected required={['admin']}>
       <div className="p-4 sm:p-6 lg:p-8 w-full max-w-6xl">
         <Breadcrumbs />
-        <PageHeader title="Billing & usage" subtitle="Summary of costs and analysis usage" />
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <PageHeader title="Billing & usage" subtitle="Summary of costs and analysis usage" />
+          </div>
+          <Link href="/dashboard/admin/billing/upgrade">
+            <Button variant="default">
+              Upgrade Plan
+            </Button>
+          </Link>
+        </div>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div className="rounded-lg border bg-card p-4 sm:p-6">
@@ -47,18 +59,19 @@ export default function AdminBillingPage() {
 
           <div className="rounded-lg border bg-card p-4 sm:p-6">
             <h4 className="font-medium text-sm sm:text-base">Recent invoices</h4>
-            {loading && <div className="text-xs sm:text-sm text-muted-foreground py-8 text-center">Loading…</div>}
-            {!loading && invoices.length === 0 && <div className="text-xs sm:text-sm text-muted-foreground py-8 text-center">No invoices found</div>}
-            {!loading && invoices.length > 0 && (
-              <ul className="mt-3 text-xs sm:text-sm divide-y max-h-96 overflow-y-auto">
-                {invoices.map((inv) => (
-                  <li key={inv.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 gap-1 sm:gap-0">
-                    <span className="truncate">{new Date(inv.date).toLocaleDateString()} — {inv.description || inv.id}</span>
-                    <span className="font-medium whitespace-nowrap">${(inv.amount_cents ? inv.amount_cents / 100 : inv.amount || 0).toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <LoadingState loading={loading} onRetry={() => window.location.reload()} loadingText="Loading invoices...">
+              {invoices.length === 0 && <div className="text-xs sm:text-sm text-muted-foreground py-8 text-center">No invoices found</div>}
+              {invoices.length > 0 && (
+                <ul className="mt-3 text-xs sm:text-sm divide-y max-h-96 overflow-y-auto">
+                  {invoices.map((inv) => (
+                    <li key={inv.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 gap-1 sm:gap-0">
+                      <span className="truncate">{new Date(inv.date).toLocaleDateString()} — {inv.description || inv.id}</span>
+                      <span className="font-medium whitespace-nowrap">${(inv.amount_cents ? inv.amount_cents / 100 : inv.amount || 0).toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </LoadingState>
           </div>
         </div>
       </div>

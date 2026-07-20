@@ -12,11 +12,24 @@ services:
       # Use in-memory stores during Day 13 integration tests to avoid native deps issues in Alpine
       # For local seeding and persistent users set to 0 so MongoDB is used by the backend
       - USE_IN_MEMORY_DB=0
-      # Disable rate limiting for stress testing
-      - DISABLE_RATE_LIMIT=1
+      # Rate limiting enabled by default; set to 1 only for stress testing
+      # - DISABLE_RATE_LIMIT=1
+      # Non-superuser role so PostgreSQL FORCE ROW LEVEL SECURITY tenant
+      # isolation actually applies (superuser/table-owner connections bypass it).
+      - POSTGRES_APP_URL=postgresql://${POSTGRES_APP_USER:-ethixai_app}:${POSTGRES_APP_PASSWORD:-ethixai_app_dev_password}@postgres:5432/ethixai
     depends_on:
-      - mongo
-      - ai_core
+      mongo:
+        condition: service_healthy
+      ai_core:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build: ./frontend
@@ -29,7 +42,14 @@ services:
       - NEXT_PUBLIC_API_URL=http://system_api:5000
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - system_api
+      system_api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   redis:
     image: redis:7
@@ -37,6 +57,11 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ai_core:
     build: ./ai_core
@@ -47,7 +72,14 @@ services:
       # Provide the full analyze endpoint so the backend can forward requests
       - AI_CORE_URL=http://ai_core:8100/ai_core/analyze
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   mongo:
     image: mongo:6
@@ -60,6 +92,12 @@ services:
       - "27018:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   postgres:
     image: postgres:15
@@ -67,10 +105,26 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=ethixai
+      # Low-privilege application role provisioned by the init script below;
+      # backend/src/db/postgres.js connects as this role so FORCE ROW LEVEL
+      # SECURITY policies (backend/migrations/postgres/0001_tenancy_billing.sql)
+      # are enforced instead of bypassed.
+      - POSTGRES_APP_USER=${POSTGRES_APP_USER:-ethixai_app}
+      - POSTGRES_APP_PASSWORD=${POSTGRES_APP_PASSWORD:-ethixai_app_dev_password}
     ports:
       - "5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
+      # Runs once against a fresh data dir: creates the ethixai_app role and
+      # applies the tenancy/billing RLS schema, so isolation works out of the box.
+      - ./backend/migrations/postgres-init/00-provision-app-role.sh:/docker-entrypoint-initdb.d/00-provision-app-role.sh:ro
+      - ./backend/migrations/postgres:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:latest
@@ -79,6 +133,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -93,8 +148,57 @@ services:
       - system_api
       - ai_core
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ethixai-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: ethixai-alertmanager
+    ports:
+      - "9093:9093"
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ./prometheus/alertmanager-entrypoint.sh:/etc/alertmanager/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
+    networks:
+      - default
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: ethixai-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - default
+
 volumes:
   mongo-data:
   pg-data:
   prometheus-data:
   redis-data:
+  grafana-data:

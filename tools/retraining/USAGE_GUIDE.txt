@@ -1,0 +1,222 @@
+AUTOMATED MODEL RETRAINING SYSTEM - USAGE GUIDE
+
+=== OVERVIEW ===
+The automated model retraining system provides:
+1. Scheduled model retraining jobs (cron-based)
+2. Automatic performance evaluation with fairness checks
+3. Intelligent model promotion to production
+4. Automatic rollback mechanisms
+5. Model versioning and registry
+6. Comprehensive monitoring and notifications
+
+=== SYSTEM COMPONENTS ===
+
+Backend (Node.js):
+- ModelVersion schema: Stores model metadata, evaluation results, approvals, deployment info
+- RetrainingJob schema: Tracks retraining job status and progress
+- ModelManager service: Handles CRUD operations for models and jobs
+- RetrainingScheduler service: Orchestrates scheduled retraining using node-cron
+- retrainingIntegration service: Handles post-training workflows (notifications, rollbacks)
+- modelRetraining routes: REST API endpoints for model operations
+
+AI Core (Python):
+- ModelRegistry: Local model versioning system
+- ModelEvaluator: Evaluates model performance and fairness
+- RetrainingOrchestrator: Orchestrates end-to-end retraining workflow
+- retraining router: FastAPI endpoints for retraining operations
+
+=== API ENDPOINTS ===
+
+Model Management:
+  GET  /api/models                          - List all model versions
+  GET  /api/models/:version                 - Get specific model version
+  GET  /api/models/current/deployed         - Get current production model
+  POST /api/models/:version/deploy          - Deploy a model version
+  POST /api/models/:version/rollback        - Rollback to previous model
+  POST /api/models/:version/approve         - Approve model (performance/fairness/security)
+  POST /api/models/:version/compare         - Compare with baseline model
+
+Retraining Jobs:
+  POST /api/retraining/trigger              - Manually trigger a retraining job
+  GET  /api/retraining/jobs                 - List retraining jobs
+  GET  /api/retraining/jobs/:jobId          - Get job details
+  POST /api/retraining/jobs/:jobId/cancel   - Cancel a job
+
+Scheduling:
+  GET  /api/retraining/schedules            - List configured schedules
+  GET  /api/retraining/schedules/:id/status - Get schedule status
+  POST /api/retraining/schedules/:id/stop   - Stop a schedule
+
+=== SCHEDULED JOBS ===
+
+Default schedules:
+  1. daily-retraining: 0 2 * * * (Daily at 2 AM UTC)
+  2. weekly-evaluation: 0 3 * * 0 (Weekly on Sunday at 3 AM UTC)
+
+Configure via environment variables:
+  RETRAIN_DAILY_SCHEDULE="0 2 * * *"
+  RETRAIN_DAILY_ENABLED=1
+  RETRAIN_WEEKLY_SCHEDULE="0 3 * * 0"
+  RETRAIN_WEEKLY_ENABLED=1
+
+=== EVALUATION CRITERIA ===
+
+Models must pass:
+- Minimum accuracy: 70% (configurable via MIN_MODEL_ACCURACY)
+- Minimum F1 score: 65% (configurable via MIN_MODEL_F1)
+- Fairness checks: No critical fairness violations
+- Performance improvement: Should improve over baseline (or meet minimum thresholds)
+
+Fairness metrics checked:
+- Demographic parity difference < 10%
+- Equal opportunity difference < 10%
+- Equalized odds difference < 10%
+- Disparate impact ratio >= 80%
+
+=== DEPLOYMENT STRATEGY ===
+
+Canary deployment:
+1. New model starts at 10% traffic (configurable via CANARY_DEPLOYMENT_PERCENT)
+2. Monitor performance metrics for degradation
+3. Gradually increase traffic if no issues
+4. Full rollout after validation period
+
+Auto-rollback triggers:
+- Accuracy drops > 5% below baseline
+- New fairness violations detected
+- Latency increases significantly
+- Error rate threshold exceeded
+
+=== ENVIRONMENT VARIABLES ===
+
+Enable/Disable:
+  ENABLE_MODEL_RETRAINING=1              (Enable/disable system, default: 1)
+
+Scheduling:
+  RETRAIN_DAILY_SCHEDULE="0 2 * * *"     (Cron expression for daily jobs)
+  RETRAIN_DAILY_ENABLED=1
+  RETRAIN_WEEKLY_SCHEDULE="0 3 * * 0"    (Cron expression for weekly jobs)
+  RETRAIN_WEEKLY_ENABLED=1
+
+Evaluation Thresholds:
+  MIN_MODEL_ACCURACY=0.70                 (Minimum accuracy threshold)
+  MIN_MODEL_F1=0.65                       (Minimum F1 score threshold)
+  MAX_FAIRNESS_VIOLATIONS=0               (Max allowed fairness violations)
+
+Deployment:
+  AUTO_APPROVE_MODELS=0                   (Auto-approve models that pass criteria)
+  CANARY_DEPLOYMENT_PERCENT=10            (Canary traffic percentage)
+  MAX_CONCURRENT_RETRAIN_JOBS=1           (Max parallel retraining jobs)
+
+Notifications:
+  ENABLE_RETRAIN_NOTIFICATIONS=1          (Enable notifications)
+  RETRAIN_WEBHOOK_URL=                    (Webhook for notifications)
+  RETRAIN_SLACK_CHANNEL=#ml-ops           (Slack channel for alerts)
+
+Monitoring:
+  RETRAIN_LOG_LEVEL=info                  (Logging level)
+  RETRAIN_DETAILED_LOGS=0                 (Enable detailed logging)
+  AI_CORE_URL=http://localhost:8100       (AI Core service URL)
+
+=== WORKFLOW EXAMPLES ===
+
+Example 1: Manual Retraining Trigger
+  POST /api/retraining/trigger
+  {
+    "triggerType": "manual"
+  }
+
+Example 2: Get Retraining Job Status
+  GET /api/retraining/jobs/job-123456
+
+Example 3: Deploy a Model
+  POST /api/models/v1.2.3/deploy
+  {
+    "canaryPercentage": 10
+  }
+
+Example 4: Rollback to Previous Model
+  POST /api/models/v1.2.3/rollback
+  {
+    "reason": "Performance degradation detected"
+  }
+
+Example 5: Approve Model for Production
+  POST /api/models/v1.2.3/approve
+  {
+    "type": "performance",
+    "comments": "Model shows 3% accuracy improvement"
+  }
+
+=== MONITORING & DEBUGGING ===
+
+Check retraining job status:
+  Backend logs: docker compose logs -f system_api | grep retraining
+  AI Core logs: docker compose logs -f ai_core | grep retraining
+
+Database queries (MongoDB):
+  # List all model versions
+  db.model_versions.find().sort({createdAt: -1}).limit(10)
+
+  # List recent retraining jobs
+  db.retraining_jobs.find({status: "running"}).sort({createdAt: -1})
+
+  # Check deployed model
+  db.model_versions.findOne({status: "deployed"}, {sort: {deployedAt: -1}})
+
+=== BEST PRACTICES ===
+
+1. Start with Conservative Thresholds:
+   - Set MIN_MODEL_ACCURACY high (0.85+) initially
+   - Require fairness metrics improvement over baseline
+   - Use canary deployment (10-25% traffic)
+
+2. Monitor Key Metrics:
+   - Check retraining job success rates
+   - Monitor model performance over time
+   - Track fairness metric trends
+
+3. Regular Maintenance:
+   - Archive old model versions periodically
+   - Review failed retraining jobs for patterns
+   - Update evaluation criteria based on business needs
+
+4. Notification Setup:
+   - Configure Slack channel for alerts
+   - Set up webhook for external monitoring
+   - Enable detailed logs for debugging
+
+5. Rollback Strategy:
+   - Keep last 3 successful model versions
+   - Document rollback reasons
+   - Monitor canary deployments closely
+
+=== TROUBLESHOOTING ===
+
+Problem: Retraining jobs stuck in "running" state
+  Solution: Check AI Core connectivity, review logs for errors
+
+Problem: All models fail evaluation
+  Solution: Review thresholds (MIN_MODEL_ACCURACY, etc.), check data quality
+
+Problem: Models deploy but don't improve performance
+  Solution: Verify baseline comparison logic, check if data distribution changed (drift)
+
+Problem: Frequent rollbacks triggered
+  Solution: Adjust fairness violation threshold, investigate root cause, update training data
+
+=== PERFORMANCE EXPECTATIONS ===
+
+- Daily retraining: 5-15 minutes (depends on dataset size)
+- Model evaluation: 2-5 minutes
+- Deployment to production: < 1 minute
+- Automatic rollback: < 30 seconds
+
+=== FUTURE ENHANCEMENTS ===
+
+- Federated learning support for distributed model training
+- A/B testing framework for model comparison
+- AutoML integration for hyperparameter tuning
+- Advanced drift detection algorithms
+- Multi-model ensemble strategies
+- GPU-accelerated training support

@@ -7,7 +7,7 @@ import PageHeader from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState, LoadingState } from '@/components/ui/loading-state';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import formatDate from '@/lib/formatDate';
@@ -236,17 +236,11 @@ export default function NotificationsPage() {
 
         {/* Notifications List */}
         <div className="mt-6">
-          {loading ? (
-            <Card className="p-12">
-              <div className="flex items-center justify-center text-muted-foreground">
-                <div className="animate-spin">⏳</div>
-                <span className="ml-2">Loading notifications…</span>
-              </div>
-            </Card>
-          ) : filteredNotes.length === 0 ? (
-            <EmptyState
-              icon={<div className="text-4xl mb-2">🔔</div>}
-              title={
+          <LoadingState loading={loading} onRetry={load} loadingText="Loading notifications...">
+            {filteredNotes.length === 0 ? (
+              <EmptyState
+                icon={<div className="text-4xl mb-2">🔔</div>}
+                title={
                 activeFilter === 'all'
                   ? 'No notifications'
                   : `No ${activeFilter} notifications`
@@ -345,7 +339,8 @@ export default function NotificationsPage() {
                 </Card>
               ))}
             </div>
-          )}
+            )}
+          </LoadingState>
         </div>
       </div>
     </RoleProtected>

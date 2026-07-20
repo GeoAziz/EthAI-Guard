@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { LoadingState } from '@/components/ui/loading-state';
 import { useRouter } from 'next/navigation';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
@@ -68,12 +69,9 @@ export default function ReviewerReportDetail({ params }: Props) {
         <PageHeader title={report?.id || `Report ${id}`} subtitle="Review report and leave feedback" />
 
         <div className="mt-6">
-          {loading ? (
-            <div className="rounded-lg border bg-white p-4 sm:p-6 animate-pulse">
-              <div className="text-xs sm:text-sm text-muted-foreground">Loading…</div>
-            </div>
-          ) : report ? (
-            <div className="space-y-6">
+          <LoadingState loading={loading} onRetry={() => window.location.reload()} loadingText="Loading report...">
+            {report ? (
+              <div className="space-y-6">
               <div className="rounded-lg border bg-white p-4 sm:p-6 animate-in fade-in slide-in-from-left-2 duration-500">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <div>
@@ -170,8 +168,9 @@ export default function ReviewerReportDetail({ params }: Props) {
                   </button>
                 </div>
               </div>
-            </div>
-          ) : null}
+              </div>
+            ) : null}
+          </LoadingState>
         </div>
       </div>
     </RoleProtected>

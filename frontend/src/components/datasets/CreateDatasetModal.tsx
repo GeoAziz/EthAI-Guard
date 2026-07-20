@@ -42,8 +42,16 @@ export default function CreateDatasetModal({ onCreated, onClose }: Props) {
 
         <form onSubmit={handleCreate} className="space-y-3">
           <div>
-            <label className="block text-sm">Name</label>
-            <input data-autofocus value={name} onChange={e => setName(e.target.value)} className="border rounded px-2 py-1 w-full" />
+            <label htmlFor="dataset-name" className="block text-sm">Name</label>
+            <input
+              id="dataset-name"
+              data-autofocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              aria-describedby={error ? 'create-name-error' : undefined}
+              aria-invalid={!!error}
+              className="border rounded px-2 py-1 w-full"
+            />
           </div>
           <div>
             <label htmlFor="create-retention" className="block text-sm">Retention</label>
@@ -56,7 +64,11 @@ export default function CreateDatasetModal({ onCreated, onClose }: Props) {
             </select>
             <div className="text-xs text-muted-foreground mt-1">Default retention for versions created under this dataset.</div>
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && (
+            <div id="create-name-error" role="alert" className="text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => onClose()} className="px-3 py-1 border rounded">Cancel</button>
             <button type="submit" disabled={creating} className="px-3 py-1 bg-primary text-white rounded">

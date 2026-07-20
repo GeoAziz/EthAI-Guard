@@ -11,6 +11,7 @@ import argparse
 import time
 
 from . import algorithms as drift_algorithms  # type: ignore
+from . import advanced as drift_algorithms_advanced  # type: ignore
 from .baseline import BaselineManager  # type: ignore
 from .alerts import AlertManager  # type: ignore
 
@@ -225,13 +226,68 @@ class DriftWorker:
         data_quality_baseline = baseline['data_quality']
         data_quality_drift = drift_algorithms.compute_data_quality_drift(data_quality_baseline, data_quality_current)
 
+        # Advanced drift: multivariate, anomaly detection, causal drift.
+        # Requires the raw numeric sample matrix captured at baseline creation time.
+        multivariate_drift: Dict[str, Any] = {}
+        anomaly_detection: Dict[str, Any] = {}
+        causal_drift: Dict[str, Any] = {}
+
+        numeric_feature_names = baseline.get('numeric_feature_names')
+        baseline_matrix_raw = baseline.get('numeric_sample_matrix')
+        baseline_scores_raw = baseline.get('numeric_sample_scores')
+
+        if numeric_feature_names and baseline_matrix_raw:
+            current_rows = []
+            current_targets = []
+            for eval in evaluations:
+                input_summary = eval.get('input_summary', {})
+                if any(input_summary.get(f) is None for f in numeric_feature_names):
+                    continue
+                risk_score = eval.get('risk_score')
+                if risk_score is None:
+                    continue
+                current_rows.append([float(input_summary[f]) for f in numeric_feature_names])
+                current_targets.append(float(risk_score))
+
+            if len(current_rows) >= 10:
+                try:
+                    baseline_matrix = np.array(baseline_matrix_raw, dtype=float)
+                    current_matrix = np.array(current_rows, dtype=float)
+
+                    multivariate_drift = drift_algorithms_advanced.compute_multivariate_drift(
+                        baseline_matrix, current_matrix
+                    )
+                    anomaly_detection = {
+                        'isolation_forest': drift_algorithms_advanced.detect_anomalies_isolation_forest(current_matrix),
+                        'lof': drift_algorithms_advanced.detect_anomalies_lof(current_matrix)
+                    }
+                    causal_drift = drift_algorithms_advanced.compute_causal_drift(
+                        baseline_matrix,
+                        np.array(baseline_scores_raw, dtype=float),
+                        current_matrix,
+                        np.array(current_targets, dtype=float),
+                        feature_names=numeric_feature_names
+                    )
+                except Exception as e:
+                    # Advanced drift (sklearn-based) is a best-effort enhancement on
+                    # top of the PSI/KL/fairness metrics computed above; a failure
+                    # here (e.g. a near-singular covariance or degenerate class
+                    # balance) must not discard those already-reliable results.
+                    print(f"[DriftWorker] Advanced drift computation failed, skipping: {e}")
+                    multivariate_drift = {'error': str(e)}
+                    anomaly_detection = {'error': str(e)}
+                    causal_drift = {'error': str(e)}
+
         # Aggregate
         aggregated = drift_algorithms.aggregate_drift_metrics(
             feature_drifts,
             score_drift,
             fairness_drift,
             data_quality_drift,
-            {'stable': True, 'avg_similarity': 1.0}  # Placeholder for explanation stability
+            {'stable': True, 'avg_similarity': 1.0},  # Placeholder for explanation stability
+            multivariate_drift=multivariate_drift,
+            anomaly_detection=anomaly_detection,
+            causal_drift=causal_drift
         )
 
         # Add metadata
@@ -261,6 +317,9 @@ class DriftWorker:
                 'score_drift': results['score_drift'],
                 'fairness_drift': results['fairness_drift'],
                 'data_quality_drift': results['data_quality_drift'],
+                'multivariate_drift': results.get('multivariate_drift', {}),
+                'anomaly_detection': results.get('anomaly_detection', {}),
+                'causal_drift': results.get('causal_drift', {}),
                 'needs_retraining': results['needs_retraining'],
                 'created_at': datetime.utcnow().isoformat() + 'Z'
             }
@@ -316,6 +375,54 @@ class DriftWorker:
                 window_start=results['window_start'],
                 window_end=results['window_end'],
                 details=alert
+            )
+
+        # Multivariate drift alerts
+        multivariate_drift = results.get('multivariate_drift') or {}
+        if multivariate_drift.get('severity') in ['warning', 'critical']:
+            self.alert_manager.create_alert(
+                model_id=self.model_id,
+                alert_type='multivariate_drift',
+                severity=multivariate_drift['severity'],
+                metric_name='classifier_auc',
+                metric_value=multivariate_drift.get('classifier_auc', 0.5),
+                threshold=0.7,
+                window_start=results['window_start'],
+                window_end=results['window_end'],
+                details=multivariate_drift
+            )
+
+        # Anomaly detection alerts
+        anomaly_detection = results.get('anomaly_detection') or {}
+        for detector_name, detector_result in anomaly_detection.items():
+            if not isinstance(detector_result, dict) or 'error' in detector_result:
+                continue
+            if detector_result.get('severity') in ['warning', 'critical']:
+                self.alert_manager.create_alert(
+                    model_id=self.model_id,
+                    alert_type='anomaly_detection',
+                    severity=detector_result['severity'],
+                    metric_name=f'anomaly_rate_{detector_name}',
+                    metric_value=detector_result.get('anomaly_rate', 0),
+                    threshold=0.08,
+                    window_start=results['window_start'],
+                    window_end=results['window_end'],
+                    details={'detector': detector_name, **detector_result}
+                )
+
+        # Causal drift alerts
+        causal_drift = results.get('causal_drift') or {}
+        if causal_drift.get('severity') in ['warning', 'critical']:
+            self.alert_manager.create_alert(
+                model_id=self.model_id,
+                alert_type='causal_drift',
+                severity=causal_drift['severity'],
+                metric_name='feature_target_correlation_shift',
+                metric_value=causal_drift.get('critical_count', 0) + causal_drift.get('warning_count', 0),
+                threshold=1,
+                window_start=results['window_start'],
+                window_end=results['window_end'],
+                details=causal_drift
             )
 
         print(f"[DriftWorker] Created alerts: {results['critical_count']} critical, {results['warning_count']} warnings")

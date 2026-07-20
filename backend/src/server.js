@@ -15,7 +15,7 @@ const cors = optRequire('cors');
 const mongoSanitize = optRequire('express-mongo-sanitize');
 const hpp = optRequire('hpp');
 const compression = optRequire('compression');
-const xssClean = optRequire('xss-clean');
+const xss = optRequire('xss');
 const mongoose = require('mongoose');
 const escape = require('escape-html');
 const jwt = require('jsonwebtoken');
@@ -27,12 +27,26 @@ const logger = require('./logger');
 const { withRequest } = require('./logger');
 const promClient = require('prom-client');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 const { firebaseAuth } = require('./middleware/firebaseAuth');
 const firebaseAdmin = require('./services/firebaseAdmin');
+const auditS3Service = require('./services/auditS3Service');
+const NotificationsService = require('./services/notificationsService');
+const { validateSecrets, getSecret } = require('./config/secrets');
 // Centralized auth guard (delegates to Firebase when configured, otherwise JWT)
 const { authGuard, requireRole } = require('./middleware/authGuard');
 // Backwards-compatible alias used elsewhere in this file
 const authMiddleware = authGuard;
+// Circuit breaker for AI Core dependency
+const CircuitBreaker = require('./utils/circuitBreaker');
+const aiCoreBreaker = new CircuitBreaker({
+  name: 'ai_core',
+  failureThreshold: 3,
+  resetTimeout: 60000,
+  halfOpenSuccessThreshold: 2,
+});
+// Distributed tracing
+const { traceMiddleware, traceAxiosInterceptor, setCurrentTrace, initTracing: initTracing_tracing } = require('./utils/tracing');
 // Lightweight in-process cache (simple LRU by insertion order) to avoid external deps
 class SimpleCache {
   constructor(options = {}) {
@@ -122,10 +136,15 @@ if (cors) {
         if (!origin) {
           return callback(null, true);
         } // allow non-browser tools
-        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
           return callback(null, true);
         }
-        return callback(new Error('Not allowed by CORS'));
+        // In production, reject unknown origins; in development, allow all
+        if (process.env.NODE_ENV === 'production') {
+          logger.warn({ origin }, 'CORS_blocked_origin');
+          return callback(new Error('Not allowed by CORS'));
+        }
+        return callback(null, true);
       },
       credentials: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
@@ -143,8 +162,29 @@ if (hpp) {
 if (mongoSanitize) {
   app.use(mongoSanitize());
 }
-if (xssClean) {
-  app.use(xssClean());
+if (xss) {
+  app.use((req, res, next) => {
+    if (req.body && typeof req.body === 'object') {
+      sanitizeObject(req.body);
+    }
+    if (req.query && typeof req.query === 'object') {
+      sanitizeObject(req.query);
+    }
+    if (req.params && typeof req.params === 'object') {
+      sanitizeObject(req.params);
+    }
+    next();
+  });
+}
+
+function sanitizeObject(obj) {
+  for (const key of Object.keys(obj)) {
+    if (typeof obj[key] === 'string') {
+      obj[key] = xss(obj[key]);
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      sanitizeObject(obj[key]);
+    }
+  }
 }
 if (compression) {
   app.use(compression());
@@ -158,7 +198,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, slow down' },
-    skip: (req, _res) => (process.env.DISABLE_RATE_LIMIT === '1') || (req.headers['x-test-bypass-ratelimit'] === '1'),
+    skip: (req, _res) => (process.env.NODE_ENV === 'test' && process.env.DISABLE_RATE_LIMIT === '1'),
   }),
 );
 
@@ -170,6 +210,9 @@ app.use((req, res, next) => {
   req.request_id = rid;
   next();
 });
+
+// Distributed tracing middleware
+app.use(traceMiddleware);
 
 // Prometheus metrics
 const collectDefault = promClient.collectDefaultMetrics;
@@ -242,6 +285,11 @@ const cookieParser = require('cookie-parser');
 const cache = require('./utils/cache');
 cache.init(process.env.REDIS_URL);
 
+// Pub/sub helper for real-time streaming (Redis-backed, falls back to in-process events)
+const pubsub = require('./realtime/pubsub');
+pubsub.init(process.env.REDIS_URL);
+const { ANALYSIS_EVENTS_CHANNEL } = require('./realtime/wsServer');
+
 // Simple in-memory stores used for tests or when USE_IN_MEMORY is set
 const _users = [];
 const _datasets = [];
@@ -267,6 +315,14 @@ if (!USE_IN_MEMORY) {
   setTimeout(() => {
     STARTUP_COMPLETE = true;
   }, 250);
+}
+
+// Validate required secrets at startup — fail fast if misconfigured
+const secretCheck = validateSecrets();
+if (!secretCheck.valid) {
+  logger.fatal({ missing: secretCheck.missing }, 'Startup aborted: missing required secrets');
+  // Give loggers time to flush before exiting
+  setTimeout(() => process.exit(1), 500);
 }
 
 // Initialize Firebase Admin SDK at startup (only if AUTH_PROVIDER is firebase)
@@ -304,6 +360,12 @@ app.get('/health/readiness', async (req, res) => {
     return res.json({ status: 'ready', db: dbReady, ai_core: aiCoreReady });
   }
   return res.status(503).json({ status: 'not_ready', db: dbReady, ai_core: aiCoreReady, startup_complete: STARTUP_COMPLETE });
+});
+
+// Circuit breaker status endpoint
+app.get('/health/circuit-breaker', (req, res) => {
+  const state = aiCoreBreaker.getState();
+  res.json({ circuit_breaker: { service: 'ai_core', ...state } });
 });
 
 // Alertmanager webhook receiver - create incidents when alerts fire
@@ -392,11 +454,91 @@ try {
   logger.error({ err: e }, 'routes_evidence_register_failed');
 }
 
+try {
+  app.use('/v1/drift', require('./routes/drift'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_drift_register_failed');
+}
+
 // Access request & admin user management routes
 try {
   app.use(require('./routes/accessRequests'));
 } catch (e) {
   logger.error({ err: e }, 'routes_access_requests_register_failed');
+}
+
+// Careers and newsletter routes
+try {
+  app.use('/api/careers', require('./routes/careers'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_careers_register_failed');
+}
+
+try {
+  app.use('/api/newsletter', require('./routes/newsletter'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_newsletter_register_failed');
+}
+
+// Multi-tenancy: tenant management and per-tenant billing routes
+try {
+  app.use(require('./routes/tenants'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_tenants_register_failed');
+}
+
+try {
+  app.use(require('./routes/billing'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_billing_register_failed');
+}
+
+try {
+  app.use(require('./routes/stripe-webhooks'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_stripe_webhooks_register_failed');
+}
+
+try {
+  app.use(require('./routes/notifications'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_notifications_register_failed');
+}
+
+try {
+  app.use('/auth/sso', require('./routes/enterpriseSSO'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_enterprise_sso_register_failed');
+}
+
+try {
+  app.use('/api', require('./routes/modelRetraining'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_model_retraining_register_failed');
+}
+
+try {
+  app.use('/api/federated', require('./routes/federated'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_federated_register_failed');
+}
+
+try {
+  app.use('/api/governance', require('./routes/governance'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_governance_register_failed');
+}
+
+try {
+  app.use(require('./routes/policies'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_policies_register_failed');
+}
+
+try {
+  app.use(require('./routes/modelComparison'));
+} catch (e) {
+  logger.error({ err: e }, 'routes_model_comparison_register_failed');
 }
 
 // Helper functions (abstract persistence)
@@ -407,14 +549,49 @@ async function findUserByEmail(email) {
   return User.findOne({ email });
 }
 
-async function createUser(name, email, password_hash) {
+async function findUserById(userId) {
+  if (USE_IN_MEMORY) {
+    return _users.find(u => String(u._id) === String(userId)) || null;
+  }
+  return User.findById(userId);
+}
+
+async function createUser(name, email, password_hash, tenantId = null) {
   if (USE_IN_MEMORY) {
     const id = String(_users.length + 1);
-    const u = { _id: id, name, email, password_hash, role: 'user' };
+    const u = { _id: id, name, email, password_hash, role: 'user', tenantId };
     _users.push(u);
     return u;
   }
-  return User.create({ name, email, password_hash });
+  return User.create({ name, email, password_hash, tenantId });
+}
+
+// Creates a new tenant + billing account and returns its tenantId. No-op in
+// in-memory/test mode (tenant assignment there is via x-test-tenant-id header).
+async function createTenantForSignup(name, billingEmail) {
+  if (USE_IN_MEMORY) {
+    return null;
+  }
+  try {
+    const { v4: uuidv4Local } = require('uuid');
+    const Tenant = require('./models/Tenant');
+    const tenantId = uuidv4Local();
+    let slug = String(name || 'tenant').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || tenantId.slice(0, 8);
+    if (await Tenant.findOne({ slug })) {
+      slug = `${slug}-${tenantId.slice(0, 6)}`;
+    }
+    await Tenant.create({ tenantId, name: name || 'My Organization', slug, status: 'trial', plan: 'free', billingEmail });
+    try {
+      const billingService = require('./services/billingService');
+      await billingService.getOrCreateBillingAccount(tenantId, billingEmail);
+    } catch (e) {
+      logger.warn({ err: e }, 'billing_account_bootstrap_failed');
+    }
+    return tenantId;
+  } catch (e) {
+    logger.error({ err: e }, 'tenant_bootstrap_failed');
+    return null;
+  }
 }
 
 async function createDataset(name, type, ownerId) {
@@ -439,6 +616,7 @@ async function createReport(analysisId, summary, userId, extras = {}) {
     const id = String(_reports.length + 1);
     const r = { _id: id, analysisId, summary, userId, ...extras };
     _reports.push(r);
+    publishAnalysisEvent(r, userId, analysisId, summary);
     return r;
   }
   const doc = await Report.create({ analysisId, summary, userId, ...extras });
@@ -456,7 +634,23 @@ async function createReport(analysisId, summary, userId, extras = {}) {
     logger.warn({ err: e }, 'report_cache_invalidate_failed');
   }
 
+  publishAnalysisEvent(doc, userId, analysisId, summary);
+
   return doc;
+}
+
+function publishAnalysisEvent(doc, userId, analysisId, summary) {
+  try {
+    pubsub.publish(ANALYSIS_EVENTS_CHANNEL, {
+      userId: String(userId),
+      reportId: String(doc._id || doc.id || ''),
+      analysisId,
+      summary,
+      createdAt: new Date().toISOString(),
+    }).catch(err => logger.warn({ err }, 'analysis_event_publish_failed'));
+  } catch (e) {
+    logger.warn({ err: e }, 'analysis_event_publish_failed');
+  }
 }
 
 // Token management helpers
@@ -597,6 +791,27 @@ async function revokeRefreshToken(tokenId) {
   }
 }
 
+async function revokeAllUserTokens(userId) {
+  if (USE_IN_MEMORY) {
+    _refreshTokens.forEach((value, key) => {
+      try {
+        const payload = jwt.verify(key, getSecret('REFRESH_SECRET'));
+        if (payload.sub === userId || String(payload.sub) === String(userId)) {
+          _revokedTokens.add(key);
+        }
+      } catch (e) {
+        // ignore invalid tokens
+      }
+    });
+    return;
+  }
+  try {
+    await RefreshToken.updateMany({ userId }, { revokedAt: new Date() });
+  } catch (e) {
+    logger.error({ err: e, userId }, 'Error revoking all user tokens');
+  }
+}
+
 // Preprocess dataset helper: accepts either column-oriented mapping {col: [..]}
 // or row-oriented input {rows: [{col:val,...}, ...]}. Converts rows -> cols,
 // encodes simple categorical string columns to integer codes and drops
@@ -709,30 +924,67 @@ async function listUserDevices(userId) {
   }
 }
 
+// Rate limiters for sensitive endpoints
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts, try later' },
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.DISABLE_RATE_LIMIT === '1'),
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests, try later' },
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.DISABLE_RATE_LIMIT === '1'),
+});
+
+const analyzeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many analysis requests, slow down' },
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.DISABLE_RATE_LIMIT === '1'),
+});
+
 // Auth
 app.post(
   '/auth/register',
+  registerLimiter,
   // validation
   body('name').isString().trim().isLength({ min: 1, max: 200 }),
   body('email').isEmail().normalizeEmail(),
   // choose stronger default password policy in non-test mode
-  body('password').isString().isLength({ min: USE_IN_MEMORY ? Number(process.env.MIN_PASSWORD_LENGTH || 4) : Number(process.env.MIN_PASSWORD_LENGTH || 12) }),
+  body('password').isString().isLength({ min: USE_IN_MEMORY ? Number(process.env.MIN_PASSWORD_LENGTH || 4) : Number(process.env.MIN_PASSWORD_LENGTH || 12) })
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password must contain uppercase, lowercase, and a number'),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
     try {
-      const { name, email, password } = req.body;
+      const { name, email, password, organizationName } = req.body;
       const existing = await findUserByEmail(email);
       if (existing) {
         return res.status(400).json({ error: 'User exists' });
       }
       const hash = await bcrypt.hash(password, 10);
-      const user = await createUser(name, email, hash);
-      return res.json({ status: 'registered', userId: user._id });
+      const tenantId = await createTenantForSignup(organizationName || name, email);
+      const user = await createUser(name, email, hash, tenantId);
+      auditS3Service.logAuthEvent(email, 'register', 'success', req.ip, req.headers['user-agent']).catch(err => {
+        logger.warn({ err }, 'audit_log_failed');
+      });
+      return res.json({ status: 'registered', userId: user._id, tenantId });
     } catch (err) {
       logger.error({ err }, 'Error during register');
+      auditS3Service.logAuthEvent(req.body.email, 'register', 'failure', req.ip, req.headers['user-agent']).catch(err => {
+        logger.warn({ err }, 'audit_log_failed');
+      });
       return res.status(500).json({ error: 'Registration failed' });
     }
   },
@@ -740,14 +992,31 @@ app.post(
 
 app.use(cookieParser());
 
+// Initialize Passport for SSO
+const passport = require('passport');
+const session = require('express-session');
+const SESSION_SECRET = getSecret('SESSION_SECRET');
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.SECURE_COOKIES === '1',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
 const loginLimiter = rateLimit({
   windowMs: 5 * 60_000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts, try later' },
-  // Allow test harness / load scripts to bypass to avoid artificial 429 under load
-  skip: (req) => (process.env.DISABLE_RATE_LIMIT === '1') || (req.headers['x-test-bypass-ratelimit'] === '1'),
+  // Only bypass in test mode with explicit env var — never via request header
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.DISABLE_RATE_LIMIT === '1'),
 });
 
 app.post(
@@ -760,8 +1029,8 @@ app.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
+    const { email, password, deviceName } = req.body;
     try {
-      const { email, password, deviceName } = req.body;
       const user = await findUserByEmail(email);
       if (!user) {
         return res.status(401).json({ error: 'Invalid' });
@@ -771,12 +1040,17 @@ app.post(
         return res.status(401).json({ error: 'Invalid' });
       }
 
-      const accessToken = jwt.sign({ sub: user._id, role: user.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+      const accessToken = jwt.sign({ sub: user._id, role: user.role, tenantId: user.tenantId || null }, getSecret('SECRET_KEY'), { expiresIn: '15m' });
 
       // Generate and store refresh token (use unique jti for determinism)
       const refreshTokenPayload = { sub: user._id, jti: uuidv4() };
-      const refreshTokenJwt = jwt.sign(refreshTokenPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+      const refreshTokenJwt = jwt.sign(refreshTokenPayload, getSecret('REFRESH_SECRET'), { expiresIn: '7d' });
       const storedToken = await storeRefreshToken(user._id, refreshTokenJwt, req, deviceName);
+
+      // Log authentication event
+      auditS3Service.logAuthEvent(user._id, 'login', 'success', req.ip, req.headers['user-agent']).catch(err => {
+        logger.warn({ err }, 'audit_log_failed');
+      });
 
       // Optionally set refresh token as secure HttpOnly cookie in production
       if (process.env.USE_COOKIE_REFRESH === '1') {
@@ -787,6 +1061,9 @@ app.post(
       return res.json({ accessToken, refreshToken: refreshTokenJwt });
     } catch (err) {
       logger.error({ err }, 'Error during login');
+      auditS3Service.logAuthEvent(email, 'login', 'failure', req.ip, req.headers['user-agent']).catch(e => {
+        logger.warn({ err: e }, 'audit_log_failed');
+      });
       return res.status(500).json({ error: 'Login failed' });
     }
   },
@@ -845,9 +1122,9 @@ app.post('/auth/firebase/exchange', async (req, res) => {
     }
 
     // Issue backend tokens (access + refresh)
-    const accessToken = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+    const accessToken = jwt.sign({ sub: userDoc._id, role: userDoc.role, tenantId: userDoc.tenantId || null }, getSecret('SECRET_KEY'), { expiresIn: '15m' });
     const refreshPayload = { sub: userDoc._id, jti: uuidv4() };
-    const refreshTokenJwt = jwt.sign(refreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+    const refreshTokenJwt = jwt.sign(refreshPayload, getSecret('REFRESH_SECRET'), { expiresIn: '7d' });
     await storeRefreshToken(userDoc._id, refreshTokenJwt, req);
 
     // If cookie-based sessions are enabled, set HttpOnly cookies for refresh and access tokens
@@ -884,9 +1161,9 @@ app.get('/auth/verify', async (req, res) => {
     // Try to verify access token first
     if (accessToken) {
       try {
-        const payload = jwt.verify(accessToken, process.env.SECRET_KEY || 'secret');
-        // Return minimal public info
-        return res.json({ userId: payload.sub, role: payload.role || 'user' });
+      const payload = jwt.verify(accessToken, getSecret('SECRET_KEY'));
+      // Return minimal public info
+      return res.json({ userId: payload.sub, role: payload.role || 'user' });
       } catch (e) {
         // expired/invalid -> fallthrough to refresh if present
       }
@@ -894,7 +1171,7 @@ app.get('/auth/verify', async (req, res) => {
 
     // If we have a refresh token, validate and issue a new access token (rotate) for UX
     if (refreshToken) {
-      const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
+      const payload = jwt.verify(refreshToken, getSecret('REFRESH_SECRET'));
       const userId = payload.sub;
       // load user to return role and ensure exists
       const userDoc = USE_IN_MEMORY ? _users.find(u => String(u._id) === String(userId)) : await User.findById(userId);
@@ -903,7 +1180,7 @@ app.get('/auth/verify', async (req, res) => {
       }
 
       // Issue fresh access token and set cookie
-      const newAccess = jwt.sign({ sub: userDoc._id, role: userDoc.role }, process.env.SECRET_KEY || 'secret', { expiresIn: '15m' });
+      const newAccess = jwt.sign({ sub: userDoc._id, role: userDoc.role, tenantId: userDoc.tenantId || null }, getSecret('SECRET_KEY'), { expiresIn: '15m' });
       const cookieOpts = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 };
       res.cookie('accessToken', newAccess, cookieOpts);
       return res.json({ userId: String(userDoc._id), role: userDoc.role || 'user' });
@@ -925,7 +1202,7 @@ app.post('/auth/refresh', async (req, res) => {
   }
 
   try {
-    const payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET || 'refresh_secret');
+    const payload = jwt.verify(refreshToken, getSecret('REFRESH_SECRET'));
     const userId = payload.sub;
 
     // Find and validate the refresh token
@@ -949,21 +1226,20 @@ app.post('/auth/refresh', async (req, res) => {
     }
 
     // Issue new access token
-    const user = await findUserByEmail !== 'function' ? null : null;
     const userDoc = !USE_IN_MEMORY ? await User.findById(userId) : _users.find(u => String(u._id) === String(userId));
     if (!userDoc) {
       return res.status(401).json({ error: 'User not found' });
     }
 
     const accessToken = jwt.sign(
-      { sub: userDoc._id, role: userDoc.role || 'user' },
-      process.env.SECRET_KEY || 'secret',
+      { sub: userDoc._id, role: userDoc.role || 'user', tenantId: userDoc.tenantId || null },
+      getSecret('SECRET_KEY'),
       { expiresIn: '15m' },
     );
 
     // Rotate refresh token: revoke old, issue new (keep rotationId, link parent)
     const newRefreshPayload = { sub: userId, jti: uuidv4() };
-    const newRefreshJwt = jwt.sign(newRefreshPayload, process.env.REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+    const newRefreshJwt = jwt.sign(newRefreshPayload, getSecret('REFRESH_SECRET'), { expiresIn: '7d' });
 
     if (!USE_IN_MEMORY) {
       // Revoke old token and store new one, preserving rotation chain
@@ -973,6 +1249,11 @@ app.post('/auth/refresh', async (req, res) => {
       _refreshTokens.delete(refreshToken);
       _refreshTokens.set(newRefreshJwt, String(userId));
     }
+
+    // Audit log token refresh
+    auditS3Service.logAuthEvent(userId, 'token_refresh', 'success', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
 
     // Optionally set as cookie
     if (process.env.USE_COOKIE_REFRESH === '1') {
@@ -1006,9 +1287,15 @@ app.post('/auth/logout', authMiddleware, async (req, res) => {
         await revokeRefreshToken(tokenDoc._id); // pass MongoDB ID
       }
     }
+    auditS3Service.logAuthEvent(req.user.sub, 'logout', 'success', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
     res.json({ status: 'logged out' });
   } catch (e) {
     logger.error({ err: e }, 'Error during logout');
+    auditS3Service.logAuthEvent(req.user.sub, 'logout', 'failure', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
     res.status(500).json({ error: 'Logout failed' });
   }
 });
@@ -1020,7 +1307,7 @@ app.post('/auth/logout-cookie', async (req, res) => {
     const cookieRefresh = req.cookies && req.cookies.refreshToken;
     if (cookieRefresh) {
       try {
-        const payload = jwt.verify(cookieRefresh, process.env.REFRESH_SECRET || 'refresh_secret');
+        const payload = jwt.verify(cookieRefresh, getSecret('REFRESH_SECRET'));
         const userId = payload.sub;
         // Attempt to find any matching refresh token for this user and revoke it
         const anyDoc = await findAnyRefreshToken(userId, cookieRefresh);
@@ -1044,6 +1331,311 @@ app.post('/auth/logout-cookie', async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, 'logout_cookie_failed');
     return res.status(500).json({ error: 'logout_failed' });
+  }
+});
+
+// Forgot password - request reset token
+app.post('/auth/forgot-password',
+  forgotPasswordLimiter,
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await findUserByEmail(email);
+    if (!user) {
+      // Security: Don't reveal if email exists
+      return res.json({ status: 'success', message: 'If email exists, reset link has been sent' });
+    }
+
+    // Create password reset token
+    const PasswordReset = require('./models/PasswordReset');
+    const { token, expiresAt } = await PasswordReset.createReset(user._id, email);
+
+    // Send email with reset link (would integrate with emailService)
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+    try {
+      const emailService = require('./services/emailService');
+      await emailService.sendPasswordResetEmail(email, resetUrl, expiresAt);
+    } catch (emailErr) {
+      logger.warn({ err: emailErr }, 'failed_to_send_password_reset_email');
+      // Don't fail the request, token was created
+    }
+
+    // Log the request
+    logger.info({ email, userId: user._id }, 'password_reset_requested');
+
+    return res.json({ status: 'success', message: 'Password reset link sent to email' });
+  } catch (err) {
+    logger.error({ err }, 'forgot_password_failed');
+    return res.status(500).json({ error: 'Password reset request failed' });
+  }
+});
+
+// Reset password - verify token and set new password
+app.post('/auth/reset-password',
+  body('token').isString().trim().notEmpty().withMessage('Token required'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('newPassword').isString().isLength({ min: Number(process.env.MIN_PASSWORD_LENGTH || 12) }).withMessage('Password must be at least 12 characters'),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const { token, email, newPassword } = req.body;
+
+    // Find user by email
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    // Verify reset token
+    const PasswordReset = require('./models/PasswordReset');
+    const resetRecord = await PasswordReset.verifyReset(user._id, token);
+    if (!resetRecord) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Hash new password (uses the bcryptjs import already in scope)
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    if (USE_IN_MEMORY) {
+      const userIndex = _users.findIndex(u => String(u._id) === String(user._id));
+      if (userIndex !== -1) {
+        _users[userIndex].passwordHash = hash;
+      }
+    } else {
+      const User = require('./models/User');
+      await User.updateOne({ _id: user._id }, { passwordHash: hash });
+    }
+
+    // Mark reset token as used
+    await resetRecord.markUsed();
+
+    // Revoke all refresh tokens for security (force re-login)
+    await revokeAllUserTokens(user._id);
+
+    // Log the reset
+    logger.info({ userId: user._id, email }, 'password_reset_completed');
+
+    // Audit log password change
+    auditS3Service.logAuthEvent(user._id, 'password_reset', 'success', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
+
+    return res.json({ status: 'success', message: 'Password has been reset successfully' });
+  } catch (err) {
+    logger.error({ err }, 'reset_password_failed');
+    return res.status(500).json({ error: 'Password reset failed' });
+  }
+});
+
+// MFA Setup - Generate secret and QR code
+app.post('/auth/mfa/setup', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const user = await findUserById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Only admins can use MFA (per user stories)
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'MFA is only available for admin accounts' });
+    }
+
+    const MFAService = require('./services/mfaService');
+    const { secret, qrCode } = await MFAService.generateMFASecret(userId, user.email);
+
+    // Generate backup codes
+    const backupCodesArray = MFAService.generateBackupCodes(10);
+    const backupCodes = MFAService.formatBackupCodes(backupCodesArray);
+
+    logger.info({ userId }, 'mfa_setup_initiated');
+
+    res.json({
+      status: 'success',
+      secret,
+      qrCode,
+      backupCodes: backupCodesArray, // Only show once
+    });
+  } catch (err) {
+    logger.error({ err }, 'mfa_setup_failed');
+    return res.status(500).json({ error: 'Failed to setup MFA' });
+  }
+});
+
+// MFA Enable - Verify token and enable MFA
+app.post('/auth/mfa/enable', authMiddleware, async (req, res) => {
+  try {
+    const { secret, token, backupCodes } = req.body;
+    const userId = req.user.sub;
+
+    if (!secret || !token) {
+      return res.status(400).json({ error: 'Secret and token are required' });
+    }
+
+    const MFAService = require('./services/mfaService');
+    const isValid = MFAService.verifyMFAToken(secret, token);
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid MFA token' });
+    }
+
+    // Store MFA secret and backup codes for user
+    if (USE_IN_MEMORY) {
+      const user = _users.find(u => String(u._id) === String(userId));
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaSecret = secret;
+        user.mfaBackupCodes = backupCodes || [];
+      }
+    } else {
+      const User = require('./models/User');
+      await User.updateOne(
+        { _id: userId },
+        {
+          mfaEnabled: true,
+          mfaSecret: secret,
+          mfaBackupCodes: backupCodes || [],
+        }
+      );
+    }
+
+    logger.info({ userId }, 'mfa_enabled');
+
+    // Audit log MFA enablement
+    auditS3Service.logAuthEvent(userId, 'mfa_enabled', 'success', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
+
+    res.json({ status: 'success', message: 'MFA has been enabled' });
+  } catch (err) {
+    logger.error({ err }, 'mfa_enable_failed');
+    return res.status(500).json({ error: 'Failed to enable MFA' });
+  }
+});
+
+// MFA Disable - Disable MFA for user
+app.post('/auth/mfa/disable', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    const userId = req.user.sub;
+
+    if (!token) {
+      return res.status(400).json({ error: 'MFA token is required to disable MFA' });
+    }
+
+    // Fetch user with MFA secret
+    let user;
+    if (USE_IN_MEMORY) {
+      user = _users.find(u => String(u._id) === String(userId));
+    } else {
+      const User = require('./models/User');
+      user = await User.findById(userId);
+    }
+
+    if (!user || !user.mfaSecret) {
+      return res.status(400).json({ error: 'MFA not enabled for this account' });
+    }
+
+    // Verify token before allowing disable
+    const MFAService = require('./services/mfaService');
+    const isValid = MFAService.verifyMFAToken(user.mfaSecret, token);
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid MFA token' });
+    }
+
+    // Disable MFA
+    if (USE_IN_MEMORY) {
+      user.mfaEnabled = false;
+      user.mfaSecret = null;
+      user.mfaBackupCodes = [];
+    } else {
+      const User = require('./models/User');
+      await User.updateOne(
+        { _id: userId },
+        {
+          mfaEnabled: false,
+          mfaSecret: null,
+          mfaBackupCodes: [],
+        }
+      );
+    }
+
+    logger.info({ userId }, 'mfa_disabled');
+
+    // Audit log MFA disablement
+    auditS3Service.logAuthEvent(userId, 'mfa_disabled', 'success', req.ip, req.headers['user-agent']).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
+
+    res.json({ status: 'success', message: 'MFA has been disabled' });
+  } catch (err) {
+    logger.error({ err }, 'mfa_disable_failed');
+    return res.status(500).json({ error: 'Failed to disable MFA' });
+  }
+});
+
+// Verify MFA token during login (for future implementation)
+app.post('/auth/mfa/verify', async (req, res) => {
+  try {
+    const { userId, token, backupCode } = req.body;
+
+    if (!userId || (!token && !backupCode)) {
+      return res.status(400).json({ error: 'userId and either token or backupCode are required' });
+    }
+
+    // Fetch user
+    let user;
+    if (USE_IN_MEMORY) {
+      user = _users.find(u => String(u._id) === String(userId));
+    } else {
+      const User = require('./models/User');
+      user = await User.findById(userId);
+    }
+
+    if (!user || !user.mfaSecret) {
+      return res.status(400).json({ error: 'MFA not enabled for this account' });
+    }
+
+    const MFAService = require('./services/mfaService');
+    let isValid = false;
+
+    // Try token first
+    if (token) {
+      isValid = MFAService.verifyMFAToken(user.mfaSecret, token);
+    }
+
+    // Try backup code
+    if (!isValid && backupCode) {
+      isValid = MFAService.verifyBackupCode(user.mfaBackupCodes || [], backupCode);
+      if (isValid && !USE_IN_MEMORY) {
+        // Save updated backup codes (marked as used)
+        const User = require('./models/User');
+        await User.updateOne({ _id: userId }, { mfaBackupCodes: user.mfaBackupCodes });
+      }
+    }
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid MFA token or backup code' });
+    }
+
+    res.json({ status: 'success', message: 'MFA verification successful' });
+  } catch (err) {
+    logger.error({ err }, 'mfa_verify_failed');
+    return res.status(500).json({ error: 'Failed to verify MFA' });
   }
 });
 
@@ -1084,14 +1676,28 @@ app.delete('/auth/devices/:deviceId', authMiddleware, async (req, res) => {
 // authGuard is imported at the top of this file
 
 // Protected dataset upload
-app.post('/datasets/upload', authMiddleware, async (req, res) => {
+app.post('/datasets/upload', authMiddleware,
+  body('name').isString().trim().isLength({ min: 1, max: 200 }).withMessage('Dataset name required (max 200 chars)'),
+  body('type').optional().isString().trim().isLength({ max: 50 }),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
   const { name, type } = req.body;
   const ds = await createDataset(name, type, req.user.sub);
   res.json({ datasetId: ds._id.toString(), status: 'uploaded', name: ds.name });
 });
 
 // v1 API: datasets (wrapper endpoints to provide /v1 surface area)
-app.post('/v1/datasets', authMiddleware, async (req, res) => {
+app.post('/v1/datasets', authMiddleware,
+  body('name').isString().trim().isLength({ min: 1, max: 200 }).withMessage('Dataset name required (max 200 chars)'),
+  body('type').optional().isString().trim().isLength({ max: 50 }),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const { name, type } = req.body;
     const ds = await createDataset(name, type, req.user.sub);
@@ -1456,7 +2062,8 @@ app.get('/datasets/:id/versions/:versionId/download', authMiddleware, async (req
         return res.status(404).json({ error: 'blob_not_stored' });
       }
       res.set('Content-Type', 'text/csv');
-      res.set('Content-Disposition', `attachment; filename="${v.filename || 'dataset.csv'}"`);
+      const safeFilename = (v.filename || 'dataset.csv').replace(/[^a-zA-Z0-9._-]/g, '_');
+      res.set('Content-Disposition', `attachment; filename="${safeFilename}"`);
       return res.send(v.blob);
     }
     const ds = await Dataset.findById(datasetId).select('versions');
@@ -1471,7 +2078,8 @@ app.get('/datasets/:id/versions/:versionId/download', authMiddleware, async (req
       return res.status(404).json({ error: 'blob_not_stored' });
     }
     res.set('Content-Type', 'text/csv');
-    res.set('Content-Disposition', `attachment; filename="${v.filename || 'dataset.csv'}"`);
+    const safeFilename = (v.filename || 'dataset.csv').replace(/[^a-zA-Z0-9._-]/g, '_');
+    res.set('Content-Disposition', `attachment; filename="${safeFilename}"`);
     return res.send(v.blob);
   } catch (e) {
     logger.error({ err: e }, 'download_version_failed');
@@ -1615,11 +2223,17 @@ try {
 // Run analysis by calling ai_core microservice, persist a Report and return the analysis summary
 app.post(
   '/analyze',
+  analyzeLimiter,
   authMiddleware,
   // simple validation: dataset_name optional string, data required object
   body('dataset_name').optional().isString().isLength({ max: 200 }),
   body('data').exists().custom(v => v && typeof v === 'object'),
   async (req, res) => {
+    // Add tenantGuard middleware inline since this is inline route
+    if (!req.user || !req.user.sub) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    req.tenantId = req.user.tenantId || req.user.sub;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -1648,7 +2262,29 @@ app.post(
 
       // Lazily require axios so jest.mock('axios') in tests can intercept
       const axiosLocal = require('axios');
-      const aiResp = await axiosLocal.post(aiCoreUrl, payload, { timeout: Number(process.env.AI_CORE_TIMEOUT_MS || 60_000), headers });
+
+      // Set current trace for axios interceptor
+      setCurrentTrace(req.trace);
+
+      // Propagate trace headers to AI Core
+      const traceHeaders = req.trace.toHeaders();
+      const allHeaders = { ...headers, ...traceHeaders };
+
+      // Use circuit breaker to call AI Core
+      let aiResp;
+      try {
+        aiResp = await aiCoreBreaker.call(async () => {
+          return await axiosLocal.post(aiCoreUrl, payload, { timeout: Number(process.env.AI_CORE_TIMEOUT_MS || 60_000), headers: allHeaders });
+        });
+      } catch (cbError) {
+        if (cbError.code === 'CIRCUIT_BREAKER_OPEN') {
+          logger.warn({ breaker_state: aiCoreBreaker.getState(), trace_id: req.trace.traceId }, 'circuit_breaker_rejected_request');
+          // Circuit is open, fall through to fallback
+          throw new Error('AI Core service temporarily unavailable');
+        }
+        throw cbError;
+      }
+
       const tEnd = Date.now();
       aiCoreDuration.observe({ route: '/ai_core/analyze' }, (tEnd - tStart) / 1000);
       const analysisId = aiResp.data.analysis_id || aiResp.data.analysisId || null;
@@ -1658,6 +2294,28 @@ app.post(
       const report = await createReport(analysisId, summary, req.user.sub, { datasetName: payload.dataset_name });
       const responsePayload = { status: 'ok', reportId: report._id || report.id || null, analysisId, summary };
       analyzeCache.set(payloadHash, responsePayload);
+
+      // Log data access for audit trail
+      const rows = Array.isArray(payload.data.rows) ? payload.data.rows.length : Object.values(payload.data || {}).reduce((n, v) => Math.max(n, Array.isArray(v) ? v.length : 0), 0);
+      auditS3Service.logDataAccessEvent(req.user.sub, 'dataset', 'read', rows, req.user.tenantId).catch(err => {
+        logger.warn({ err }, 'audit_log_failed');
+      });
+
+      // Create notification for analysis completion
+      NotificationsService.create(req.user.sub, req.user.tenantId, {
+        title: 'Analysis Completed',
+        body: `Your fairness analysis has been completed successfully`,
+        type: 'success',
+        link: `/dashboard/user/reports/${report._id || report.id}`,
+        metadata: {
+          entityType: 'analysis',
+          entityId: analysisId,
+          source: 'analysis',
+        },
+      }).catch(err => {
+        logger.warn({ err }, 'notification_create_failed');
+      });
+
       return res.json(responsePayload);
     } catch (err) {
       // If AI Core is unavailable, provide a stubbed analysis in non-production to keep flows working
@@ -1671,11 +2329,8 @@ app.post(
         return res.json({ status: 'ok', reportId: report._id || null, analysisId: 'stub_ai', summary });
       }
       logger.error({ err, msg: err?.message, stack: err?.stack }, 'Error calling ai_core');
-      // Keep error messages generic in production
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(502).json({ error: 'Analysis service unavailable' });
-      }
-      return res.status(500).json({ error: 'Analysis failed', details: err?.message });
+      // Always return generic error to avoid leaking internal details
+      return res.status(502).json({ error: 'Analysis service unavailable' });
     }
   },
 );
@@ -1742,7 +2397,7 @@ app.get('/report/:id/export', authMiddleware, async (req, res) => {
     }
 
     // Fallback: serve printable HTML
-    const safeId = escape(req.params.id);
+    const safeId = escape(String(req.params.id).replace(/[^a-zA-Z0-9._-]/g, '_'));
     const safeReport = escape(JSON.stringify(rpt, null, 2));
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Report ${safeId}</title><style>body{font-family:system-ui,Arial,Helvetica,sans-serif;padding:20px}</style></head><body><h1>Report ${safeId}</h1><pre>${safeReport}</pre></body></html>`;
     res.set('Content-Type', 'text/html');
@@ -1772,6 +2427,9 @@ app.get('/reports', authMiddleware, async (req, res, next) => {
     const reports = await findReportsByUser(requesterId);
     const payload = { userId: requesterId, reports };
     await cache.set(cacheKey, payload, Number(process.env.REPORTS_LIST_CACHE_TTL_MS || 30_000)).catch(() => {});
+    auditS3Service.logDataAccessEvent(requesterId, 'reports', 'read', reports?.length || 0, req.user?.tenantId).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
     logger.info({ userId: requesterId, count: reports?.length || 0 }, 'reports_list_success');
     return res.json(payload);
   } catch (e) {
@@ -1794,6 +2452,9 @@ app.get('/reports/:userId', authMiddleware, async (req, res, next) => {
     }
     logger.info({ userId: req.params.userId }, 'reports_list_start');
     const reports = await findReportsByUser(req.params.userId);
+    auditS3Service.logDataAccessEvent(requesterId, 'reports', 'read', reports?.length || 0, req.user?.tenantId).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
     logger.info({ userId: req.params.userId, count: reports?.length || 0 }, 'reports_list_success');
     return res.json({ userId: req.params.userId, reports });
   } catch (e) {
@@ -1803,6 +2464,168 @@ app.get('/reports/:userId', authMiddleware, async (req, res, next) => {
       return res.json({ userId: req.params.userId, reports: [] });
     }
     return next(e);
+  }
+});
+
+// Get latest analysis/report for authenticated user
+app.get('/api/analyses/latest', authMiddleware, async (req, res) => {
+  try {
+    const requesterId = (req.user && req.user.sub) || req.userId;
+    if (!requesterId) {
+      return res.status(401).json({ error: 'unauthenticated' });
+    }
+
+    // Fetch latest report for user
+    const reports = USE_IN_MEMORY
+      ? _reports.filter(r => String(r.userId) === String(requesterId)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      : await Report.find({ userId: requesterId }).sort({ createdAt: -1 }).limit(1);
+
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ error: 'No analyses found' });
+    }
+
+    const latest = reports[0];
+    auditS3Service.logDataAccessEvent(requesterId, 'analysis', 'read', 1, req.user?.tenantId).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
+    return res.json(latest);
+  } catch (err) {
+    logger.error({ err }, 'get_latest_analysis_failed');
+    return res.status(500).json({ error: 'Failed to fetch latest analysis' });
+  }
+});
+
+// Export analysis with multiple formats (CSV, Excel, PDF)
+app.post('/api/export/analysis', authMiddleware, async (req, res) => {
+  try {
+    const { reportId, exportFormat = 'pdf' } = req.body;
+    const requesterId = (req.user && req.user.sub) || req.userId;
+
+    if (!reportId) {
+      return res.status(400).json({ error: 'reportId is required' });
+    }
+
+    // Fetch the report
+    const report = USE_IN_MEMORY
+      ? _reports.find(rr => String(rr._id) === String(reportId))
+      : await Report.findById(reportId);
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Authorization check
+    if (String(report.userId) !== String(requesterId) && (req.user?.role || req.role) !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Import export service
+    const exportService = require('./services/exportService');
+    const validFormats = ['csv', 'excel', 'xlsx', 'pdf'];
+
+    if (!validFormats.includes(exportFormat.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid export format. Supported: csv, excel, pdf' });
+    }
+
+    // Generate export
+    const result = await exportService.exportComplete(
+      report.summary || { summary: {} },
+      requesterId,
+      reportId,
+      exportFormat
+    );
+
+    // Set response headers based on format
+    const contentType = {
+      csv: 'text/csv',
+      excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      pdf: 'application/pdf'
+    }[exportFormat.toLowerCase()];
+
+    const fileExtension = {
+      csv: 'csv',
+      excel: 'xlsx',
+      xlsx: 'xlsx',
+      pdf: 'pdf'
+    }[exportFormat.toLowerCase()];
+
+    res.set('Content-Type', contentType);
+    res.set('Content-Disposition', `attachment; filename="analysis_${reportId}.${fileExtension}"`);
+
+    // Log export for audit trail
+    logger.info({
+      reportId,
+      exportFormat,
+      userId: requesterId,
+      timestamp: new Date().toISOString()
+    }, 'export_analysis_completed');
+
+    // Handle both string (CSV) and buffer (PDF, Excel) responses
+    if (typeof result === 'string') {
+      res.send(result);
+    } else {
+      res.send(result);
+    }
+  } catch (err) {
+    logger.error({ err }, 'export_analysis_failed');
+    return res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// Generate compliance report PDF
+app.post('/api/reports/:modelId/generate-pdf', authMiddleware, async (req, res) => {
+  try {
+    const { modelId } = req.params;
+    const { metrics } = req.body;
+    const requesterId = (req.user && req.user.sub) || req.userId;
+
+    if (!modelId) {
+      return res.status(400).json({ error: 'modelId is required' });
+    }
+
+    // Fetch the report/analysis
+    const report = USE_IN_MEMORY
+      ? _reports.find(rr => String(rr._id) === String(modelId))
+      : await Report.findById(modelId);
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Authorization check
+    if (String(report.userId) !== String(requesterId) && (req.user?.role || req.role) !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Generate PDF using compliance report service
+    const ComplianceReportService = require('./services/complianceReportService');
+    const pdfBuffer = await ComplianceReportService.generateComplianceReportPDF(
+      report.summary || {},
+      {
+        companyName: req.user?.organization || 'Organization',
+        reportDate: new Date(),
+        analyst: req.user?.email || 'System',
+        signOffRequired: true
+      }
+    );
+
+    // Audit log PDF generation
+    auditS3Service.logDataAccessEvent(requesterId, 'report', 'export', 1, req.user?.tenantId).catch(err => {
+      logger.warn({ err }, 'audit_log_failed');
+    });
+
+    // Set response headers for PDF download
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="compliance_report_${modelId}.pdf"`,
+      'Content-Length': pdfBuffer.length
+    });
+
+    res.send(pdfBuffer);
+  } catch (err) {
+    logger.error({ err, modelId: req.params.modelId }, 'pdf_generation_failed');
+    return res.status(500).json({ error: 'PDF generation failed' });
   }
 });
 
@@ -1831,6 +2654,34 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
   const port = process.env.PORT || 5000;
+
+  // Initialize SSO configurations on startup
+  async function initializeSSO() {
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.connection?.readyState !== 1) {
+        logger.warn('MongoDB not ready for SSO initialization');
+        return;
+      }
+
+      const SSOConfig = require('./services/ssoService').SSOConfig;
+      const configs = await SSOConfig.find({ enabled: true });
+
+      for (const config of configs) {
+        const { SSOService } = require('./services/ssoService');
+        await SSOService.initializeProvider(
+          config.tenantId,
+          config.provider,
+          config[config.provider] || config
+        );
+      }
+
+      logger.info({ count: configs.length }, 'SSO configurations initialized');
+    } catch (e) {
+      logger.warn({ err: e }, 'SSO initialization failed (may retry later)');
+    }
+  }
+
   // Optionally start the status worker as a child process on the backend instance
   try {
     const { startWorkerIfEnabled } = require('./worker-starter');
@@ -1839,7 +2690,44 @@ if (require.main === module) {
     logger.warn({ err: e }, 'worker_starter_failed');
   }
 
-  app.listen(port, () => logger.info({ port }, 'Backend system API listening'));
+  // Start governance worker for approval workflows, compliance sign-offs, and audit callbacks
+  try {
+    const GovernanceWorker = require('./workers/governanceWorker');
+    const governanceWorker = new GovernanceWorker({
+      intervalMs: parseInt(process.env.GOVERNANCE_WORKER_INTERVAL_MS || '60000'),
+      slaCheckIntervalMs: parseInt(process.env.GOVERNANCE_SLA_CHECK_INTERVAL_MS || '300000'),
+      callbackRetryIntervalMs: parseInt(process.env.GOVERNANCE_CALLBACK_RETRY_INTERVAL_MS || '60000'),
+      complianceExpiryCheckMs: parseInt(process.env.GOVERNANCE_COMPLIANCE_EXPIRY_CHECK_MS || '3600000'),
+    });
+    governanceWorker.start();
+    global.governanceWorker = governanceWorker;
+  } catch (e) {
+    logger.warn({ err: e }, 'governance_worker_startup_failed');
+  }
+
+  const http = require('http');
+  const server = http.createServer(app);
+  try {
+    const { attachWebSocketServer } = require('./realtime/wsServer');
+    attachWebSocketServer(server);
+  } catch (e) {
+    logger.warn({ err: e }, 'websocket_server_attach_failed');
+  }
+
+  server.listen(port, () => {
+    logger.info({ port }, 'Backend system API listening');
+    // Initialize SSO after server starts
+    setTimeout(initializeSSO, 1000);
+    // Initialize retraining scheduler
+    setTimeout(async () => {
+      try {
+        const retrainingScheduler = require('./services/retrainingScheduler');
+        await retrainingScheduler.initialize();
+      } catch (err) {
+        logger.error({ err }, 'failed_to_initialize_retraining_scheduler');
+      }
+    }, 2000);
+  });
 }
 
 module.exports = app;

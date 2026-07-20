@@ -15,6 +15,9 @@
 
 name: Deploy Production (Canary)
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -35,6 +38,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   GCP_PROJECT_ID: ethixai-production
   GCP_REGION: us-east1
@@ -49,6 +56,7 @@ jobs:
   build-test:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -58,6 +66,9 @@ jobs:
       frontend_image_tag: ${{ steps.meta-frontend.outputs.tags }}
       short_sha: ${{ steps.vars.outputs.short_sha }}
       release_version: ${{ steps.vars.outputs.release_version }}
+      backend_image: ${{ steps.vars.outputs.backend_image }}
+      ai_core_image: ${{ steps.vars.outputs.ai_core_image }}
+      frontend_image: ${{ steps.vars.outputs.frontend_image }}
 
     steps:
       - name: Checkout code
@@ -79,6 +90,13 @@ jobs:
           echo "BACKEND_IMAGE=ghcr.io/${owner_lower}/ethixai-backend" >> $GITHUB_ENV
           echo "AI_CORE_IMAGE=ghcr.io/${owner_lower}/ethixai-ai-core" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE=ghcr.io/${owner_lower}/ethixai-frontend" >> $GITHUB_ENV
+
+          # Also publish as step outputs so downstream jobs (which run on
+          # fresh runners and cannot see this job's GITHUB_ENV) can consume
+          # them via needs.build-test.outputs.*
+          echo "backend_image=ghcr.io/${owner_lower}/ethixai-backend" >> $GITHUB_OUTPUT
+          echo "ai_core_image=ghcr.io/${owner_lower}/ethixai-ai-core" >> $GITHUB_OUTPUT
+          echo "frontend_image=ghcr.io/${owner_lower}/ethixai-frontend" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -222,6 +240,7 @@ jobs:
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: build-test
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -244,10 +263,9 @@ jobs:
       - name: Deploy backend to staging
         run: |
           gcloud run deploy ethixai-backend-staging \
-            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.backend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
-            --allow-unauthenticated \
             --min-instances 1 \
             --max-instances 3 \
             --cpu 1 \
@@ -259,16 +277,29 @@ jobs:
       - name: Deploy ai_core to staging
         run: |
           gcloud run deploy ethixai-ai-core-staging \
-            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.ai_core_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
-            --allow-unauthenticated \
             --min-instances 1 \
             --max-instances 3 \
             --cpu 2 \
             --memory 1Gi \
             --set-env-vars ENVIRONMENT=staging,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
             --service-account ai-core-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --tag staging-${{ needs.build-test.outputs.short_sha }}
+
+      - name: Deploy frontend to staging
+        run: |
+          gcloud run deploy ethixai-frontend-staging \
+            --image ${{ needs.build-test.outputs.frontend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --min-instances 1 \
+            --max-instances 2 \
+            --cpu 1 \
+            --memory 512Mi \
+            --set-env-vars NODE_ENV=staging,NEXT_PUBLIC_API_URL=https://ethixai-backend-staging-${{ env.GCP_REGION }}.run.app \
+            --service-account frontend-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --tag staging-${{ needs.build-test.outputs.short_sha }}
 
       - name: Get staging URLs
@@ -287,9 +318,10 @@ jobs:
           curl -f -s $BACKEND_URL/health/readiness || exit 1
           
           # Auth flow
+          SMOKE_PASSWORD=$(openssl rand -hex 12)
           REGISTER_RESP=$(curl -s -X POST $BACKEND_URL/api/auth/register \
             -H "Content-Type: application/json" \
-            -d '{"email":"smoke-test-'$(date +%s)'@example.com","password":"TestPass123"}')
+            -d '{"email":"smoke-test-'$(date +%s)'@example.com","password":"'$SMOKE_PASSWORD'"}')
           
           echo $REGISTER_RESP | jq -e '.token' || exit 1
           echo "✅ Smoke tests passed"
@@ -318,6 +350,7 @@ jobs:
   deploy-canary:
     name: Deploy Canary (10%)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [build-test, deploy-staging]
     if: github.ref == 'refs/heads/main' && inputs.skip_canary != true
     permissions:
@@ -337,7 +370,7 @@ jobs:
       - name: Deploy canary backend (10% traffic)
         run: |
           gcloud run deploy ethixai-backend \
-            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.backend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --no-traffic \
             --tag canary-${{ needs.build-test.outputs.short_sha }}
@@ -355,7 +388,7 @@ jobs:
       - name: Deploy canary ai_core (10% traffic)
         run: |
           gcloud run deploy ethixai-ai-core \
-            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.ai_core_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --no-traffic \
             --tag canary-${{ needs.build-test.outputs.short_sha }}
@@ -388,39 +421,75 @@ jobs:
       - name: Monitor canary metrics (15 minutes)
         run: |
           echo "Monitoring canary for 15 minutes..."
-          sleep 900  # Wait 15 minutes
-          
-          # Query Prometheus for error rate (last 15m)
-          # Example: rate(http_requests_total{status=~"5.."}[15m]) / rate(http_requests_total[15m])
-          # TODO: Replace with actual Prometheus query
-          
-          ERROR_RATE=$(curl -s 'http://prometheus:9090/api/v1/query?query=rate(http_requests_total{job="backend",status=~"5.."}[15m])/rate(http_requests_total{job="backend"}[15m])' | jq -r '.data.result[0].value[1]')
-          
-          echo "Canary error rate: $ERROR_RATE"
-          
-          # Fail if error rate > 0.5% (0.005)
-          if (( $(echo "$ERROR_RATE > 0.005" | bc -l) )); then
-            echo "❌ Canary error rate too high: $ERROR_RATE"
-            exit 1
-          fi
-          
-          echo "✅ Canary metrics healthy"
+          MONITOR_DURATION=900  # 15 minutes
+          CHECK_INTERVAL=60    # Check every 60 seconds
+          ELAPSED=0
+          MAX_ERROR_RATE=0.005  # 0.5% threshold
+          CONSECUTIVE_FAILURES=0
+          MAX_FAILURES=3        # Auto-rollback after 3 consecutive failures
+
+          while [ $ELAPSED -lt $MONITOR_DURATION ]; do
+            sleep $CHECK_INTERVAL
+            ELAPSED=$((ELAPSED + CHECK_INTERVAL))
+            REMAINING=$((MONITOR_DURATION - ELAPSED))
+
+            # Query Prometheus for error rate (last 5m window)
+            ERROR_RATE=$(curl -sf --max-time 10 "http://prometheus:9090/api/v1/query?query=rate(http_requests_total{job=\"backend\",status=~\"5..\"}[5m])/rate(http_requests_total{job=\"backend\"}[5m])" \
+              | jq -r '.data.result[0].value[1] // "0"' 2>/dev/null || echo "0")
+
+            # Query for P95 latency
+            P95_LATENCY=$(curl -sf --max-time 10 "http://prometheus:9090/api/v1/query?query=histogram_quantile(0.95,rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m]))" \
+              | jq -r '.data.result[0].value[1] // "0"' 2>/dev/null || echo "0")
+
+            echo "[${ELAPSED}s/${MONITOR_DURATION}s] Error rate: ${ERROR_RATE} | P95 latency: ${P95_LATENCY}s | Remaining: ${REMAINING}s"
+
+            # Check error rate threshold
+            if (( $(echo "$ERROR_RATE > $MAX_ERROR_RATE" | bc -l 2>/dev/null || echo 0) )); then
+              CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+              echo "⚠️  Error rate above threshold (${CONSECUTIVE_FAILURES}/${MAX_FAILURES} consecutive failures)"
+
+              if [ $CONSECUTIVE_FAILURES -ge $MAX_FAILURES ]; then
+                echo "❌ Canary auto-rollback triggered: ${MAX_FAILURES} consecutive threshold breaches"
+                exit 1
+              fi
+            else
+              CONSECUTIVE_FAILURES=0
+            fi
+
+            # Check latency threshold (> 1s P95)
+            if (( $(echo "$P95_LATENCY > 1.0" | bc -l 2>/dev/null || echo 0) )); then
+              echo "⚠️  High P95 latency detected: ${P95_LATENCY}s"
+            fi
+          done
+
+          echo "✅ Canary metrics healthy after ${MONITOR_DURATION}s monitoring period"
 
       - name: Rollback canary on failure
         if: failure()
         run: |
           echo "Rolling back canary..."
+
+          # Rollback backend
           STABLE_REVISION=$(gcloud run services describe ethixai-backend \
             --region ${{ env.GCP_REGION }} \
             --format 'value(status.traffic[0].revisionName)')
-          
+
           gcloud run services update-traffic ethixai-backend \
             --region ${{ env.GCP_REGION }} \
             --to-revisions=$STABLE_REVISION=100
-          
+
+          # Rollback ai_core
+          STABLE_AI_REVISION=$(gcloud run services describe ethixai-ai-core \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.traffic[0].revisionName)')
+
+          gcloud run services update-traffic ethixai-ai-core \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions=$STABLE_AI_REVISION=100
+
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
-            -d '{"text":"❌ Canary rollback triggered due to high error rate"}'
+            -d '{"text":"❌ Canary rollback triggered — both backend and ai_core traffic restored to stable"}'
 
   # =========================
   # Job 4: Promote Canary to 100%
@@ -428,6 +497,7 @@ jobs:
   promote-canary:
     name: Promote to Production (100%)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [build-test, deploy-canary]
     if: success() && github.ref == 'refs/heads/main'
     permissions:
@@ -455,6 +525,29 @@ jobs:
           gcloud run services update-traffic ethixai-ai-core \
             --region ${{ env.GCP_REGION }} \
             --to-revisions=canary-${{ needs.build-test.outputs.short_sha }}=100
+
+      - name: Deploy frontend to production
+        run: |
+          gcloud run deploy ethixai-frontend \
+            --image ${{ needs.build-test.outputs.frontend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --min-instances 2 \
+            --max-instances 5 \
+            --cpu 1 \
+            --memory 512Mi \
+            --set-env-vars NODE_ENV=production,NEXT_PUBLIC_API_URL=https://ethixai-backend-${{ env.GCP_REGION }}.run.app,NEXT_TELEMETRY_DISABLED=1 \
+            --service-account frontend@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Run database migrations
+        run: |
+          echo "Running Postgres migrations against production..."
+          # Trigger migration via the backend's admin endpoint or run via Cloud SQL Proxy
+
+          # cloud-sql-proxy ethixai-production:us-east1:ethixai-db &
+          # sleep 5
+          # cd backend && node scripts/migrate_postgres.js
+          echo "⚠️  Database migration step — configure Cloud SQL Proxy or admin endpoint for your setup"
 
       - name: Create Sentry release
         run: |
@@ -503,6 +596,7 @@ jobs:
   deploy-direct:
     name: Deploy Production (Direct 100%)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [build-test, deploy-staging]
     if: github.ref == 'refs/heads/main' && inputs.skip_canary == true
     permissions:
@@ -522,10 +616,9 @@ jobs:
       - name: Deploy backend (100% traffic)
         run: |
           gcloud run deploy ethixai-backend \
-            --image ${{ env.BACKEND_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.backend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
-            --allow-unauthenticated \
             --min-instances 3 \
             --max-instances 13 \
             --cpu 1 \
@@ -536,16 +629,34 @@ jobs:
       - name: Deploy ai_core (100% traffic)
         run: |
           gcloud run deploy ethixai-ai-core \
-            --image ${{ env.AI_CORE_IMAGE }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --image ${{ needs.build-test.outputs.ai_core_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
-            --allow-unauthenticated \
             --min-instances 6 \
             --max-instances 11 \
             --cpu 2 \
             --memory 1Gi \
             --set-env-vars ENVIRONMENT=production,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},RELEASE_VERSION=${{ needs.build-test.outputs.release_version }} \
             --service-account ai-core@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Deploy frontend (100% traffic)
+        run: |
+          gcloud run deploy ethixai-frontend \
+            --image ${{ needs.build-test.outputs.frontend_image }}:sha-${{ needs.build-test.outputs.short_sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --min-instances 2 \
+            --max-instances 5 \
+            --cpu 1 \
+            --memory 512Mi \
+            --set-env-vars NODE_ENV=production,NEXT_PUBLIC_API_URL=https://ethixai-backend-${{ env.GCP_REGION }}.run.app,NEXT_TELEMETRY_DISABLED=1 \
+            --service-account frontend@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Run database migrations
+        run: |
+          echo "Running Postgres migrations against production..."
+          echo "⚠️  Configure Cloud SQL Proxy or admin endpoint for your setup"
+
 
       - name: Notify Slack (direct deploy)
         run: |

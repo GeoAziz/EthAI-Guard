@@ -1,5 +1,8 @@
 name: Backend Emulator Integration Tests
 
+permissions:
+  contents: read
+
 on:
   push:
     paths:

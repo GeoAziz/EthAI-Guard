@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import formatDate from '@/lib/formatDate';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingState, EmptyState } from '@/components/ui/loading-state';
 import { Clock, Plus } from 'lucide-react';
 
 export default function AnalysisHistoryPage() {
@@ -74,10 +75,10 @@ export default function AnalysisHistoryPage() {
         </div>
 
         <div className="mt-6 rounded-lg border bg-white p-4">
-          {loading && <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}
-          {!loading && jobs.length === 0 && (
-            <div className="p-8 text-center">
-              <Clock className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+          <LoadingState loading={loading} onRetry={fetchHistory} loadingText="Loading history...">
+            {jobs.length === 0 && (
+              <div className="p-8 text-center">
+                <Clock className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
               <h3 className="font-semibold text-lg mb-2">No analysis runs yet</h3>
               <p className="text-sm text-muted-foreground mb-6">Start an analysis to track the history of your fairness and explainability runs.</p>
               <Link href="/dashboard/analyst/run">
@@ -86,31 +87,32 @@ export default function AnalysisHistoryPage() {
                   Start analysis
                 </Button>
               </Link>
-            </div>
-          )}
-          {!loading && jobs.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-auto">
-                <thead className="text-xs text-muted-foreground border-b bg-muted/30">
-                  <tr>
-                    <th className="text-left py-3 px-3 font-medium">Run ID</th>
-                    <th className="text-left py-3 px-3 font-medium hidden sm:table-cell">Model</th>
-                    <th className="text-left py-3 px-3 font-medium hidden md:table-cell">Dataset</th>
-                    <th className="text-left py-3 px-3 font-medium hidden lg:table-cell">Run Type</th>
-                    <th className="text-left py-3 px-3 font-medium">Status</th>
-                    <th className="text-left py-3 px-3 font-medium hidden lg:table-cell">Created</th>
-                    <th className="text-left py-3 px-3 font-medium hidden xl:table-cell">Completed</th>
-                    <th className="text-right py-3 px-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.map((j) => (
-                    <HistoryRow key={j.runId || j.id} job={j} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+              </div>
+            )}
+            {jobs.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm table-auto">
+                  <thead className="text-xs text-muted-foreground border-b bg-muted/30">
+                    <tr>
+                      <th scope="col" className="text-left py-3 px-3 font-medium">Run ID</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium hidden sm:table-cell">Model</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium hidden md:table-cell">Dataset</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium hidden lg:table-cell">Run Type</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium">Status</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium hidden lg:table-cell">Created</th>
+                      <th scope="col" className="text-left py-3 px-3 font-medium hidden xl:table-cell">Completed</th>
+                      <th scope="col" className="text-right py-3 px-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((j) => (
+                      <HistoryRow key={j.runId || j.id} job={j} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LoadingState>
         </div>
 
         {/* Pagination controls */}

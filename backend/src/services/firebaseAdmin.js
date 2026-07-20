@@ -86,9 +86,9 @@ async function verifyIdToken(idToken) {
     initFirebase();
   }
   if (!initialized) {
-    // In test mode, provide a lightweight fake decoded token so tests that hit
-    // the /auth/firebase/exchange endpoint don't require real credentials.
-    if (process.env.NODE_ENV === 'test') {
+    // Fake token ONLY when NODE_ENV=test AND AUTH_TEST_BYPASS=1.
+    // Never generate fake tokens in production or when bypass is not explicit.
+    if (process.env.NODE_ENV === 'test' && process.env.AUTH_TEST_BYPASS === '1') {
       return Promise.resolve({ uid: idToken || 'test-uid', email: `${idToken || 'test-uid'}@example.com`, name: idToken || 'test-user', role: 'user' });
     }
     throw new Error('Firebase admin not initialized');

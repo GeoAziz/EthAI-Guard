@@ -8,9 +8,10 @@ const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMO
 const _retrain = [];
 const _versions = [];
 const _audits = [];
+const _retrainMetrics = [];
 
 // Schemas
-let RetrainRequestModel, ModelVersionModel, AuditLogModel;
+let RetrainRequestModel, ModelVersionModel, AuditLogModel, RetrainMetricsModel;
 
 if (!USE_IN_MEMORY) {
   try {
@@ -49,6 +50,14 @@ if (!USE_IN_MEMORY) {
       createdAt: { type: Date, default: Date.now },
     }, { minimize: false });
     AuditLogModel = mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+
+    const RetrainMetricsSchema = new mongoose.Schema({
+      requestId: { type: String, index: true },
+      modelId: { type: String, index: true },
+      metrics: { type: Object, default: {} },
+      recordedAt: { type: Date, default: Date.now },
+    }, { minimize: false });
+    RetrainMetricsModel = mongoose.models.RetrainMetrics || mongoose.model('RetrainMetrics', RetrainMetricsSchema);
   } catch (e) {
     logger.error({ err: e }, 'models_schema_init_failed');
   }
@@ -155,6 +164,35 @@ async function promoteModel(modelId, version, validation_report, promotedBy) {
   return upd ? upd.toObject() : null;
 }
 
+async function recordRetrainMetrics(requestId, modelId, metrics) {
+  const doc = { requestId, modelId, metrics, recordedAt: new Date() };
+  if (USE_IN_MEMORY || !RetrainMetricsModel) {
+    _retrainMetrics.push(doc);
+    return doc;
+  }
+  const created = await RetrainMetricsModel.create(doc);
+  return created.toObject();
+}
+
+async function getRetrainMetrics(requestId) {
+  if (USE_IN_MEMORY || !RetrainMetricsModel) {
+    return _retrainMetrics.find(m => m.requestId === requestId) || null;
+  }
+  const found = await RetrainMetricsModel.findOne({ requestId }).sort({ recordedAt: -1 });
+  return found ? found.toObject() : null;
+}
+
+async function listRetrainRequestsByModel(modelId, limit = 10) {
+  if (USE_IN_MEMORY || !RetrainRequestModel) {
+    return _retrain
+      .filter(r => r.modelId === modelId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, limit);
+  }
+  const arr = await RetrainRequestModel.find({ modelId }).sort({ createdAt: -1 }).limit(limit);
+  return arr.map(x => x.toObject());
+}
+
 async function writeAudit(event, details = {}, actor = 'system', modelId = null, requestId = null) {
   const doc = { event, details, actor, modelId, requestId, createdAt: new Date() };
   if (USE_IN_MEMORY || !AuditLogModel) {
@@ -197,4 +235,7 @@ module.exports = {
   promoteModel,
   writeAudit,
   listAudits,
+  recordRetrainMetrics,
+  getRetrainMetrics,
+  listRetrainRequestsByModel,
 };

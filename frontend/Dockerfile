@@ -12,17 +12,22 @@ COPY . .
 RUN mkdir -p public
 RUN npm run build
 
-FROM node:20-alpine AS runner
+# Prune dev dependencies for production
+RUN npm prune --production
+
+FROM node:20-alpine
 ENV NODE_ENV=production
+RUN apk add --no-cache dumb-init
+RUN addgroup -g 1001 -S appgroup && adduser -S appuser -u 1001 -G appgroup
 WORKDIR /app
 
 # Copy built artifacts
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder --chown=appuser:appgroup /app/.next ./.next
+COPY --from=builder --chown=appuser:appgroup /app/public ./public
+COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
+COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 
-# Copy node_modules produced by the builder so we don't rely on a lockfile at runtime
-COPY --from=builder /app/node_modules ./node_modules
-
+USER appuser
 EXPOSE 3000
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["npm", "start"]

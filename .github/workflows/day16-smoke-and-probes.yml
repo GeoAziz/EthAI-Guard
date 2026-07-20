@@ -1,5 +1,8 @@
 name: Day16 Smoke & Health Probes
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]

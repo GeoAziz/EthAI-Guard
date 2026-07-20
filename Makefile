@@ -1,4 +1,4 @@
-.PHONY: help install test lint up down clean logs metrics docs
+.PHONY: help install test lint up down clean logs metrics docs postgres-setup-role postgres-migrate postgres-init backup-all backup-mongo backup-postgres validate-env
 
 # Default target
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make clean        Clean up artifacts, caches, containers"
 	@echo "  make logs         Tail docker-compose logs"
 	@echo "  make metrics      Display metrics endpoints"
+	@echo "  make validate-env Validate environment variables"
 	@echo "  make docs         Build and serve documentation"
 	@echo "  make load-baseline  Run baseline load test (Locust)"
 	@echo "  make load-spike     Run spike load test (Locust)"
@@ -52,6 +53,14 @@ install:
 	@echo "📦 Installing ai_core dependencies..."
 	cd ai_core && pip install -r requirements.txt
 	@echo "✅ All dependencies installed"
+
+# Validate environment variables
+validate-env:
+	@echo "🔍 Validating environment variables..."
+	@if [ -f .env ]; then \
+		set -a && . ./.env && set +a; \
+	fi
+	@scripts/validate_env.sh $(or $(ENVIRONMENT),production)
 
 # Run all tests
 test: test-backend test-ai-core
@@ -98,6 +107,45 @@ down:
 logs:
 	@echo "📋 Tailing docker-compose logs (Ctrl+C to exit)..."
 	docker compose logs -f --tail=100
+
+# Postgres tenancy/RLS/billing role + schema. Runs automatically on a fresh
+# `make up` volume via docker-entrypoint-initdb.d; use these targets to
+# (re)apply against an existing volume/environment.
+postgres-setup-role:
+	@echo "🔐 Provisioning ethixai_app low-privilege Postgres role..."
+	cd backend && node scripts/setup_postgres_role.js
+
+postgres-migrate:
+	@echo "🗄️  Applying Postgres tenancy/billing migrations..."
+	cd backend && node scripts/migrate_postgres.js
+
+postgres-init: postgres-migrate postgres-setup-role
+	@echo "✅ Postgres tenancy/RLS/billing schema and app role ready"
+
+# Database backups
+backup-all:
+	@echo "🔄 Running full database backup..."
+	chmod +x scripts/backup/backup_all.sh
+	BACKUP_S3_BUCKET=${BACKUP_S3_BUCKET:-} SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-} \
+	  scripts/backup/backup_all.sh /backups ${BACKUP_RETENTION_DAYS:-30}
+
+backup-mongo:
+	@echo "🔄 Running MongoDB backup..."
+	chmod +x scripts/backup/mongo_backup.sh
+	scripts/backup/mongo_backup.sh /backups/mongo ${BACKUP_RETENTION_DAYS:-30}
+
+backup-postgres:
+	@echo "🔄 Running PostgreSQL backup..."
+	chmod +x scripts/backup/postgres_backup.sh
+	scripts/backup/postgres_backup.sh /backups/postgres ${BACKUP_RETENTION_DAYS:-30}
+
+backup-verify:
+	@echo "🔍 Verifying latest backups..."
+	chmod +x scripts/backup/verify_backup.sh
+	LATEST_MONGO=$$(ls -t /backups/mongo/*.archive 2>/dev/null | head -1); \
+	LATEST_PG=$$(ls -t /backups/postgres/*.dump 2>/dev/null | head -1); \
+	if [ -n "$$LATEST_MONGO" ]; then scripts/backup/verify_backup.sh mongo "$$LATEST_MONGO"; fi; \
+	if [ -n "$$LATEST_PG" ]; then scripts/backup/verify_backup.sh postgres "$$LATEST_PG"; fi
 
 # Clean up
 clean: down
@@ -307,3 +355,33 @@ deploy-firestore-all:
 	@echo "🚀 Deploying Firestore rules + indexes to project $(FIREBASE_PROJECT_ID)..."
 	@npx --yes firebase-tools deploy --only firestore --project $(FIREBASE_PROJECT_ID)
 	@echo "✅ Firestore deployment complete (rules + indexes)."
+
+# Test Coverage targets
+.PHONY: coverage coverage-backend coverage-ai-core coverage-frontend coverage-all
+
+coverage-backend:
+	@echo "📊 Generating backend test coverage..."
+	cd backend && npm run test:coverage
+	@echo "✅ Coverage report: backend/coverage/lcov-report/index.html"
+
+coverage-ai-core:
+	@echo "📊 Generating AI Core test coverage..."
+	cd ai_core && python -m pytest tests/ --cov=ai_core --cov-report=html --cov-report=term
+	@echo "✅ Coverage report: ai_core/htmlcov/index.html"
+
+coverage-frontend:
+	@echo "📊 Generating frontend test coverage..."
+	cd frontend && npm run test:coverage 2>/dev/null || npm test -- --coverage
+	@echo "✅ Coverage report: frontend/coverage/index.html"
+
+coverage-all: coverage-backend coverage-ai-core coverage-frontend
+	@echo "✅ All test coverage reports generated"
+	@echo ""
+	@echo "📊 Coverage Reports:"
+	@echo "   Backend:   file://$(PWD)/backend/coverage/lcov-report/index.html"
+	@echo "   AI Core:   file://$(PWD)/ai_core/htmlcov/index.html"
+	@echo "   Frontend:  file://$(PWD)/frontend/coverage/index.html"
+
+# Combined coverage report
+coverage: coverage-all
+	@echo "✅ All coverage reports ready"

@@ -1,5 +1,8 @@
 name: pre-commit
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
@@ -19,6 +22,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pre-commit
-      - name: Run pre-commit hooks
+      - name: Run pre-commit hooks (fast hygiene only)
+        # Scoped to hooks with no equivalent elsewhere. detect-secrets,
+        # security-gate, bandit-ai-core, and eslint-security-* duplicate
+        # jobs already owned by security-scan.yml / security-extra.yml
+        # (which produce SARIF/artifacts pre-commit doesn't); running both
+        # on every push/PR was pure duplicate spend. Those hooks still run
+        # for local developer commits via .pre-commit-config.yaml directly.
         run: |
-          pre-commit run --all-files
+          pre-commit run --all-files \
+            trailing-whitespace end-of-file-fixer check-yaml check-added-large-files black

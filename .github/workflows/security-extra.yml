@@ -1,5 +1,8 @@
 name: security-extra
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:

@@ -1,369 +1,589 @@
-# EthAI Architecture Overview - Post Todo #7
+# EthixAI Architecture Overview
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (Next.js)                       │
-│  ├─ Login/Register UI                                            │
-│  ├─ Dashboard with analysis results                              │
-│  └─ Device management interface                                  │
-└────────────────┬────────────────────────────────────────────────┘
-                 │ HTTPS
-                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Backend (Express.js + Node)                   │
-│                                                                   │
-│  Authentication Layer:                                           │
-│  ├─ POST /auth/register      → bcryptjs hashed passwords        │
-│  ├─ POST /auth/login         → JWT + Refresh Token (rotated)    │
-│  ├─ POST /auth/refresh       → New Access Token                 │
-│  ├─ POST /auth/logout        → Revoke Refresh Token             │
-│  ├─ GET  /auth/devices       → List Active Sessions             │
-│  └─ DELETE /auth/devices/:id → Revoke Device Session            │
-│                                                                   │
-│  Protected Endpoints:                                            │
-│  ├─ POST /datasets/upload    → Create dataset                   │
-│  ├─ POST /analyze            → Forward to AI Core                │
-│  └─ GET  /reports/:userId    → Retrieve analysis reports        │
-│                                                                   │
-│  Observability:                                                  │
-│  ├─ GET /metrics             → Prometheus metrics               │
-│  ├─ GET /health              → Service health check             │
-│  └─ Structured JSON logging  → Request correlation              │
-│                                                                   │
-│  Rate Limiting:                                                  │
-│  ├─ Global: 60 req/min per IP                                   │
-│  └─ Login: 10 attempts/5min per IP                              │
-└────────────────┬────────────────────────────────────────────────┘
-                 │ gRPC/HTTP
-                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│            AI Core Microservice (FastAPI + Python)               │
-│                                                                   │
-│  Core Endpoints:                                                │
-│  ├─ POST /ai_core/analyze    → Run fairness analysis            │
-│  │  ├─ Validate input data (columns, types, size)               │
-│  │  ├─ Train model (or use cached)                              │
-│  │  ├─ Extract fairness metrics                                 │
-│  │  ├─ Generate SHAP explanations (with caching)                │
-│  │  └─ Return analysis report                                   │
-│  │                                                               │
-│  SHAP Cache Layer:                                              │
-│  ├─ Check cache before running SHAP                             │
-│  ├─ Store results with Prometheus metrics                       │
-│  └─ Cache hits reduce computation time by 90%+                  │
-│                                                                   │
-│  Error Handling:                                                │
-│  ├─ 400: Bad input (validation errors)                          │
-│  ├─ 422: Oversized dataset                                      │
-│  ├─ 500: SHAP errors (graceful fallback)                        │
-│  └─ 503: Service unavailable                                    │
-└────────────────┬────────────────────────────────────────────────┘
-                 │ MongoDB
-                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    MongoDB Atlas / Self-Hosted                   │
-│                                                                   │
-│  Collections:                                                   │
-│  ├─ users                                                        │
-│  │  └─ name, email, password_hash, role, createdAt             │
-│  │                                                               │
-│  ├─ refreshTokens  ← NEW (Todo #7)                              │
-│  │  ├─ userId (ObjectId)         → User reference              │
-│  │  ├─ tokenHash (Argon2)         → Secure storage              │
-│  │  ├─ device                     → User-Agent, IP, device name │
-│  │  ├─ expiresAt (TTL Index)      → 7 days                      │
-│  │  ├─ revokedAt                  → null = active               │
-│  │  ├─ rotationId                 → Chain tracking              │
-│  │  └─ lastUsedAt                 → Activity monitoring         │
-│  │                                                               │
-│  ├─ datasets                                                     │
-│  │  └─ name, type, ownerId, createdAt                           │
-│  │                                                               │
-│  ├─ reports                                                      │
-│  │  ├─ analysisId, summary, userId                              │
-│  │  ├─ fairnessScore, biasMetrics                               │
-│  │  └─ createdAt                                                │
-│  │                                                               │
-│  └─ shap_cache                                                   │
-│     ├─ modelId, tokenHash                                       │
-│     ├─ shapValues, expectedValue                                │
-│     └─ expiresAt (TTL for auto-cleanup)                         │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USERS (HTTPS)                                  │
+└────────────────────────────────────┬────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Frontend (Next.js 15)                               │
+│  Port: 3000                                                                  │
+│                                                                              │
+│  ├─ Authentication Pages (Login, Register, Forgot Password)                 │
+│  ├─ Analyst Dashboard (Bias Analysis, Model Comparison)                     │
+│  ├─ Reviewer Dashboard (Approvals, Compliance Sign-offs)                    │
+│  ├─ Admin Dashboard (Users, Policies, Audit Logs, Federated Learning)      │
+│  ├─ Model Management (Versions, Retraining, Promotion)                      │
+│  └─ Real-time Monitoring (WebSocket updates)                                │
+└────────────────────────────────────┬────────────────────────────────────────┘
+                                     │ REST API + WebSocket
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Backend (Node.js 20 + Express)                           │
+│  Port: 5000                                                                  │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Authentication Layer                                                │    │
+│  │ ├─ Firebase Auth (Primary) / JWT (Fallback)                        │    │
+│  │ ├─ POST /api/auth/register      → User registration                │    │
+│  │ ├─ POST /api/auth/login         → JWT + Refresh Token rotation     │    │
+│  │ ├─ POST /api/auth/refresh       → Token refresh                    │    │
+│  │ ├─ POST /api/auth/logout        → Session revocation               │    │
+│  │ ├─ GET  /api/auth/devices       → Active sessions list             │    │
+│  │ └─ DELETE /api/auth/devices/:id → Revoke device session            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Enterprise SSO (Optional)                                          │    │
+│  │ ├─ SAML 2.0 Authentication                                         │    │
+│  │ ├─ OIDC/OpenID Connect                                            │    │
+│  │ └─ LDAP Integration                                               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Core API Endpoints                                                  │    │
+│  │ ├─ POST /api/analyze            → Forward to AI Core               │    │
+│  │ ├─ GET  /api/reports            → Compliance reports               │    │
+│  │ ├─ POST /api/v1/evaluate        → Model evaluation + risk scoring  │    │
+│  │ └─ GET  /api/drift/:modelId     → Drift detection results          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Model Management                                                    │    │
+│  │ ├─ POST /api/v1/models/:id/trigger-retrain → Start retraining      │    │
+│  │ ├─ POST /api/v1/retrain/:id/complete       → CI callback           │    │
+│  │ ├─ GET  /api/v1/models/:id/versions        → List versions         │    │
+│  │ └─ POST /api/v1/models/:id/versions/:v/promote → Promote model     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Governance & Compliance                                             │    │
+│  │ ├─ POST /api/governance/approval-workflows    → Create workflow    │    │
+│  │ ├─ GET  /api/governance/approval-workflows    → List workflows     │    │
+│  │ ├─ POST /api/governance/.../approvals/:id     → Submit decision    │    │
+│  │ ├─ POST /api/governance/compliance-signoffs   → Request sign-off   │    │
+│  │ └─ POST /api/governance/audit-callbacks       → Audit callbacks    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Policies & Audit                                                    │    │
+│  │ ├─ CRUD /api/policies             → Policy management              │    │
+│  │ ├─ GET  /api/audit/logs           → Query audit logs               │    │
+│  │ └─ GET  /api/audit/logs/:id/trail → Model audit trail              │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Multi-Tenancy                                                       │    │
+│  │ ├─ Tenant isolation via AsyncLocalStorage                          │    │
+│  │ ├─ Mongoose plugin for automatic tenant scoping                    │    │
+│  │ └─ CRUD /api/tenants                → Tenant management            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Infrastructure                                                      │    │
+│  │ ├─ Circuit Breaker (AI Core dependency)                            │    │
+│  │ ├─ Distributed Tracing (OpenTelemetry)                             │    │
+│  │ ├─ In-memory Cache (SimpleCache LRU)                               │    │
+│  │ ├─ Rate Limiting (express-rate-limit)                              │    │
+│  │ └─ Structured Logging (Pino)                                       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  Observability:                                                              │
+│  ├─ GET /metrics             → Prometheus metrics                           │
+│  ├─ GET /health              → Service health check                         │
+│  └─ WebSocket /ws            → Real-time updates                            │
+└────────────────────────────────────┬────────────────────────────────────────┘
+                                     │
+                    ┌────────────────┼────────────────┐
+                    │                │                │
+                    ▼                ▼                ▼
+┌──────────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   AI Core (FastAPI)  │  │    MongoDB v6    │  │     Redis        │
+│   Port: 8100         │  │   Port: 27018    │  │   Port: 6379     │
+│                      │  │                  │  │                  │
+│ ├─ POST /ai_core/analyze │ │ Collections:    │  │ ├─ Session store │
+│ │  ├─ Validate input  │  │ ├─ users         │  │ ├─ Rate limits   │
+│ │  ├─ Train model     │  │ ├─ refreshTokens │  │ └─ Cache         │
+│ │  ├─ Fairness metrics│  │ ├─ datasets      │  └──────────────────┘
+│ │  ├─ SHAP explanations│  │ ├─ reports       │
+│ │  └─ Drift detection │  │ ├─ audit_logs    │
+│                      │  │ ├─ policies      │
+│ ├─ Federated Learning│  │ ├─ approval_     │
+│ │  ├─ Node management│  │ │  workflows     │
+│ │  ├─ Aggregation    │  │ ├─ compliance_   │
+│ │  └─ Privacy (DP)   │  │ │  signoffs     │
+│                      │  │ ├─ model_versions│
+│ ├─ Model Retraining  │  │ ├─ retraining_   │
+│ │  ├─ Scheduling     │  │ │  jobs         │
+│ │  ├─ Versioning     │  │ ├─ tenants       │
+│ │  └─ Promotion      │  │ ├─ shap_cache    │
+│                      │  │ └─ notifications │
+│ ├─ Metrics:          │  └──────────────────┘
+│ │  ├─ ai_core_requests_total│
+│ │  ├─ fairness_score        │
+│ │  └─ bias_detected_total   │
+└──────────────────────┘
+```
+
+## Service Communication
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         COMMUNICATION PATTERNS                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Frontend → Backend:
+├─ REST API calls (JSON over HTTPS)
+├─ WebSocket for real-time updates
+└─ Automatic token injection via axios interceptors
+
+Backend → AI Core:
+├─ HTTP REST (via axios with circuit breaker)
+├─ Timeout: 30 seconds
+├─ Retry: 3 attempts with exponential backoff
+└─ Fallback: Graceful degradation on failure
+
+Backend → MongoDB:
+├─ Mongoose ODM with tenant scoping
+├─ Connection pooling (default 10)
+├─ Auto-reconnect on failure
+└─ TTL indexes for auto-cleanup
+
+Backend → Redis:
+├─ Session storage
+├─ Rate limit counters
+└─ Cache layer (optional)
+
+AI Core → MongoDB:
+├─ Direct PyMongo connection
+├─ SHAP cache storage
+└─ Analysis results persistence
 ```
 
 ## Security Architecture
 
-### Token Flow
+### Authentication Flow
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     AUTHENTICATION FLOW                           │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         AUTHENTICATION FLOW                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
 
 1. REGISTER
    ├─ User → Backend: { email, password, name }
-   ├─ Backend: bcryptjs.hash(password) → password_hash
-   ├─ Database: INSERT User { email, password_hash }
+   ├─ Backend: Firebase Auth creates user
+   ├─ Backend: MongoDB stores user profile
    └─ Response: { status: 'registered', userId }
 
 2. LOGIN
-   ├─ User → Backend: { email, password, deviceName }
-   ├─ Backend:
-   │  ├─ findUserByEmail(email) → User
-   │  ├─ bcryptjs.compare(password, user.password_hash)
-   │  ├─ jwt.sign({ sub: userId, role }, SECRET_KEY) → accessToken (15m)
-   │  ├─ jwt.sign({ sub: userId, jti: uuid() }, REFRESH_SECRET) → refreshToken (7d)
-   │  ├─ argon2.hash(refreshToken) → tokenHash
-   │  └─ Database: INSERT RefreshToken {
-   │     ├─ userId
-   │     ├─ tokenHash              ← Plain token NEVER stored
-   │     ├─ device: { userAgent, ipAddress, deviceName }
-   │     ├─ expiresAt: Date.now() + 7d
-   │     └─ createdAt
-   │  }
-   └─ Response: { accessToken, refreshToken } + Set-Cookie (optional)
+   ├─ User → Backend: { email, password }
+   ├─ Backend: Firebase Auth verifies credentials
+   ├─ Backend: Generate JWT (15min) + Refresh Token (7d)
+   ├─ Backend: Store refresh token hash (Argon2)
+   └─ Response: { accessToken, refreshToken }
 
 3. ACCESS PROTECTED ENDPOINT
-   ├─ User → Backend: Header: { Authorization: 'Bearer <accessToken>' }
-   ├─ Backend: jwt.verify(accessToken, SECRET_KEY)
-   ├─ On Success: route handler executes
-   ├─ On Error: 401 Unauthorized
-   └─ Metrics: httpRequestDuration.observe()
+   ├─ User → Backend: Authorization: Bearer <accessToken>
+   ├─ Backend: JWT verification
+   ├─ Backend: Tenant context resolution
+   └─ Route handler executes
 
-4. REFRESH TOKEN (TOKEN ROTATION)
-   ├─ User → Backend: { refreshToken } or Cookie
-   ├─ Backend:
-   │  ├─ jwt.verify(refreshToken, REFRESH_SECRET) → payload { sub, jti }
-   │  ├─ Database: Find RefreshToken where tokenHash matches
-   │  │  ├─ argon2.verify(tokenHash, refreshToken) → valid?
-   │  │  ├─ Check: revokedAt === null
-   │  │  ├─ Check: expiresAt > now()
-   │  │  └─ Check: same userId
-   │  ├─ Generate NEW tokens with NEW jti
-   │  ├─ Database: INSERT new token hash (rotated)
-   │  ├─ Database: UPDATE old token { revokedAt: now() } ← REVOKED
-   │  └─ Return: { accessToken: newToken, refreshToken: newRefresh }
-   └─ Old token CANNOT be reused (revoked)
+4. REFRESH TOKEN (ROTATION)
+   ├─ User → Backend: { refreshToken }
+   ├─ Backend: Verify + rotate tokens
+   ├─ Old token: REVOKED immediately
+   └─ New tokens issued
 
 5. LOGOUT
    ├─ User → Backend: POST /auth/logout
-   │  ├─ Header: Authorization Bearer <accessToken> (proves identity)
-   │  ├─ Body: { refreshToken }
-   ├─ Backend:
-   │  ├─ Verify accessToken valid (user authenticated)
-   │  ├─ Find RefreshToken in database
-   │  └─ Database: UPDATE token { revokedAt: now() } ← LOGGED OUT
-   └─ Response: { status: 'logged out' }
-
-6. REVOKED TOKEN ATTEMPT
-   ├─ User (or attacker) → Backend: { refreshToken }
-   ├─ Backend:
-   │  ├─ jwt.verify(refreshToken, REFRESH_SECRET) ✓
-   │  ├─ Database: Find token by hash
-   │  │  ├─ tokenHash found ✓
-   │  │  ├─ revokedAt NOT null ✗  ← TOKEN IS REVOKED
-   │  │  └─ Reject request
-   └─ Response: 401 Invalid or revoked refresh token
-
-┌──────────────────────────────────────────────────────────────────┐
-│                    TOKEN SECURITY PROPERTIES                      │
-└──────────────────────────────────────────────────────────────────┘
-
-Access Token:
-├─ Short-lived: 15 minutes
-├─ Stored in memory/session storage
-├─ Sent in Authorization header
-├─ NOT stored in database
-└─ Claims: { sub: userId, role: userRole }
-
-Refresh Token:
-├─ Long-lived: 7 days
-├─ Stored as Argon2 hash ONLY in database
-├─ Plain token only given to client once
-├─ Client stores in secure storage (httpOnly cookie OR secure storage)
-├─ Rotated on every use (old token revoked)
-├─ Claims: { sub: userId, jti: uniqueId }
-└─ Device metadata tracked per token
-
-Token Rotation:
-├─ Old token: REVOKED immediately after generating new
-├─ New token: Unique jti prevents duplicate issuance
-├─ Prevents: Token reuse, even if leaked
-├─ Result: Attacker cannot reuse stolen old token
-└─ Timeline: Old token → New token → Old revoked
-
-Hashing Strategy:
-├─ Passwords: bcryptjs (10 salt rounds)
-├─ Refresh Tokens: Argon2 (memory-hard, resistant to GPU attacks)
-├─ Access Tokens: JWT (signed, not hashed - verification needed)
-└─ Keys: Both SECRET_KEY and REFRESH_SECRET are 32+ characters
+   ├─ Backend: Revoke refresh token
+   └─ Session terminated
 ```
 
-## Device Management
+### Security Layers
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│              MULTI-DEVICE SESSION MANAGEMENT                      │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SECURITY MIDDLEWARE STACK                           │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-Each login creates a device session tracked with:
-
-Device Metadata:
-├─ userAgent: Browser/app version string
-│  └─ Identifies client type (Chrome, Safari, mobile app, etc)
-├─ ipAddress: Client's IP address
-│  └─ Geographic indicator, anomaly detection
-├─ deviceName: User-friendly label
-│  └─ "My Laptop", "iPhone", "Work Desktop"
-└─ deviceId: Optional client-side persistent ID
-   └─ Fingerprinting support (future)
-
-Timeline:
-├─ createdAt: Session creation time
-├─ lastUsedAt: Last refresh token use
-└─ expiresAt: Token expiration (7 days from creation)
-
-User Controls:
-
-LIST DEVICES
-├─ GET /auth/devices
-├─ Returns all active sessions with metadata
-└─ User can see: Device name, IP, last used, expiration
-
-REVOKE DEVICE
-├─ DELETE /auth/devices/:deviceId
-├─ Immediately revokes that device's tokens
-└─ Attacker with stolen token cannot continue using it
-
-Example Device List Response:
-{
-  "devices": [
-    {
-      "_id": "507f1f77bcf86cd799439011",
-      "name": "Chrome on Windows - Home",
-      "device": {
-        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
-        "ipAddress": "203.0.113.42"
-      },
-      "createdAt": "2025-11-14T10:30:00Z",
-      "lastUsedAt": "2025-11-15T12:00:00Z",
-      "expiresAt": "2025-11-21T10:30:00Z"
-    },
-    {
-      "_id": "507f1f77bcf86cd799439012",
-      "name": "Safari on iPhone",
-      "device": {
-        "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1)...",
-        "ipAddress": "198.51.100.89"
-      },
-      "createdAt": "2025-11-15T08:15:00Z",
-      "lastUsedAt": "2025-11-15T11:45:00Z",
-      "expiresAt": "2025-11-22T08:15:00Z"
-    }
-  ]
-}
+1. helmet         → Security headers (CSP, HSTS, X-Frame-Options)
+2. cors           → Cross-origin resource sharing
+3. mongoSanitize  → NoSQL injection prevention
+4. hpp            → HTTP parameter pollution protection
+5. compression    → Gzip response compression
+6. rateLimit      → Request throttling (60 req/min global)
+7. firebaseAuth   → Firebase JWT verification
+8. authGuard      → JWT or Firebase token validation
+9. requireRole    → RBAC authorization (admin, analyst, reviewer)
+10. tenantGuard   → Multi-tenant data isolation
+11. auditLog      → Request audit trail
 ```
 
-## Rate Limiting
+## Data Architecture
+
+### MongoDB Collections
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    RATE LIMITING STRATEGY                         │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MONGODB SCHEMA                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-Global Rate Limiter:
-├─ Window: 60 seconds
-├─ Limit: 60 requests per IP
-├─ Applied: All routes
-├─ Purpose: DDoS protection
-└─ Response: 429 Too Many Requests
+users
+├─ _id: ObjectId
+├─ email: string (unique)
+├─ name: string
+├─ role: enum [admin, analyst, reviewer, user]
+├─ tenantId: ObjectId (ref: tenants)
+├─ firebase_uid: string
+├─ createdAt: Date
+└─ updatedAt: Date
 
-Login Rate Limiter:
-├─ Window: 5 minutes (configurable)
-├─ Limit: 10 attempts per IP (configurable)
-├─ Applied: POST /auth/login only
-├─ Purpose: Brute-force protection
-└─ Response: { error: 'Too many login attempts, try later' }
+refreshTokens
+├─ _id: ObjectId
+├─ userId: ObjectId (ref: users)
+├─ tokenHash: string (Argon2)
+├─ device: { userAgent, ipAddress, deviceName }
+├─ expiresAt: Date (TTL index, 7 days)
+├─ revokedAt: Date (null = active)
+├─ rotationId: string
+└─ lastUsedAt: Date
 
-Bypass Strategy:
-├─ User remembers password correctly → 1 attempt
-├─ User forgets password → 10 attempts per 5 min (generous)
-└─ Attacker tries 100+ passwords → Blocked
+datasets
+├─ _id: ObjectId
+├─ name: string
+├─ type: string
+├─ ownerId: ObjectId (ref: users)
+├─ tenantId: ObjectId (ref: tenants)
+├─ columns: [string]
+├─ rowCount: number
+└─ createdAt: Date
+
+reports
+├─ _id: ObjectId
+├─ analysisId: string
+├─ userId: ObjectId (ref: users)
+├─ tenantId: ObjectId (ref: tenants)
+├─ summary: object
+├─ fairnessScore: number
+├─ biasMetrics: object
+└─ createdAt: Date
+
+audit_logs
+├─ _id: ObjectId
+├─ model_id: string
+├─ event_type: string
+├─ actor: string
+├─ result: string
+├─ compliance_status: string
+├─ details: object
+├─ tenantId: ObjectId (ref: tenants)
+└─ timestamp: Date
+
+policies
+├─ _id: ObjectId
+├─ name: string
+├─ description: string
+├─ rules: [{ metric, threshold, operator }]
+├─ enforcement: enum [block, warn, log]
+├─ enabled: boolean
+├─ tenantId: ObjectId (ref: tenants)
+└─ createdAt: Date
+
+approval_workflows
+├─ _id: ObjectId
+├─ name: string
+├─ description: string
+├─ type: enum [model_approval, policy_change, compliance_review]
+├─ status: enum [pending, in_progress, approved, rejected, completed]
+├─ stages: [{ name, approvers, required_approvals, decisions }]
+├─ entityType: string
+├─ entityId: string
+├─ entityVersion: string
+├─ initiatedBy: string
+├─ tenantId: ObjectId (ref: tenants)
+├─ createdAt: Date
+└─ updatedAt: Date
+
+compliance_signoffs
+├─ _id: ObjectId
+├─ type: string
+├─ entity_id: string
+├─ signee: string
+├─ status: enum [pending, approved, rejected]
+├─ comments: string
+├─ tenantId: ObjectId (ref: tenants)
+└─ createdAt: Date
+
+model_versions
+├─ _id: ObjectId
+├─ model_id: string
+├─ version: string
+├─ status: enum [draft, staging, production, archived]
+├─ performance_metrics: object
+├─ tenantId: ObjectId (ref: tenants)
+└─ createdAt: Date
+
+retraining_jobs
+├─ _id: ObjectId
+├─ model_id: string
+├─ request_id: string
+├─ status: enum [queued, running, completed, failed]
+├─ reason: string
+├─ performance_metrics: object
+├─ tenantId: ObjectId (ref: tenants)
+├─ createdAt: Date
+└─ completedAt: Date
+
+federated_nodes
+├─ _id: ObjectId
+├─ node_id: string
+├─ endpoint: string
+├─ status: enum [active, inactive, error]
+├─ last_heartbeat: Date
+├─ capabilities: object
+└─ createdAt: Date
+
+tenants
+├─ _id: ObjectId
+├─ name: string
+├─ settings: object
+├─ createdAt: Date
+└─ updatedAt: Date
+
+shap_cache
+├─ _id: ObjectId
+├─ model_id: string
+├─ dataset_hash: string
+├─ shap_values: object
+├─ expected_value: number
+├─ expiresAt: Date (TTL index)
+└─ createdAt: Date
 ```
 
-## Production Deployment Checklist
+### Database Indexes
+
+```javascript
+// Performance-critical indexes
+db.users.createIndex({ email: 1 }, { unique: true });
+db.users.createIndex({ firebase_uid: 1 });
+db.users.createIndex({ tenantId: 1 });
+
+db.refreshTokens.createIndex({ userId: 1 });
+db.refreshTokens.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+db.audit_logs.createIndex({ model_id: 1, timestamp: -1 });
+db.audit_logs.createIndex({ tenantId: 1, timestamp: -1 });
+
+db.reports.createIndex({ userId: 1, createdAt: -1 });
+db.reports.createIndex({ tenantId: 1 });
+
+db.datasets.createIndex({ ownerId: 1 });
+db.datasets.createIndex({ tenantId: 1 });
+
+db.shap_cache.createIndex({ model_id: 1, dataset_hash: 1 });
+db.shap_cache.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+```
+
+## Multi-Tenancy Architecture
 
 ```
-Security Configuration:
-[ ] SECRET_KEY = 32+ random characters (openssl rand -hex 32)
-[ ] REFRESH_SECRET = 32+ random characters
-[ ] MONGO_URL points to secure MongoDB (Atlas or VPN)
-[ ] USE_COOKIE_REFRESH=1 enabled (HttpOnly cookies)
-[ ] NODE_ENV=production set
-[ ] HTTPS enforced (nginx or similar)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         TENANT ISOLATION                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-Database Setup:
-[ ] MongoDB Atlas project created or self-hosted instance
-[ ] Collections created with proper indexes
-[ ] TTL index on RefreshToken collection
-[ ] Backups enabled (daily minimum)
-[ ] IP whitelist configured
+Request Flow:
+1. User authenticates → JWT contains tenantId
+2. authGuard resolves tenantId from token or database lookup
+3. tenantGuard creates AsyncLocalStorage context
+4. Mongoose plugin automatically adds tenantId to all queries
+5. Data is fully isolated between tenants
 
-Monitoring:
-[ ] Prometheus scraping /metrics endpoint
-[ ] Error rate alerts configured (<1% target)
-[ ] Token refresh duration tracked
-[ ] Failed login attempts logged
-[ ] Device revocation events audited
+Implementation:
+├─ AsyncLocalStorage for request-scoped context
+├─ Mongoose schema plugin for automatic tenant scoping
+├─ Middleware chain: authGuard → tenantGuard → route handler
+└─ Graceful fallback for system-level operations
 
-Testing:
-[ ] Test token rotation flow
-[ ] Test token revocation works
-[ ] Test device list shows all sessions
-[ ] Test logout revokes all tokens
-[ ] Test rate limiting on login
-[ ] Test SHAP cache fallback
+Benefits:
+├─ Single database, logical separation
+├─ No query modification required in business logic
+├─ Automatic tenant filtering on all Mongoose queries
+└─ Easy tenant provisioning and deprovisioning
+```
 
-Documentation:
-[ ] Runbook created for token issues
-[ ] Disaster recovery plan for lost tokens
-[ ] User guide for device management
-[ ] Admin guide for monitoring auth metrics
+## Federated Learning Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FEDERATED LEARNING                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Components:
+├─ Coordinator (AI Core)
+│  ├─ Manages training rounds
+│  ├─ Aggregates model updates
+│  └─ Enforces differential privacy
+│
+├─ Participating Nodes
+│  ├─ Train local models on private data
+│  ├─ Send encrypted gradients
+│  └─ Receive aggregated model
+│
+└─ Privacy Guarantees
+   ├─ Differential privacy (epsilon-delta)
+   ├─ Secure aggregation
+   └─ No raw data sharing
+
+Workflow:
+1. Coordinator broadcasts global model
+2. Nodes train locally on private data
+3. Nodes send encrypted gradients
+4. Coordinator aggregates updates
+5. New global model distributed
+6. Repeat until convergence
+```
+
+## Model Retraining Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MODEL RETRAINING                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Triggers:
+├─ Manual (admin dashboard)
+├─ Scheduled (cron-based)
+├─ Performance degradation (drift detection)
+└─ Policy violation
+
+Pipeline:
+1. Retrain request created
+2. Baseline snapshot captured
+3. Worker job triggered (GitHub Actions or local)
+4. Model retrained on new data
+5. Performance metrics evaluated
+6. Model version created
+7. Staging promotion (optional)
+8. Production promotion (requires approval)
+
+Version Management:
+├─ Semantic versioning (v1.0.0)
+├─ Status tracking (draft → staging → production → archived)
+├─ Performance comparison
+└─ Rollback capability
+```
+
+## Observability Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MONITORING STACK                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Metrics Collection:
+├─ Backend: prom-client (Node.js)
+├─ AI Core: prometheus_client (Python)
+└─ Custom metrics:
+   ├─ http_request_duration_seconds
+   ├─ http_requests_total
+   ├─ ai_core_requests_total
+   ├─ fairness_score
+   ├─ bias_detected_total
+   ├─ evaluations_total
+   └─ evaluations_high_risk_total
+
+Logging:
+├─ Backend: Pino (structured JSON)
+├─ AI Core: Python logging (JSON format)
+└─ Request correlation via requestId
+
+Tracing:
+├─ OpenTelemetry integration
+├─ Distributed trace context propagation
+└─ Span creation for critical paths
+
+Alerting:
+├─ Prometheus alerting rules
+├─ Grafana dashboards
+└─ PagerDuty/Slack integration
+```
+
+## Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PRODUCTION DEPLOYMENT                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Development:
+├─ Docker Compose (all services)
+├─ Hot reload for backend/frontend
+└─ In-memory database option
+
+Staging:
+├─ Docker Compose with production config
+├─ Managed MongoDB Atlas
+└─ Load testing
+
+Production:
+├─ Frontend: Vercel (static SPA)
+├─ Backend: Cloud Run / Fargate (3-13 pods)
+├─ AI Core: Cloud Run / Fargate (6-11 pods)
+├─ Database: MongoDB Atlas (M10+)
+├─ Cache: Redis (managed)
+├─ Monitoring: Prometheus + Grafana
+└─ Secrets: Cloud Secret Manager
+
+Scaling:
+├─ Horizontal pod autoscaling (CPU/request-based)
+├─ Database read replicas
+├─ Redis cluster for high availability
+└─ CDN for frontend assets
 ```
 
 ## Performance Characteristics
 
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Password Hash (bcryptjs) | 100ms | Intentionally slow for security |
-| Token Hash (Argon2) | 50-200ms | Memory-hard, resistant to GPU |
-| JWT Generation | <1ms | Fast, no DB access |
-| JWT Verification | <1ms | Fast, cryptographic signature check |
-| Token Refresh | 200-300ms | Hash verify + DB update + new hash |
-| Device List | 10-50ms | Database query + serialization |
-| Token Revocation | 10-20ms | Single DB update |
+| Operation | Latency | Throughput | Notes |
+|-----------|---------|------------|-------|
+| Health Check | <5ms | 1000+ req/s | No auth required |
+| Authentication | <50ms | 100+ req/s | Firebase + JWT |
+| Bias Analysis | <15ms P95 | 100 req/s | With SHAP cache |
+| Model Evaluation | <20ms | 50+ req/s | Risk scoring |
+| Audit Log Query | <100ms | 50+ req/s | Indexed queries |
+| Token Refresh | <100ms | 100+ req/s | Argon2 hash verify |
 
-## Troubleshooting Guide
+## Error Handling
 
-### Issue: Token expires but user still has old token
-**Solution**: New token issued on refresh; old token marked revoked
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ERROR RESPONSE FORMAT                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-### Issue: User revoked wrong device, needs to re-authenticate
-**Solution**: User can logout and re-login from another device
+{
+  "success": false,
+  "error": "error_code",
+  "message": "Human-readable description",
+  "requestId": "uuid-for-tracing",
+  "details": {} // Optional additional context
+}
 
-### Issue: Too many login attempts
-**Solution**: Wait 5 minutes or reset rate limiter (per IP)
-
-### Issue: Token hash verification fails
-**Solution**: Check Argon2 version, verify secret key hasn't changed
-
-### Issue: Device appears in list but can't use token
-**Solution**: Device token may have been revoked manually or rotated out
+Error Codes:
+├─ 400: Bad Request (validation errors)
+├─ 401: Unauthorized (authentication required)
+├─ 403: Forbidden (insufficient permissions)
+├─ 404: Not Found (resource doesn't exist)
+├─ 409: Conflict (resource already exists)
+├─ 422: Unprocessable Entity (business logic error)
+├─ 429: Too Many Requests (rate limit exceeded)
+└─ 500: Internal Server Error (unexpected failure)
+```
 
 ---
 
-**Architecture v1.0**: Production-Ready Auth System
-**Last Updated**: November 15, 2025
-**Status**: Complete and tested ✅
+**Architecture Version**: 2.0  
+**Last Updated**: July 2026  
+**Status**: Production-Ready

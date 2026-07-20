@@ -1,8 +1,12 @@
 name: Status Worker (scheduled)
 
+permissions:
+  contents: read
+
 on:
   schedule:
-    - cron: '*/5 * * * *' # every 5 minutes
+    # Every 15 minutes. See drift-worker.yml for why this was widened from */5.
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:

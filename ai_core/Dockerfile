@@ -1,19 +1,12 @@
-FROM python:3.11-slim
-
-# Place the project under /app/ai_core so the package directory `ai_core/` is
-# preserved when copying the build context. This makes `import ai_core` work
-# inside the container (tests expect a package named `ai_core`).
+FROM python:3.11-slim AS builder
 WORKDIR /app/ai_core
 ENV PYTHONPATH=/app
 
-# Install system build deps needed to compile scientific packages (numpy/scipy/numba/shap)
-# Keep the installed set minimal to reduce image size.
+# Install system build deps needed to compile scientific packages
 RUN apt-get update && \
 	apt-get install -y --no-install-recommends \
 		build-essential \
 		gfortran \
-		git \
-		ca-certificates \
 		libgomp1 \
 		libopenblas-dev \
 		liblapack-dev \
@@ -21,15 +14,22 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt /app/ai_core/requirements.txt
-
-# Use latest packaging tools to prefer wheels where available
 RUN pip install --upgrade pip setuptools wheel && \
 	pip install --no-cache-dir -r /app/ai_core/requirements.txt
-
 COPY . /app/ai_core
-
-# Install the package in editable mode so tests and runtime can import `ai_core`
-# even when the working directory or sys.path differs in CI/container runs.
 RUN pip install --no-cache-dir -e /app/ai_core
 
+# Production stage — no build tools, no git, no compilers
+FROM python:3.11-slim
+RUN addgroup --gid 1001 appgroup && adduser --uid 1001 --gid 1001 --disabled-password --gecos "" appuser
+WORKDIR /app/ai_core
+ENV PYTHONPATH=/app
+
+# Copy only installed packages and app code from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app /app
+
+USER appuser
+EXPOSE 8100
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8100"]

@@ -1,4 +1,5 @@
 'use client';
+import { LoadingState } from '@/components/ui/loading-state';
 import React, { useEffect, useState } from 'react';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
@@ -116,21 +117,17 @@ export default function ReviewerFairnessPage() {
           subtitle="Monitor fairness metrics and model bias across demographic groups"
         />
 
-        {loading ? (
-          <div className="mt-6 rounded-lg border bg-white p-4 sm:p-6">
-            <div className="text-xs sm:text-sm text-muted-foreground">Loading fairness metrics…</div>
-          </div>
-        ) : error ? (
-          <div className="mt-6">
-            <ErrorState
-              title="Failed to load metrics"
-              message={error}
-              onRetry={handleRetry}
-              icon="🔍"
-            />
-          </div>
-        ) : (
-          <div className="mt-6 space-y-6">
+        <div className="mt-6">
+          <LoadingState loading={loading} onRetry={handleRetry} loadingText="Loading fairness metrics...">
+            {error ? (
+              <ErrorState
+                title="Failed to load metrics"
+                message={error}
+                onRetry={handleRetry}
+                icon="🔍"
+              />
+            ) : (
+              <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 sm:p-6 animate-in fade-in duration-500">
@@ -209,9 +206,10 @@ export default function ReviewerFairnessPage() {
                   </li>
                 </ul>
               </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          </LoadingState>
+        </div>
       </div>
     </RoleProtected>
   );

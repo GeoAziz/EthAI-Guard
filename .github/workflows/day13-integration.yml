@@ -1,5 +1,8 @@
 name: Day 13 Integration & Resilience Tests
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,7 +11,9 @@ on:
         required: false
         default: "true"
   push:
-    branches: [ day13, main ]
+    # Scoped to the historical day13 branch only; day13-integration-tests.yml
+    # is the canonical integration suite that runs on every push/PR to main.
+    branches: [ day13 ]
     paths:
       - 'tools/integration/**'
       - 'docker-compose.yml'

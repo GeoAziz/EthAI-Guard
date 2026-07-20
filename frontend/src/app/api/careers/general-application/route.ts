@@ -32,21 +32,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Store application in database or send to email service
-    console.log('General application received:', {
-      fullName,
-      email,
-      phone,
-      message,
-      resumeSize: resume.size,
-      timestamp: new Date(),
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+    // Forward to backend API
+    const backendFormData = new FormData();
+    backendFormData.append('fullName', fullName);
+    backendFormData.append('email', email);
+    backendFormData.append('phone', phone);
+    backendFormData.append('message', message);
+    backendFormData.append('resume', resume);
+
+    const backendResponse = await fetch(`${backendUrl}/api/careers/general-application`, {
+      method: 'POST',
+      body: backendFormData,
     });
+
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.json().catch(() => ({}));
+      return NextResponse.json(
+        errorData || { error: 'Backend API error' },
+        { status: backendResponse.status },
+      );
+    }
+
+    const result = await backendResponse.json();
 
     return NextResponse.json(
       {
         success: true,
         message: 'Thank you for your interest in EthixAI! We\'ll review your application and reach out if we find a good fit.',
         email,
+        ...result,
       },
       { status: 201 },
     );

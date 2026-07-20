@@ -73,9 +73,18 @@ export default function UploadDatasetModal({ datasetId, onIngested, onClose }: P
 
         <form onSubmit={handleUpload} className="space-y-3">
           <div>
-            <label className="block text-sm">File (CSV)</label>
-            <input data-autofocus data-testid="file-input" type="file" accept=".csv,text/csv" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} />
-            <div className="text-xs text-muted-foreground mt-1">Max size: 5MB</div>
+            <label htmlFor="file-upload" className="block text-sm">File (CSV)</label>
+            <input
+              id="file-upload"
+              data-autofocus
+              data-testid="file-input"
+              type="file"
+              accept=".csv,text/csv"
+              aria-describedby={error ? 'upload-file-error' : 'upload-file-help'}
+              aria-invalid={!!error}
+              onChange={e => setFile(e.target.files ? e.target.files[0] : null)}
+            />
+            <div id="upload-file-help" className="text-xs text-muted-foreground mt-1">Max size: 5MB</div>
           </div>
 
           <div>
@@ -89,7 +98,11 @@ export default function UploadDatasetModal({ datasetId, onIngested, onClose }: P
             </select>
             <div className="text-xs text-muted-foreground mt-1">Select how long to retain versions for this upload.</div>
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && (
+            <div id="upload-file-error" role="alert" className="text-sm text-destructive">
+              {error}
+            </div>
+          )}
           {status && <div className="text-sm text-muted-foreground">{status}</div>}
           {columns !== null && rowsCount !== null && (
             <div className="text-sm text-muted-foreground">Preview: {columns} columns × {rowsCount} rows</div>

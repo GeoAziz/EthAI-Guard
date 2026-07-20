@@ -7,16 +7,17 @@ global:
     cluster: 'ethixai-local'
     environment: 'development'
 
-# Alertmanager configuration (optional - requires Alertmanager service)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets:
-#             - alertmanager:9093
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
 
-# Rule files for alerts (optional)
-# rule_files:
-#   - /etc/prometheus/alerts/*.yml
+# Rule files for alerts
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+  - /etc/prometheus/alerts.yml
 
 scrape_configs:
   # Backend service metrics
@@ -61,3 +62,9 @@ scrape_configs:
   #     - targets: ['frontend:3000']
   #   scrape_interval: 30s
   #   metrics_path: '/metrics'
+
+  # Node Exporter for system metrics (disk, memory, CPU)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s

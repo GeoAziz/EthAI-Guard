@@ -16,6 +16,8 @@ export default function ExplainboardPage() {
   const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'csv' | 'excel'>('pdf');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,12 +38,61 @@ export default function ExplainboardPage() {
     }
   };
 
-  const handleExport = () => {
-    toast({
-      title: 'Export Started',
-      description: 'Your SHAP plots are being prepared for download...',
-    });
-    // TODO: Implement actual export functionality
+  const handleExport = async () => {
+    if (!analysis?._id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No analysis available to export.',
+      });
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const response = await api.post('/api/export/analysis', {
+        reportId: analysis._id,
+        exportFormat: exportFormat,
+      }, {
+        responseType: 'blob',
+      });
+
+      // Create blob and trigger download
+      const blob = new Blob([response.data], {
+        type: exportFormat === 'csv'
+          ? 'text/csv'
+          : exportFormat === 'excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/pdf'
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      const extension = exportFormat === 'excel' ? 'xlsx' : exportFormat;
+      a.download = `shap-analysis-${timestamp}.${extension}`;
+
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: 'Export Successful',
+        description: `Your analysis has been exported as ${exportFormat.toUpperCase()}.`,
+      });
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Export Failed',
+        description: err?.response?.data?.error || 'Failed to export analysis. Please try again.',
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Loading Skeleton
@@ -130,14 +181,24 @@ export default function ExplainboardPage() {
             Understand your model's predictions with SHAP analysis.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={fetchLatestAnalysis} className="flex-1 sm:flex-none">
-            <RefreshCw className="mr-2 h-4 w-4" />
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'csv' | 'excel')}
+            disabled={exporting}
+            className="h-10 px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground"
+          >
+            <option value="pdf">PDF</option>
+            <option value="excel">Excel</option>
+            <option value="csv">CSV</option>
+          </select>
+          <Button variant="outline" onClick={fetchLatestAnalysis} disabled={loading || exporting} className="flex-1 sm:flex-none">
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button onClick={handleExport} className="flex-1 sm:flex-none">
-            <Download className="mr-2 h-4 w-4" />
-            Export Plots
+          <Button onClick={handleExport} disabled={exporting || !analysis} className="flex-1 sm:flex-none">
+            <Download className={`mr-2 h-4 w-4 ${exporting ? 'animate-spin' : ''}`} />
+            {exporting ? 'Exporting...' : 'Export'}
           </Button>
         </div>
       </div>

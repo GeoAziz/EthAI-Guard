@@ -1,6 +1,7 @@
 const express = require('express');
 const ModelCard = require('../models/ModelCard');
 const auditLogger = require('../services/auditLogger');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const jwt = require('jsonwebtoken');

@@ -1,7 +1,9 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { type AxiosRequestConfig, type AxiosResponse, type CancelTokenSource } from 'axios';
 import { auth } from './firebase';
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Centralized API client with standardized error handling and auth
@@ -12,6 +14,7 @@ const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
  */
 const api = axios.create({
   baseURL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -77,6 +80,15 @@ api.interceptors.response.use(
     const originalConfig = err.config;
     const response = err.response;
 
+    // Retry on transient failures (500, 502, 503) with exponential backoff
+    if ([500, 502, 503].includes(response?.status) && !originalConfig?._retryCount) {
+      originalConfig._retryCount = (originalConfig._retryCount || 0) + 1;
+      if (originalConfig._retryCount <= 3) {
+        await sleep(Math.pow(2, originalConfig._retryCount) * 1000);
+        return api.request(originalConfig);
+      }
+    }
+
     // Handle 401 Unauthorized - Firebase token likely expired
     if (response?.status === 401 && !originalConfig?._retry) {
       originalConfig._retry = true;
@@ -107,7 +119,7 @@ api.interceptors.response.use(
           return api.request(originalConfig);
         }
       } catch (refreshErr) {
-        // Token refresh failed - sign out user
+        // Token refresh failed - sign out user and redirect to login
         processQueue(refreshErr, undefined);
         isRefreshing = false;
 
@@ -115,6 +127,11 @@ api.interceptors.response.use(
           await auth.signOut();
         } catch (e) {
           // ignore signout errors
+        }
+
+        // Redirect to login with reason if in browser
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login?reason=session_expired';
         }
 
         return Promise.reject(refreshErr);
@@ -148,3 +165,11 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export function createCancelToken() {
+  return axios.CancelToken.source();
+}
+
+export function isCancel(err: unknown): boolean {
+  return axios.isCancel(err);
+}

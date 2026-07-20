@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+const tenantScopePlugin = require('./plugins/tenantScope');
 
 const DatasetSchema = new mongoose.Schema({
   name: String,
   type: String,
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  tenantId: { type: String, index: true },
   uploadDate: { type: Date, default: Date.now },
   // versions: simple array to track uploaded dataset versions (MVP)
   versions: [
@@ -24,4 +26,6 @@ const DatasetSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = mongoose.model('Dataset', DatasetSchema);
+DatasetSchema.plugin(tenantScopePlugin);
+
+module.exports = mongoose.models?.Dataset || mongoose.model('Dataset', DatasetSchema);

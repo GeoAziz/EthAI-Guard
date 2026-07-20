@@ -74,7 +74,7 @@ function init(redisUrl) {
     return client;
   } catch (e) {
     // cannot load redis client, fallback to LRU
-    const cache = new LRU({ max: 500, ttl: 1000 * 60 * 5 });
+    const cache = _createLRU({ max: 500, ttl: 1000 * 60 * 5 });
     client = {
       async get(k) {
         return cache.get(k);

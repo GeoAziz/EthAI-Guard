@@ -1,5 +1,8 @@
 name: CI - ai_core
 
+permissions:
+  contents: read
+
 on:
   push:
     paths:

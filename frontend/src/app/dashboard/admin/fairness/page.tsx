@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { LoadingState } from '@/components/ui/loading-state';
 import RoleProtected from '@/components/auth/RoleProtected';
 import Breadcrumbs from '@/components/layout/breadcrumbs';
 import PageHeader from '@/components/layout/page-header';
@@ -56,8 +57,9 @@ export default function AdminFairnessPage() {
         <PageHeader title="Fairness thresholds" subtitle="Editable thresholds for monitored metrics" />
 
         <div className="mt-6 rounded-lg border bg-card p-4 sm:p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm table-auto">
+          <LoadingState loading={loading} onRetry={() => window.location.reload()} loadingText="Loading thresholds...">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm table-auto">
               <thead className="text-xs text-muted-foreground border-b">
                 <tr>
                   <th scope="col" className="py-2 px-2 text-left">Metric</th>
@@ -67,8 +69,7 @@ export default function AdminFairnessPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">Loading…</td></tr>}
-                {!loading && thresholds.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">No thresholds configured</td></tr>}
+                {thresholds.length === 0 && !loading && <tr><td colSpan={4} className="py-4 text-center text-sm text-muted-foreground">No thresholds configured</td></tr>}
                 {thresholds.map(t => (
                   <tr key={t.metric} className="border-b hover:bg-muted/50">
                     <td className="py-2 px-2 truncate">{t.label}</td>
@@ -121,8 +122,9 @@ export default function AdminFairnessPage() {
                   {savingMetric === t.metric ? 'Saving…' : 'Save'}
                 </Button>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </LoadingState>
         </div>
       </div>
     </RoleProtected>

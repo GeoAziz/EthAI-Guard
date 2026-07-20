@@ -1,5 +1,8 @@
 name: Linting & QA Gates
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, develop]
@@ -7,7 +10,7 @@ on:
     branches: [main, develop]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -78,11 +81,6 @@ jobs:
           npm run lint || echo "⚠️ ESLint has warnings/errors - consider fixing before merge"
         continue-on-error: true
 
-      - name: Check for missing PropTypes
-        run: |
-          echo "⚠️ PropTypes check - informational only"
-        continue-on-error: true
-
       - name: Check for TODO comments
         run: |
           if grep -rn --include="*.js" --include="*.jsx" "TODO\|FIXME\|HACK\|XXX" frontend/src/; then
@@ -122,12 +120,6 @@ jobs:
         working-directory: ./ai_core
         run: |
           flake8 . || echo "⚠️ Flake8 found issues - consider fixing"
-        continue-on-error: true
-
-      - name: Check for missing docstrings
-        working-directory: ./ai_core
-        run: |
-          echo "⚠️ Docstring check - informational only"
         continue-on-error: true
 
       - name: Check for bare exceptions

@@ -51,7 +51,7 @@ export default function FairnessPage() {
             <div className="mt-4">
               <table className="w-full text-sm table-auto">
                 <thead className="text-xs text-muted-foreground border-b">
-                  <tr><th className="py-2">Group</th><th className="py-2">Metric</th><th className="py-2">Value</th></tr>
+                  <tr><th scope="col" className="py-2">Group</th><th scope="col" className="py-2">Metric</th><th scope="col" className="py-2">Value</th></tr>
                 </thead>
                 <tbody>
                   <tr className="border-b"><td className="py-2">Male</td><td className="py-2">False positive rate</td><td className="py-2">0.07</td></tr>

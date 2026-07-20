@@ -6,8 +6,14 @@
  */
 
 const mongoose = require('mongoose');
+const tenantScopePlugin = require('./plugins/tenantScope');
 
 const auditLogSchema = new mongoose.Schema({
+  tenantId: {
+    type: String,
+    index: true,
+  },
+
   timestamp: {
     type: Date,
     required: true,
@@ -141,6 +147,7 @@ auditLogSchema.index({ event_type: 1, timestamp: -1 });
 auditLogSchema.index({ status: 1, timestamp: -1 });
 auditLogSchema.index({ compliance_status: 1, timestamp: -1 });
 auditLogSchema.index({ actor: 1, timestamp: -1 });
+auditLogSchema.index({ tenantId: 1, timestamp: -1 });
 
 // TTL index: Auto-delete after 7 years (220752000 seconds)
 auditLogSchema.index(
@@ -211,5 +218,7 @@ auditLogSchema.statics.getComplianceRate = async function (days = 30) {
   const passed = checks.filter(c => c.status === 'PASS').length;
   return passed / checks.length;
 };
+
+auditLogSchema.plugin(tenantScopePlugin);
 
 module.exports = mongoose.models?.AuditLog || mongoose.model('AuditLog', auditLogSchema);

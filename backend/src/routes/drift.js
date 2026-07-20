@@ -2,133 +2,150 @@
  * Drift Detection API Routes
  *
  * Provides REST endpoints for drift monitoring and alerting.
+ * Mounted at /v1/drift in server.js.
+ *
+ * Retraining trigger/history/performance endpoints live in routes/models.js
+ * (they share the RetrainRequest storage abstraction and admin auth guard);
+ * this file only owns drift snapshots/alerts/status.
  */
 const express = require('express');
+const mongoose = require('mongoose');
+const { ObjectId } = require('mongodb');
 const router = express.Router();
+const logger = require('../logger');
+const { authGuard, requireRole } = require('../middleware/authGuard');
 
-/**
- * GET /v1/drift/snapshots/:model_id
- * Get recent drift snapshots for a model
- */
-router.get('/snapshots/:model_id', async (req, res) => {
+const USE_IN_MEMORY = process.env.NODE_ENV === 'test' || process.env.USE_IN_MEMORY_DB === '1';
+
+// In-memory fallback stores so this router is testable without a live Mongo instance.
+const _snapshots = [];
+const _alerts = [];
+const _baselines = [];
+
+function getDb() {
+  if (USE_IN_MEMORY) {
+    return null;
+  }
+  return mongoose.connection.db;
+}
+
+router.get('/snapshots/:model_id', authGuard, async (req, res) => {
   try {
     const { model_id } = req.params;
     const { limit = 100, days = 7 } = req.query;
-
-    const { db } = req.app.locals;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-    const snapshots = await db.collection('drift_snapshots')
-      .find({
-        model_id,
-        window_end: { $gte: since },
-      })
-      .sort({ window_end: -1 })
-      .limit(parseInt(limit))
-      .toArray();
+    let snapshots;
+    if (USE_IN_MEMORY) {
+      snapshots = _snapshots
+        .filter(s => s.model_id === model_id && s.window_end >= since)
+        .sort((a, b) => (a.window_end < b.window_end ? 1 : -1))
+        .slice(0, parseInt(limit, 10));
+    } else {
+      snapshots = await getDb().collection('drift_snapshots')
+        .find({ model_id, window_end: { $gte: since } })
+        .sort({ window_end: -1 })
+        .limit(parseInt(limit, 10))
+        .toArray();
+    }
 
-    res.json({
-      model_id,
-      count: snapshots.length,
-      snapshots,
-    });
+    res.json({ model_id, count: snapshots.length, snapshots });
   } catch (error) {
-    logger.error('Error fetching drift snapshots:', error);
+    logger.error({ err: error }, 'drift_snapshots_fetch_failed');
     res.status(500).json({ error: 'Failed to fetch drift snapshots' });
   }
 });
 
-/**
- * GET /v1/drift/alerts/:model_id
- * Get alerts for a model
- */
-router.get('/alerts/:model_id', async (req, res) => {
+router.get('/alerts/:model_id', authGuard, async (req, res) => {
   try {
     const { model_id } = req.params;
     const { severity, resolved = 'false', limit = 100 } = req.query;
+    const resolvedBool = resolved === 'true';
 
-    const { db } = req.app.locals;
-    const query = { model_id, resolved: resolved === 'true' };
-
-    if (severity) {
-      query.severity = severity;
+    let alerts;
+    if (USE_IN_MEMORY) {
+      alerts = _alerts
+        .filter(a => a.model_id === model_id && a.resolved === resolvedBool && (!severity || a.severity === severity))
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .slice(0, parseInt(limit, 10));
+    } else {
+      const query = { model_id, resolved: resolvedBool };
+      if (severity) {
+        query.severity = severity;
+      }
+      alerts = await getDb().collection('drift_alerts')
+        .find(query)
+        .sort({ created_at: -1 })
+        .limit(parseInt(limit, 10))
+        .toArray();
     }
 
-    const alerts = await db.collection('drift_alerts')
-      .find(query)
-      .sort({ created_at: -1 })
-      .limit(parseInt(limit))
-      .toArray();
-
-    res.json({
-      model_id,
-      count: alerts.length,
-      alerts,
-    });
+    res.json({ model_id, count: alerts.length, alerts });
   } catch (error) {
-    logger.error('Error fetching drift alerts:', error);
+    logger.error({ err: error }, 'drift_alerts_fetch_failed');
     res.status(500).json({ error: 'Failed to fetch drift alerts' });
   }
 });
 
-/**
- * POST /v1/drift/alerts/:alert_id/resolve
- * Resolve an alert
- */
-router.post('/alerts/:alert_id/resolve', async (req, res) => {
+router.post('/alerts/:alert_id/resolve', authGuard, requireRole('admin'), async (req, res) => {
   try {
     const { alert_id } = req.params;
     const { resolution_note } = req.body;
+    const update = {
+      resolved: true,
+      resolved_at: new Date().toISOString(),
+      resolution_note,
+      updated_at: new Date().toISOString(),
+    };
 
-    const { db } = req.app.locals;
-    const { ObjectId } = require('mongodb');
-
-    const result = await db.collection('drift_alerts').updateOne(
-      { _id: new ObjectId(alert_id) },
-      {
-        $set: {
-          resolved: true,
-          resolved_at: new Date().toISOString(),
-          resolution_note,
-          updated_at: new Date().toISOString(),
-        },
-      },
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Alert not found' });
+    if (USE_IN_MEMORY) {
+      const alert = _alerts.find(a => String(a._id) === String(alert_id));
+      if (!alert) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
+      Object.assign(alert, update);
+    } else {
+      const result = await getDb().collection('drift_alerts').updateOne(
+        { _id: new ObjectId(alert_id) },
+        { $set: update },
+      );
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
     }
 
     res.json({ success: true, message: 'Alert resolved' });
   } catch (error) {
-    logger.error('Error resolving alert:', error);
+    logger.error({ err: error }, 'drift_alert_resolve_failed');
     res.status(500).json({ error: 'Failed to resolve alert' });
   }
 });
 
-/**
- * GET /v1/drift/status/:model_id
- * Get current drift status for a model
- */
-router.get('/status/:model_id', async (req, res) => {
+router.get('/status/:model_id', authGuard, async (req, res) => {
   try {
     const { model_id } = req.params;
-    const { db } = req.app.locals;
 
-    // Get latest snapshot
-    const latestSnapshot = await db.collection('drift_snapshots')
-      .findOne({ model_id }, { sort: { window_end: -1 } });
-
-    // Get active alerts
-    const activeAlerts = await db.collection('drift_alerts')
-      .find({ model_id, resolved: false })
-      .sort({ severity: -1, created_at: -1 })
-      .limit(10)
-      .toArray();
-
-    // Get baseline info
-    const baseline = await db.collection('drift_baselines')
-      .findOne({ model_id });
+    let latestSnapshot, activeAlerts, baseline;
+    if (USE_IN_MEMORY) {
+      latestSnapshot = _snapshots
+        .filter(s => s.model_id === model_id)
+        .sort((a, b) => (a.window_end < b.window_end ? 1 : -1))[0] || null;
+      activeAlerts = _alerts
+        .filter(a => a.model_id === model_id && !a.resolved)
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .slice(0, 10);
+      baseline = _baselines.find(b => b.model_id === model_id) || null;
+    } else {
+      const db = getDb();
+      latestSnapshot = await db.collection('drift_snapshots')
+        .findOne({ model_id }, { sort: { window_end: -1 } });
+      activeAlerts = await db.collection('drift_alerts')
+        .find({ model_id, resolved: false })
+        .sort({ severity: -1, created_at: -1 })
+        .limit(10)
+        .toArray();
+      baseline = await db.collection('drift_baselines').findOne({ model_id });
+    }
 
     res.json({
       model_id,
@@ -143,43 +160,8 @@ router.get('/status/:model_id', async (req, res) => {
         : null,
     });
   } catch (error) {
-    logger.error('Error fetching drift status:', error);
+    logger.error({ err: error }, 'drift_status_fetch_failed');
     res.status(500).json({ error: 'Failed to fetch drift status' });
-  }
-});
-
-/**
- * POST /v1/models/:model_id/trigger-retrain
- * Trigger model retraining request
- */
-router.post('/models/:model_id/trigger-retrain', async (req, res) => {
-  try {
-    const { model_id } = req.params;
-    const { reason, requested_by } = req.body;
-
-    const { db } = req.app.locals;
-
-    // Create retrain request
-    const retrainRequest = {
-      model_id,
-      reason,
-      requested_by,
-      requested_at: new Date().toISOString(),
-      status: 'pending',
-    };
-
-    await db.collection('retrain_requests').insertOne(retrainRequest);
-
-    // TODO: Trigger retraining pipeline (GitHub Actions workflow dispatch)
-
-    res.json({
-      success: true,
-      message: 'Retraining request submitted',
-      request: retrainRequest,
-    });
-  } catch (error) {
-    logger.error('Error triggering retrain:', error);
-    res.status(500).json({ error: 'Failed to trigger retrain' });
   }
 });
 

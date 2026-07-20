@@ -9,6 +9,7 @@ import CreateDatasetModal from '@/components/datasets/CreateDatasetModal';
 import UploadDatasetModal from '@/components/datasets/UploadDatasetModal';
 import { Upload, Plus, Sheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingState, EmptyState } from '@/components/ui/loading-state';
 
 type Dataset = {
   datasetId: string;
@@ -58,33 +59,30 @@ export default function AnalystDatasetsPage() {
           </div>
 
           <div className="mt-4">
-            {loading ? (
-              <div className="text-center py-6 text-gray-500">Loading datasets…</div>
-            ) : error ? (
-              <div className="text-center py-6 text-red-600">{error}</div>
-            ) : datasets.length === 0 ? (
-              <div className="p-8 text-center">
-                <Sheet className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
-                <h3 className="font-semibold text-lg mb-2">No datasets yet</h3>
-                <p className="text-sm text-muted-foreground mb-6">Create a dataset and upload data to start running analyses with custom data.</p>
-                <Button onClick={() => setShowCreate(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create dataset
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm table-auto">
-                  <thead className="text-xs text-muted-foreground border-b bg-muted/30">
-                    <tr>
-                      <th className="py-3 px-3 font-medium">Name</th>
-                      <th className="py-3 px-3 font-medium hidden sm:table-cell">Version</th>
-                      <th className="py-3 px-3 font-medium hidden md:table-cell">Uploaded By</th>
-                      <th className="py-3 px-3 font-medium hidden lg:table-cell">Size</th>
-                      <th className="py-3 px-3 font-medium">Sensitivity</th>
-                      <th className="text-right py-3 px-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
+            <LoadingState loading={loading} error={error} onRetry={loadDatasets} loadingText="Loading datasets...">
+              {datasets.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Sheet className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg mb-2">No datasets yet</h3>
+                  <p className="text-sm text-muted-foreground mb-6">Create a dataset and upload data to start running analyses with custom data.</p>
+                  <Button onClick={() => setShowCreate(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create dataset
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm table-auto">
+                    <thead className="text-xs text-muted-foreground border-b bg-muted/30">
+                      <tr>
+                        <th scope="col" className="py-3 px-3 font-medium">Name</th>
+                        <th scope="col" className="py-3 px-3 font-medium hidden sm:table-cell">Version</th>
+                        <th scope="col" className="py-3 px-3 font-medium hidden md:table-cell">Uploaded By</th>
+                        <th scope="col" className="py-3 px-3 font-medium hidden lg:table-cell">Size</th>
+                        <th scope="col" className="py-3 px-3 font-medium">Sensitivity</th>
+                        <th scope="col" className="text-right py-3 px-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
                   <tbody>
                     {datasets.map((ds) => (
                       <DatasetRow key={ds.datasetId} dataset={ds} onUpload={() => setShowUploadFor(ds.datasetId)} />
@@ -92,7 +90,8 @@ export default function AnalystDatasetsPage() {
                   </tbody>
                 </table>
               </div>
-            )}
+              )}
+            </LoadingState>
           </div>
         </div>
 
